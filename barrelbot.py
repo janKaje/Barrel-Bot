@@ -6,7 +6,7 @@ import math
 from datetime import datetime as dt
 import json
 import re
-import random
+import random as rand
 
 
 # Command prefix function
@@ -165,15 +165,85 @@ async def rate(ctx, *, item):
     if item in customratings.keys():
         await ctx.send(f"I'd give {item} a {customratings[item]}/10")
         return
-    r = random.getstate()
-    random.seed(item)
-    rate_value = random.randint(0, 10)
-    random.setstate(r)
+    r = rand.getstate()
+    rand.seed(item)
+    rate_value = rand.randint(0, 10)
+    rand.setstate(r)
     await ctx.send(f"I'd give {item} a {rate_value}/10")
 
 @bot.command()
 async def github(ctx):
     """Provides a link to my github page."""
     await ctx.send("https://github.com/janKaje/Barrel-Bot")
+
+@bot.command()
+async def eightball(ctx):
+    """Roll me and I'll decide your fate."""
+    responses = ["It is certain.",
+            "It is decidedly so.",
+            "Without a doubt.",
+            "Yes - definitely.",
+            "You may rely on it.",
+            "As I see it, yes.",
+            "Most likely.",
+            "Outlook good.",
+            "Yes.",
+            "Signs point to yes.",
+            "Reply hazy, try again.",
+            "Ask again later.",
+            "Better not tell you now.",
+            "Cannot predict now.",
+            "Concentrate and ask again.",
+            "Don't count on it.",
+            "My reply is no.",
+            "My sources say no.",
+            "Outlook not so good.",
+            "Very doubtful."]
+    await ctx.send(rand.choice(responses))
+
+@bot.command()
+@commands.cooldown(1,3, commands.BucketType.user)
+async def random(ctx):
+    value = ''
+    choices = [True]
+    while True:
+        if rand.choice(choices):
+            value += str(rand.randint(0, 9))
+            choices.append(False)
+        else:
+            value = int(value)
+            break
+    await ctx.send(value)
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send('You\'re missing a required argument: '+str(error.param))
+    elif isinstance(error, commands.TooManyArguments):
+        await ctx.send('You input too many arguments.')
+    elif isinstance(error, commands.CommandNotFound):
+        pass
+    elif isinstance(error, commands.NotOwner):
+        await ctx.send('You have to be the owner to excute this command.')
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send("You don't have the right permissions to execute that command.")
+    elif isinstance(error, commands.BotMissingPermissions):
+        try:
+            await ctx.send('The bot is missing the required permissions to invoke this command: '+str(error.missing_perms))
+        except commands.CommandInvokeError:
+            await ctx.author.send("An error occurred and I wasn't able to handle it normally. I can't send messages to the channel you entered that command in. Other permissions I'm missing are "+str(error.missing_perms))
+    elif isinstance(error, commands.ExtensionError):
+        await ctx.send(f'The extension {str(error.name)} raised an exception.')
+    elif isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f'That command is on cooldown. Try again in {math.ceil(error.retry_after)} second(s).')
+    else:
+        await ctx.send(f'An unknown error occurred:\n{error}')
+
+@bot.command()
+@commands.is_owner()
+async def omoli(ctx):
+    """Kills the bot. You must be the bot owner to activate this command."""
+    await ctx.send("Ok bye bye")
+    quit()
 
 bot.run(TOKEN)
