@@ -6,6 +6,15 @@ import math
 from datetime import datetime as dt
 import json
 import re
+import random
+
+
+# Command prefix function
+def isCommand(bot:commands.Bot, message:discord.Message) -> bool:
+    m = re.match("(hey |hello |hi )?barrel ?bot[,!.]? +", message.content, flags=re.I)
+    if m == None:
+        return "Barrelbot, "
+    return m.group(0)
 
 # Initialize
 Intents = discord.Intents.default()
@@ -14,7 +23,7 @@ Intents.members = True
 Intents.guild_messages = True
 Intents.message_content = True
 
-bot = commands.Bot(command_prefix="barrelbot, ", intents=Intents)
+bot = commands.Bot(command_prefix=isCommand, intents=Intents)
 dir_path = os.path.dirname(os.path.abspath(__file__))
 
 with open("token.txt") as file:
@@ -31,6 +40,9 @@ with open("barrelspamdata.json") as file:
 
 with open("barrelspamteamdata.json") as file:
     barrelspamteamdata = json.load(file)
+
+with open("customratings.json") as file:
+    customratings = json.load(file)
 
 
 # Math functions
@@ -104,13 +116,14 @@ async def on_ready():
 
 @bot.command()
 async def ping(ctx):
+    """Pong!"""
     await ctx.send(f'Pong! {round(bot.latency * 1000)}ms')
 
 @bot.event
 async def on_message(message:discord.Message):
     if message.author.bot:
         return
-    if message.channel.id == channel_data["barrelcult_barrelspam"] or message.channel.id == channel_data["testingchannel"]:
+    if message.channel.id == channel_data["barrelcult_barrelspam"]:
         isspam, spamint = checkValidBarrelSpam(message)
         if isspam:
             if message.author.id not in barrelspamdata.keys():
@@ -133,6 +146,7 @@ async def on_message(message:discord.Message):
 
 @bot.command()
 async def get_spam_scores(ctx):
+    """Fetch barrel spam scores"""
     outstr = await prettyify_dict(barrelspamdata)
     if outstr == "":
         await ctx.send("No data to send!")
@@ -141,7 +155,25 @@ async def get_spam_scores(ctx):
 
 @bot.command()
 async def save_spam_scores(ctx):
+    """Manually save barrel spam scores to file."""
     save_to_json(barrelspamdata, "barrelspamdata.json")
     await ctx.send("Done.")
+
+@bot.command()
+async def rate(ctx, *, item):
+    """I'll rate whatever you tell me to."""
+    if item in customratings.keys():
+        await ctx.send(f"I'd give {item} a {customratings[item]}/10")
+        return
+    r = random.getstate()
+    random.seed(item)
+    rate_value = random.randint(0, 10)
+    random.setstate(r)
+    await ctx.send(f"I'd give {item} a {rate_value}/10")
+
+@bot.command()
+async def github(ctx):
+    """Provides a link to my github page."""
+    await ctx.send("https://github.com/janKaje/Barrel-Bot")
 
 bot.run(TOKEN)
