@@ -50,6 +50,7 @@ with open("customratings.json") as file:
 with open("randomnumberscores.json") as file:
     randomnumberscores = json.load(file)
 
+timer = time.time()
 
 # Math functions
 
@@ -130,28 +131,45 @@ async def ping(ctx):
 
 @bot.event
 async def on_message(message:discord.Message):
+    # don't interact with bots
     if message.author.bot:
         return
+    
+    # barrel spam score logging
     if message.channel.id == channel_data["barrelcult_barrelspam"]:
         isspam, spamint = checkValidBarrelSpam(message)
         if isspam:
-            if message.author.id not in barrelspamdata.keys():
-                barrelspamdata[message.author.id] = 0
+            authorid = str(message.author.id)
+            if authorid not in barrelspamdata.keys():
+                barrelspamdata[authorid] = 0
             isfib = isFibonacci(spamint)
             ispr = isPrime(spamint)
             if isfib:
-                barrelspamdata[message.author.id] += getFibScore(spamint)
+                barrelspamdata[authorid] += getFibScore(spamint)
             if isMersenne(spamint):
-                barrelspamdata[message.author.id] += getMersenneScore(spamint)
+                barrelspamdata[authorid] += getMersenneScore(spamint)
             elif ispr:
-                barrelspamdata[message.author.id] += getPrimeScore(spamint)
+                barrelspamdata[authorid] += getPrimeScore(spamint)
             if (not isfib) and (not ispr):
-                barrelspamdata[message.author.id] += 1
+                barrelspamdata[authorid] += 1
             
         else:
             pass # add what to do at end of run later
-    
+
+    # auto react
+    m = re.search("<:barrel:1296987889942397001>", message.content)
+    if m is not None:
+        await message.add_reaction("<:barrel:1296987889942397001>")
+
+    # process commands
     await bot.process_commands(message)
+
+    global timer
+    if time.time() - timer > 43200:
+        save_to_json(randomnumberscores, "randomnumberscores.json")
+        save_to_json(barrelspamdata, "barrelspamdata.json")
+        save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
+        timer = time.time()
 
 @bot.command()
 async def get_spam_scores(ctx):
@@ -216,8 +234,9 @@ async def random(ctx):
     """Gives a random number. Keeps track of high scores"""
     value = getRandInt()
     embed = discord.Embed(color=discord.Color.brand_green(), )
-    if ctx.author.id not in randomnumberscores.keys():
-        randomnumberscores[ctx.author.id] = value
+    authorid = str(ctx.author.id)
+    if authorid not in randomnumberscores.keys():
+        randomnumberscores[authorid] = value
         embed.title = "Congrats!"; embed.description= f"You got your first random number: {value}"
         if value > randomnumberscores["overall"][0]:
             olduser = await bot.fetch_user(randomnumberscores["overall"][1])
@@ -225,7 +244,7 @@ async def random(ctx):
             randomnumberscores["overall"] = [value, ctx.author.id]
         else:
             embed.add_field(name='New high score:', value=str(value))
-    elif value > randomnumberscores[ctx.author.id]:
+    elif value > randomnumberscores[authorid]:
         if value > randomnumberscores["overall"][0]:
             embed.title = "Congrats!"; embed.description = "You beat the high score!"
             olduser = await bot.fetch_user(randomnumberscores["overall"][1])
@@ -234,16 +253,17 @@ async def random(ctx):
             randomnumberscores["overall"] = [value, ctx.author.id]
         else:
             embed.title = "Congrats!"; embed.description= "You beat your personal best!"
-            embed.add_field(name="Old high score:", value=str(randomnumberscores[ctx.author.id]))
+            embed.add_field(name="Old high score:", value=str(randomnumberscores[authorid]))
             embed.add_field(name='New high score:', value=str(value))
-        randomnumberscores[ctx.author.id] = value
+        randomnumberscores[authorid] = value
     else:
         embed.title="You did not beat the high score."
         embed.description = str(value)
         embed.color=discord.Color.darker_gray()
         olduser = await bot.fetch_user(randomnumberscores["overall"][1])
         embed.add_field(name="Current high score:", value=f"{olduser.display_name} got {randomnumberscores['overall'][0]}")
-        embed.add_field(name="Current personal best:", value=str(randomnumberscores[ctx.author.id]))
+        embed.add_field(name="Current personal best:", value=str(randomnumberscores[authorid]))
+    embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
     await ctx.send(embed=embed)
 
 @bot.event
@@ -274,12 +294,27 @@ async def on_command_error(ctx, error):
 @commands.is_owner()
 async def omoli(ctx):
     """Kills the bot. You must be the bot owner to activate this command."""
+    save_to_json(randomnumberscores, "randomnumberscores.json")
+    save_to_json(barrelspamdata, "barrelspamdata.json")
+    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
     await ctx.send("Ok bye bye")
     quit()
 
 @bot.command()
 @commands.is_owner()
 async def randomscores(ctx):
-    await ctx.send(str(randomnumberscores))
+    await ctx.send(json.dumps(randomnumberscores))
+
+@bot.event
+async def on_disconnect():
+    save_to_json(randomnumberscores, "randomnumberscores.json")
+    save_to_json(barrelspamdata, "barrelspamdata.json")
+    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
+
+@bot.event
+async def on_shard_disconnect(shard_id):
+    save_to_json(randomnumberscores, "randomnumberscores.json")
+    save_to_json(barrelspamdata, "barrelspamdata.json")
+    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
 
 bot.run(TOKEN)
