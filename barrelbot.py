@@ -7,10 +7,13 @@ from datetime import datetime as dt
 import json
 import re
 import random as rand
+from numpy.random import default_rng
 
 
 # Command prefix function
 def isCommand(bot:commands.Bot, message:discord.Message) -> bool:
+    if re.match("bb ", message.content) is not None:
+        return "bb "
     m = re.match("(hey |hello |hi )?barrel ?bot[,!.]? +", message.content, flags=re.I)
     if m == None:
         return "Barrelbot, "
@@ -43,6 +46,9 @@ with open("barrelspamteamdata.json") as file:
 
 with open("customratings.json") as file:
     customratings = json.load(file)
+
+with open("randomnumberscores.json") as file:
+    randomnumberscores = json.load(file)
 
 
 # Math functions
@@ -86,6 +92,9 @@ def getFibScore(n:int) -> int:
 
 def getMersenneScore(n:int) -> int:
     return math.ceil(n/1.5)
+
+def getRandInt() -> int:
+    return math.ceil(default_rng().exponential(40))
 
 
 # Command helper functions
@@ -201,19 +210,41 @@ async def eightball(ctx):
             "Very doubtful."]
     await ctx.send(rand.choice(responses))
 
-@bot.command()
+@bot.command(aliases=["rand, r"])
 @commands.cooldown(1,3, commands.BucketType.user)
 async def random(ctx):
-    value = ''
-    choices = [True]
-    while True:
-        if rand.choice(choices):
-            value += str(rand.randint(0, 9))
-            choices.append(False)
+    """Gives a random number. Keeps track of high scores"""
+    value = getRandInt()
+    embed = discord.Embed(color=discord.Color.brand_green(), )
+    if ctx.author.id not in randomnumberscores.keys():
+        randomnumberscores[ctx.author.id] = value
+        embed.title = "Congrats!"; embed.description= f"You got your first random number: {value}"
+        if value > randomnumberscores["overall"][0]:
+            olduser = await bot.fetch_user(randomnumberscores["overall"][1])
+            embed.add_field(name="You also beat the high score!", value=f"Old high score: {olduser.display_name} got {randomnumberscores['overall'][0]}")
+            randomnumberscores["overall"] = [value, ctx.author.id]
         else:
-            value = int(value)
-            break
-    await ctx.send(value)
+            embed.add_field(name='New high score:', value=str(value))
+    elif value > randomnumberscores[ctx.author.id]:
+        if value > randomnumberscores["overall"][0]:
+            embed.title = "Congrats!"; embed.description = "You beat the high score!"
+            olduser = await bot.fetch_user(randomnumberscores["overall"][1])
+            embed.add_field(name="Old high score:", value=f"{olduser.display_name} got {randomnumberscores['overall'][0]}")
+            embed.add_field(name='New high score:', value=f'{ctx.author.display_name} got {value}')
+            randomnumberscores["overall"] = [value, ctx.author.id]
+        else:
+            embed.title = "Congrats!"; embed.description= "You beat your personal best!"
+            embed.add_field(name="Old high score:", value=str(randomnumberscores[ctx.author.id]))
+            embed.add_field(name='New high score:', value=str(value))
+        randomnumberscores[ctx.author.id] = value
+    else:
+        embed.title="You did not beat the high score."
+        embed.description = str(value)
+        embed.color=discord.Color.darker_gray()
+        olduser = await bot.fetch_user(randomnumberscores["overall"][1])
+        embed.add_field(name="Current high score:", value=f"{olduser.display_name} got {randomnumberscores['overall'][0]}")
+        embed.add_field(name="Current personal best:", value=str(randomnumberscores[ctx.author.id]))
+    await ctx.send(embed=embed)
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -245,5 +276,10 @@ async def omoli(ctx):
     """Kills the bot. You must be the bot owner to activate this command."""
     await ctx.send("Ok bye bye")
     quit()
+
+@bot.command()
+@commands.is_owner()
+async def randomscores(ctx):
+    await ctx.send(str(randomnumberscores))
 
 bot.run(TOKEN)
