@@ -109,25 +109,26 @@ def checkValidBarrelSpam(msg:discord.Message):
     return True, int(m.group(1))
 
 async def prettyify_dict(data:dict) -> str:
-    asArray = [[await bot.fetch_user(i),j] for i,j in data.items()]
-    asListStrs = [f"{l[0].display_name} has a score of {l[1]}" for l in asArray]
-    return "\n".join(asListStrs)
+    asArray = []
+    for i,j in data.items():
+        try:
+            usr = await bot.fetch_user(i)
+            asArray.append(f"{usr.display_name} has a score of {j}")
+        except:
+            usr = await bot.fetch_user(j[1])
+            asArray.append(f"The overall score is {j[0]}, held by {usr.display_name}")
+    return "\n".join(asArray)
 
 def save_to_json(data, filename:str) -> None:
     with open(filename, "w") as file:
         json.dump(data, file)
 
 
-# Bot functions
+# Bot events
 
 @bot.event
 async def on_ready():
     await bot.change_presence(activity=discord.Game('My name is barrelbot!'))
-
-@bot.command()
-async def ping(ctx):
-    """Pong!"""
-    await ctx.send(f'Pong! {round(bot.latency * 1000)}ms')
 
 @bot.event
 async def on_message(message:discord.Message):
@@ -171,26 +172,116 @@ async def on_message(message:discord.Message):
         save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
         timer = time.time()
 
-@bot.command()
-async def get_spam_scores(ctx):
-    """Fetch barrel spam scores"""
-    outstr = await prettyify_dict(barrelspamdata)
-    if outstr == "":
-        await ctx.send("No data to send!")
-        return
-    await ctx.send(outstr)
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send('You\'re missing a required argument: '+str(error.param))
+    elif isinstance(error, commands.TooManyArguments):
+        await ctx.send('You input too many arguments.')
+    elif isinstance(error, commands.CommandNotFound):
+        pass
+    elif isinstance(error, commands.NotOwner):
+        await ctx.send('You have to be the owner to excute this command.')
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send("You don't have the right permissions to execute that command.")
+    elif isinstance(error, commands.BotMissingPermissions):
+        try:
+            await ctx.send('The bot is missing the required permissions to invoke this command: '+str(error.missing_perms))
+        except commands.CommandInvokeError:
+            await ctx.author.send("An error occurred and I wasn't able to handle it normally. I can't send messages to the channel you entered that command in. Other permissions I'm missing are "+str(error.missing_perms))
+    elif isinstance(error, commands.ExtensionError):
+        await ctx.send(f'The extension {str(error.name)} raised an exception.')
+    elif isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f'That command is on cooldown. Try again in {math.ceil(error.retry_after)} second(s).')
+    else:
+        await ctx.send(f'An unknown error occurred:\n{error}')
+
+@bot.event
+async def on_disconnect():
+    save_to_json(randomnumberscores, "randomnumberscores.json")
+    save_to_json(barrelspamdata, "barrelspamdata.json")
+    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
+
+@bot.event
+async def on_shard_disconnect(shard_id):
+    save_to_json(randomnumberscores, "randomnumberscores.json")
+    save_to_json(barrelspamdata, "barrelspamdata.json")
+    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
+
+# Bot commands
 
 @bot.command()
-async def save_spam_scores(ctx):
-    """Manually save barrel spam scores to file."""
+async def ping(ctx):
+    """Pong!"""
+    await ctx.send(f'Pong! {round(bot.latency * 1000)}ms')
+
+@bot.command()
+@commands.is_owner()
+async def fetch(ctx, *, arg):
+    """Fetch things"""
+    if re.match("barrel spam scores", arg) is not None:
+        async with ctx.typing():
+            outstr = await prettyify_dict(barrelspamdata)
+        if outstr == "":
+            await ctx.send("No data to send!")
+            return
+        await ctx.send(outstr)
+    elif re.match("random number scores", arg) is not None:
+        async with ctx.typing():
+            outstr = await prettyify_dict(randomnumberscores)
+        if outstr == "":
+            await ctx.send("No data to send!")
+            return
+        await ctx.send(outstr)
+    elif re.match("raw barrel spam scores", arg) is not None:
+        await ctx.send(json.dumps(barrelspamdata))
+    elif re.match("raw random number scores", arg) is not None:
+        await ctx.send(json.dumps(randomnumberscores))
+
+
+@bot.command()
+@commands.is_owner()
+async def save_data(ctx):
+    """Manually save all data to file."""
+    save_to_json(randomnumberscores, "randomnumberscores.json")
     save_to_json(barrelspamdata, "barrelspamdata.json")
+    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
     await ctx.send("Done.")
+
+@bot.command()
+async def introduce(ctx, *, arg):
+    if re.match("yourself", arg) is not None:
+        async with ctx.typing():
+            time.sleep(1)
+            await ctx.send("Hi! I'm BarrelBot. Nice to meet you!")
+        async with ctx.typing():
+            time.sleep(1.2)
+            await ctx.send("I can do lots of things for you. If you want to see everything you can ask me, type \"Hey BarrelBot, help\".")
+        async with ctx.typing():
+            time.sleep(1.8)
+            await ctx.send("I'll understand you if you say hey, hi, or hello before my name! And feel free to use capital letters or not. It doesn't really matter to me :slight_smile:")
+        async with ctx.typing():
+            time.sleep(2.1)
+            await ctx.send("I'm here to help the <:barrel:1296987889942397001> cult in their spiritual journey towards the Almighty <:barrel:1296987889942397001>, "+\
+                           "so I try to help out around here where I can.")
+        async with ctx.typing():
+            time.sleep(1.7)
+            await ctx.send("I'm starting to learn how <#1297028406504067142> works, and soon I'll be able to help everyone spam well!")
+        async with ctx.typing():
+            time.sleep(1.2)
+            await ctx.send("That's all for now! May the <:barrel:1296987889942397001> be with you :smile:")
+        return
+    else:
+        await ctx.send(f"I don't know enough about {arg} to introduce him/her/them/it properly. You'll have to ask someone who knows more, sorry!")
 
 @bot.command()
 async def rate(ctx, *, item):
     """I'll rate whatever you tell me to."""
-    if item in customratings.keys():
-        await ctx.send(f"I'd give {item} a {customratings[item]}/10")
+    if item.lower() in customratings.keys():
+        await ctx.send(f"I'd give {item} a {customratings[item.lower()]}/10")
+        return
+    if re.match("<@\d+>", item) is not None:
+        await ctx.send(f"I'd give {item} a 10/10 :3")
         return
     r = rand.getstate()
     rand.seed(item)
@@ -266,30 +357,6 @@ async def random(ctx):
     embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
     await ctx.send(embed=embed)
 
-@bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send('You\'re missing a required argument: '+str(error.param))
-    elif isinstance(error, commands.TooManyArguments):
-        await ctx.send('You input too many arguments.')
-    elif isinstance(error, commands.CommandNotFound):
-        pass
-    elif isinstance(error, commands.NotOwner):
-        await ctx.send('You have to be the owner to excute this command.')
-    elif isinstance(error, commands.MissingPermissions):
-        await ctx.send("You don't have the right permissions to execute that command.")
-    elif isinstance(error, commands.BotMissingPermissions):
-        try:
-            await ctx.send('The bot is missing the required permissions to invoke this command: '+str(error.missing_perms))
-        except commands.CommandInvokeError:
-            await ctx.author.send("An error occurred and I wasn't able to handle it normally. I can't send messages to the channel you entered that command in. Other permissions I'm missing are "+str(error.missing_perms))
-    elif isinstance(error, commands.ExtensionError):
-        await ctx.send(f'The extension {str(error.name)} raised an exception.')
-    elif isinstance(error, commands.CommandOnCooldown):
-        await ctx.send(f'That command is on cooldown. Try again in {math.ceil(error.retry_after)} second(s).')
-    else:
-        await ctx.send(f'An unknown error occurred:\n{error}')
-
 @bot.command()
 @commands.is_owner()
 async def omoli(ctx):
@@ -299,22 +366,5 @@ async def omoli(ctx):
     save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
     await ctx.send("Ok bye bye")
     quit()
-
-@bot.command()
-@commands.is_owner()
-async def randomscores(ctx):
-    await ctx.send(json.dumps(randomnumberscores))
-
-@bot.event
-async def on_disconnect():
-    save_to_json(randomnumberscores, "randomnumberscores.json")
-    save_to_json(barrelspamdata, "barrelspamdata.json")
-    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
-
-@bot.event
-async def on_shard_disconnect(shard_id):
-    save_to_json(randomnumberscores, "randomnumberscores.json")
-    save_to_json(barrelspamdata, "barrelspamdata.json")
-    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
 
 bot.run(TOKEN)
