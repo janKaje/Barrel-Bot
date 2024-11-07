@@ -12,8 +12,8 @@ from numpy.random import default_rng
 
 # Command prefix function
 def isCommand(bot:commands.Bot, message:discord.Message) -> bool:
-    if re.match("bb ", message.content) is not None:
-        return "bb "
+    if re.match("bb,? ", message.content) is not None:
+        return m.group(0)
     m = re.match("(hey |hello |hi )?barrel ?bot[,!.]? +", message.content, flags=re.I)
     if m == None:
         return "Barrelbot, "
@@ -27,13 +27,22 @@ Intents.guild_messages = True
 Intents.message_content = True
 
 bot = commands.Bot(command_prefix=isCommand, intents=Intents)
+
 dir_path = os.path.dirname(os.path.abspath(__file__))
+timer = time.time()
+next_barrelspam = None
+spam_threshold = 10
+
+DECIMALROLEID = 1303766261574008943
+BINARYROLEID = 1303766864391831644
+
+BARRELCULTSPAMCHANNELID = 1297028406504067142
+
+TESTROLEID = 735637859872276501
+TESTCHANNELID = 733508209288937544
 
 with open("token.txt") as file:
     TOKEN = file.read()
-
-with open("channels.json") as file:
-    channel_data = json.load(file)
 
 with open("barrelemojis.json") as file:
     barrel_emojis = json.load(file)
@@ -44,13 +53,14 @@ with open("barrelspamdata.json") as file:
 with open("barrelspamteamdata.json") as file:
     barrelspamteamdata = json.load(file)
 
+with open("barrelspamtempdata.json") as file:
+    barrelspamtempdata = json.load(file)
+
 with open("customratings.json") as file:
     customratings = json.load(file)
 
 with open("randomnumberscores.json") as file:
     randomnumberscores = json.load(file)
-
-timer = time.time()
 
 # Math functions
 
@@ -85,6 +95,17 @@ def isMersenne(n:int) -> bool:
         return False
     return all([b == '1' for b in bin(n)[2:]])
 
+def isPalindrome(inputstr:str) -> bool:
+    if len(inputstr) <= 1:
+        return False
+    return inputstr == inputstr[::-1]
+
+def isBinPali(inputint:int) -> bool:
+    return isPalindrome(bin(inputint)[2:])
+
+def isDecPali(inputint:int) -> bool:
+    return isPalindrome(str(inputint))
+
 def getPrimeScore(n:int) -> int:
     return math.ceil(n/3)
 
@@ -93,6 +114,9 @@ def getFibScore(n:int) -> int:
 
 def getMersenneScore(n:int) -> int:
     return math.ceil(n/1.5)
+
+def getPaliScore(n:int) -> int:
+    return math.ceil(n/2)
 
 def getRandInt() -> int:
     return math.ceil(default_rng().exponential(40))
@@ -105,8 +129,22 @@ def checkValidBarrelSpam(msg:discord.Message):
     if m == None:
         return False, 0
     if m.group(2) not in barrel_emojis:
-        return False, 0
-    return True, int(m.group(1))
+        return False, 0    
+    global next_barrelspam
+    if (int(m.group(1)) == next_barrelspam) or (next_barrelspam == None):
+        return True, int(m.group(1))
+    try:
+        if (int(m.group(1), base=2) == next_barrelspam):
+            return True, int(m.group(1), base=2)
+    except:
+        pass
+    return False, int(m.group(1))
+
+def savealldata():
+    save_to_json(randomnumberscores, "randomnumberscores.json")
+    save_to_json(barrelspamdata, "barrelspamdata.json")
+    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
+    save_to_json(barrelspamtempdata, "barrelspamtempdata.json")
 
 async def prettyify_dict(data:dict) -> str:
     asArray = []
@@ -123,6 +161,144 @@ def save_to_json(data, filename:str) -> None:
     with open(filename, "w") as file:
         json.dump(data, file)
 
+def get_user_team(userid:str, guild:discord.Guild) -> str:
+    member = guild.get_member(int(userid))    
+    for role in member.roles:
+        if role.id == DECIMALROLEID:
+            return "decimal"
+        if role.id == BINARYROLEID:
+            return "binary"
+        if role.id == TESTROLEID:
+            return "decimal"
+    return "not in team"
+
+async def continueSequence(message:discord.Message, spamint:int) -> None:
+    # update next spam
+    global next_barrelspam
+    global barrelspamdata
+    global barrelspamtempdata
+    global barrelspamteamdata
+    if next_barrelspam == None:
+        next_barrelspam = spamint
+    next_barrelspam += 1
+
+    # add user to data if not in
+    authorid = str(message.author.id)
+    if authorid not in barrelspamdata.keys():
+        barrelspamdata[authorid] = 0
+    if authorid not in barrelspamteamdata.keys():
+        barrelspamtempdata[authorid] = 0
+
+    # increase score
+    score = 0
+    if isPrime(spamint):
+        if isMersenne(spamint):
+            score += getMersenneScore(spamint)
+        else:
+            score += getPrimeScore(spamint)
+    if isFibonacci(spamint):
+        score += getFibScore(spamint)
+    if isBinPali(spamint):
+        score += getPaliScore(spamint)
+    if isDecPali(spamint):
+        score += getPaliScore(spamint)
+    if score == 0:
+        score += 1
+
+    barrelspamdata[authorid] += score
+    barrelspamtempdata[authorid] += score
+
+    await message.add_reaction("✅")
+    
+async def endLongRunSequence(message:discord.Message) -> None:
+    # update next spam
+    global next_barrelspam
+    global barrelspamdata
+    global barrelspamtempdata
+    global barrelspamteamdata
+    finalint = max(0, next_barrelspam-1)
+    next_barrelspam = 0
+
+    # Send end run msg
+    init_msg = await message.channel.send(f"Run over! Fetching data...")
+
+    async with message.channel.typing():
+
+        # get team scores, mvp data
+        thisrunteamdata = {"decimal": 0, "binary": 0}
+        mvp = [0,0]
+        for usrid in barrelspamtempdata.keys():
+            team = get_user_team(usrid, message.guild)
+            if team != "not in team":
+                score = barrelspamtempdata[usrid]
+                thisrunteamdata[team] += score
+                if score > mvp[1]:
+                    mvp = [usrid, score]
+            else:
+                pass # womp womp
+
+        # check winning team, add score
+        if thisrunteamdata["decimal"] > thisrunteamdata["binary"]:
+            winningteam = "decimal"
+            barrelspamteamdata["decimal"] += thisrunteamdata["decimal"]
+        elif thisrunteamdata["decimal"] < thisrunteamdata["binary"]:
+            winningteam = "binary"
+            barrelspamteamdata["binary"] += thisrunteamdata["binary"]
+        else:
+            winningteam = "tie"
+            barrelspamteamdata["decimal"] += math.ceil(thisrunteamdata["decimal"]/2)
+            barrelspamteamdata["binary"] += math.ceil(thisrunteamdata["binary"]/2)
+
+        # compile message
+        embed = discord.Embed(color=discord.Color.brand_red())
+        embed.description = f"Final number reached: {finalint} | {bin(finalint)[2:]}"
+        embed.set_footer(text="Remember to start at 0!")
+
+        # winning team stuff
+        if winningteam == "decimal":
+            embed.title = "Run over, Team Decimal won!"
+            embed.add_field(name="Points won for Team Decimal:", value=str(thisrunteamdata["decimal"]), inline=False)
+        elif winningteam == "binary":
+            embed.title = "Run over, Team Binary won!"
+            embed.add_field(name="Points won for Team Binary:", value=str(thisrunteamdata["binary"]), inline=False)
+        else:
+            embed.title = "Run over, and ended in a tie!"
+            embed.add_field(name="Since it was a tie, both teams earn points:",\
+                            value=f"Decimal: {math.ceil(thisrunteamdata['decimal']/2)}\nBinary: {math.ceil(thisrunteamdata['binary']/2)}", inline=False)
+
+        # mvp and team standings
+        mvpmember = message.guild.get_member(int(mvp[0]))
+        embed.add_field(name="MVP of this run goes to:", value=f"{mvpmember.display_name}, with a total of {mvp[1]}", inline=False)
+        embed.add_field(name="Current team standings:", value=f"Decimal: {barrelspamteamdata['decimal']}\nBinary: {barrelspamteamdata['binary']}", inline=False)
+
+        # send message
+        await message.channel.send(embed=embed)
+    
+    await init_msg.delete()
+
+    # reset run scores
+    barrelspamtempdata = {}
+
+async def endShortRunSequence(message:discord.Message) -> None:
+    # update next spam
+    global next_barrelspam
+    global barrelspamdata
+    global barrelspamtempdata
+    global barrelspamteamdata
+    if next_barrelspam == None:
+        finalint = 0
+    else:
+        finalint = max(0, next_barrelspam-1)
+    next_barrelspam = 0
+
+    # reset run scores
+    for authorid in barrelspamtempdata.keys():
+        barrelspamdata[authorid] -= barrelspamtempdata[authorid]
+    barrelspamtempdata = {}
+
+    # send quick message
+    await message.channel.send(f"Whoops!\nSince this run only got to {finalint}, scores aren't counted. Runs must be {spam_threshold} or higher to count. Start again below! You've got this!")
+
 
 # Bot events
 
@@ -137,26 +313,22 @@ async def on_message(message:discord.Message):
         return
     
     # barrel spam score logging
-    if message.channel.id == channel_data["barrelcult_barrelspam"]:
+    if message.channel.id == BARRELCULTSPAMCHANNELID or message.channel.id == TESTCHANNELID:
+        team = get_user_team(str(message.author.id), message.guild)
+        if team == "not in team":
+            responsemsg = await message.channel.send(f"{message.author.mention}, you must join a team before spamming!")
+            await message.delete(delay=5)
+            await responsemsg.delete(delay=5)
         isspam, spamint = checkValidBarrelSpam(message)
         if isspam:
-            authorid = str(message.author.id)
-            if authorid not in barrelspamdata.keys():
-                barrelspamdata[authorid] = 0
-            isfib = isFibonacci(spamint)
-            ispr = isPrime(spamint)
-            if isfib:
-                barrelspamdata[authorid] += getFibScore(spamint)
-            if isMersenne(spamint):
-                barrelspamdata[authorid] += getMersenneScore(spamint)
-            elif ispr:
-                barrelspamdata[authorid] += getPrimeScore(spamint)
-            if (not isfib) and (not ispr):
-                barrelspamdata[authorid] += 1
-            
+            await continueSequence(message, spamint)
+        elif next_barrelspam == None:
+            await endShortRunSequence(message)
+        elif next_barrelspam > spam_threshold:
+            await endLongRunSequence(message)
         else:
-            pass # add what to do at end of run later
-
+            await endShortRunSequence(message)
+        
     # auto react
     m = re.search("<:barrel:1296987889942397001>", message.content)
     if m is not None:
@@ -165,12 +337,19 @@ async def on_message(message:discord.Message):
     # process commands
     await bot.process_commands(message)
 
+    # save 
     global timer
     if time.time() - timer > 43200:
-        save_to_json(randomnumberscores, "randomnumberscores.json")
-        save_to_json(barrelspamdata, "barrelspamdata.json")
-        save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
+        savealldata()
         timer = time.time()
+
+@bot.event
+async def on_message_edit(msgbefore:discord.Message, msgafter:discord.Message):
+    if msgbefore.channel.id == BARRELCULTSPAMCHANNELID or msgbefore.channel.id == TESTCHANNELID:
+        if next_barrelspam > spam_threshold:
+            await endLongRunSequence(msgbefore)
+        else:
+            await endShortRunSequence(msgbefore)
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -198,15 +377,11 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_disconnect():
-    save_to_json(randomnumberscores, "randomnumberscores.json")
-    save_to_json(barrelspamdata, "barrelspamdata.json")
-    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
+    savealldata()
 
 @bot.event
 async def on_shard_disconnect(shard_id):
-    save_to_json(randomnumberscores, "randomnumberscores.json")
-    save_to_json(barrelspamdata, "barrelspamdata.json")
-    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
+    savealldata()
 
 # Bot commands
 
@@ -214,6 +389,30 @@ async def on_shard_disconnect(shard_id):
 async def ping(ctx):
     """Pong!"""
     await ctx.send(f'Pong! {round(bot.latency * 1000)}ms')
+
+@bot.command()
+async def join(ctx:commands.Context, *, teamname):
+    """Join a team to spam some barrels!"""
+    if re.match("(team )?decimal", teamname, flags=re.I):
+        for role in ctx.author.roles:
+            if role.id == DECIMALROLEID:
+                await ctx.send("You're already in Team Decimal!")
+                return
+            if role.id == BINARYROLEID:
+                await ctx.author.remove_roles(ctx.guild.get_role(BINARYROLEID))
+        await ctx.author.add_roles(ctx.guild.get_role(DECIMALROLEID))
+        await ctx.send("Added to Team Decimal!")
+    elif re.match("(team )?binary", teamname, flags=re.I):
+        for role in ctx.author.roles:
+            if role.id == BINARYROLEID:
+                await ctx.send("You're already in Team Binary!")
+                return
+            if role.id == DECIMALROLEID:
+                await ctx.author.remove_roles(ctx.guild.get_role(DECIMALROLEID))
+        await ctx.author.add_roles(ctx.guild.get_role(BINARYROLEID))
+        await ctx.send("Added to Team Binary!")
+    else:
+        await ctx.send("Didn't quite get that. You can ask to join Team Decimal or Team Binary with \"barrelbot, join team decimal\" or \"barrelbot, join team binary\"")
 
 @bot.command()
 @commands.is_owner()
@@ -237,19 +436,21 @@ async def fetch(ctx, *, arg):
         await ctx.send(json.dumps(barrelspamdata))
     elif re.match("raw random number scores", arg) is not None:
         await ctx.send(json.dumps(randomnumberscores))
+    elif re.match("all data", arg) is not None:
+        await ctx.send(f"next barrel spam: {next_barrelspam}\nbarrel spam temp data: {json.dumps(barrelspamtempdata)}\n"+\
+                       f"barrel spam data: {json.dumps(barrelspamdata)}\n ")
 
 
 @bot.command()
 @commands.is_owner()
 async def save_data(ctx):
     """Manually save all data to file."""
-    save_to_json(randomnumberscores, "randomnumberscores.json")
-    save_to_json(barrelspamdata, "barrelspamdata.json")
-    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
+    savealldata()
     await ctx.send("Done.")
 
 @bot.command()
 async def introduce(ctx, *, arg):
+    """Ask me to introduce myself!"""
     if re.match("yourself", arg) is not None:
         async with ctx.typing():
             time.sleep(1)
@@ -331,29 +532,29 @@ async def random(ctx):
         embed.title = "Congrats!"; embed.description= f"You got your first random number: {value}"
         if value > randomnumberscores["overall"][0]:
             olduser = await bot.fetch_user(randomnumberscores["overall"][1])
-            embed.add_field(name="You also beat the high score!", value=f"Old high score: {olduser.display_name} got {randomnumberscores['overall'][0]}")
+            embed.add_field(name="You also beat the high score!", value=f"Old high score: {olduser.display_name} got {randomnumberscores['overall'][0]}", inline=False)
             randomnumberscores["overall"] = [value, ctx.author.id]
         else:
-            embed.add_field(name='New high score:', value=str(value))
+            embed.add_field(name='New high score:', value=str(value), inline=False)
     elif value > randomnumberscores[authorid]:
         if value > randomnumberscores["overall"][0]:
             embed.title = "Congrats!"; embed.description = "You beat the high score!"
             olduser = await bot.fetch_user(randomnumberscores["overall"][1])
-            embed.add_field(name="Old high score:", value=f"{olduser.display_name} got {randomnumberscores['overall'][0]}")
-            embed.add_field(name='New high score:', value=f'{ctx.author.display_name} got {value}')
+            embed.add_field(name="Old high score:", value=f"{olduser.display_name} got {randomnumberscores['overall'][0]}", inline=False)
+            embed.add_field(name='New high score:', value=f'{ctx.author.display_name} got {value}', inline=False)
             randomnumberscores["overall"] = [value, ctx.author.id]
         else:
             embed.title = "Congrats!"; embed.description= "You beat your personal best!"
-            embed.add_field(name="Old high score:", value=str(randomnumberscores[authorid]))
-            embed.add_field(name='New high score:', value=str(value))
+            embed.add_field(name="Old high score:", value=str(randomnumberscores[authorid]), inline=False)
+            embed.add_field(name='New high score:', value=str(value), inline=False)
         randomnumberscores[authorid] = value
     else:
         embed.title="You did not beat the high score."
         embed.description = str(value)
         embed.color=discord.Color.darker_gray()
         olduser = await bot.fetch_user(randomnumberscores["overall"][1])
-        embed.add_field(name="Current high score:", value=f"{olduser.display_name} got {randomnumberscores['overall'][0]}")
-        embed.add_field(name="Current personal best:", value=str(randomnumberscores[authorid]))
+        embed.add_field(name="Current high score:", value=f"{olduser.display_name} got {randomnumberscores['overall'][0]}", inline=False)
+        embed.add_field(name="Current personal best:", value=str(randomnumberscores[authorid]), inline=False)
     embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
     await ctx.send(embed=embed)
 
@@ -361,9 +562,7 @@ async def random(ctx):
 @commands.is_owner()
 async def omoli(ctx):
     """Kills the bot. You must be the bot owner to activate this command."""
-    save_to_json(randomnumberscores, "randomnumberscores.json")
-    save_to_json(barrelspamdata, "barrelspamdata.json")
-    save_to_json(barrelspamteamdata, "barrelspamteamdata.json")
+    savealldata()
     await ctx.send("Ok bye bye")
     quit()
 
