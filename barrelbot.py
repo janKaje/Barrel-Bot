@@ -357,7 +357,7 @@ async def on_message_edit(msgbefore:discord.Message, msgafter:discord.Message):
             await endShortRunSequence(msgbefore)
 
 @bot.event
-async def on_command_error(ctx, error):
+async def on_command_error(ctx:commands.Context, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send('You\'re missing a required argument: '+str(error.param))
     elif isinstance(error, commands.TooManyArguments):
@@ -391,7 +391,7 @@ async def on_shard_disconnect(shard_id):
 # Bot commands
 
 @bot.command()
-async def ping(ctx):
+async def ping(ctx:commands.Context):
     """Pong!"""
     await ctx.send(f'Pong! {round(bot.latency * 1000)}ms')
 
@@ -421,7 +421,7 @@ async def join(ctx:commands.Context, *, teamname):
 
 @bot.command()
 @commands.is_owner()
-async def fetch(ctx, *, arg):
+async def fetch(ctx:commands.Context, *, arg):
     """Fetch things"""
     if re.match("barrel spam scores", arg) is not None:
         async with ctx.typing():
@@ -448,13 +448,13 @@ async def fetch(ctx, *, arg):
 
 @bot.command()
 @commands.is_owner()
-async def save_data(ctx):
+async def save_data(ctx:commands.Context):
     """Manually save all data to file."""
     savealldata()
     await ctx.send("Done.")
 
 @bot.command()
-async def introduce(ctx, *, arg):
+async def introduce(ctx:commands.Context, *, arg):
     """Ask me to introduce myself!"""
     if re.match("yourself", arg) is not None:
         async with ctx.typing():
@@ -481,7 +481,7 @@ async def introduce(ctx, *, arg):
         await ctx.send(f"I don't know enough about {arg} to introduce him/her/them/it properly. You'll have to ask someone who knows more, sorry!")
 
 @bot.command()
-async def rate(ctx, *, item):
+async def rate(ctx:commands.Context, *, item):
     """I'll rate whatever you tell me to."""
     if item.lower() in customratings.keys():
         await ctx.send(f"I'd give {item} a {customratings[item.lower()]}/10")
@@ -496,12 +496,12 @@ async def rate(ctx, *, item):
     await ctx.send(f"I'd give {item} a {rate_value}/10")
 
 @bot.command()
-async def github(ctx):
+async def github(ctx:commands.Context):
     """Provides a link to my github page."""
     await ctx.send("https://github.com/janKaje/Barrel-Bot")
 
 @bot.command()
-async def eightball(ctx):
+async def eightball(ctx:commands.Context):
     """Roll me and I'll decide your fate."""
     responses = ["It is certain.",
             "It is decidedly so.",
@@ -525,9 +525,9 @@ async def eightball(ctx):
             "Very doubtful."]
     await ctx.send(rand.choice(responses))
 
-@bot.command(aliases=["rand, r"])
+@bot.command()
 @commands.cooldown(1,3, commands.BucketType.user)
-async def random(ctx):
+async def random(ctx:commands.Context):
     """Gives a random number. Keeps track of high scores"""
     value = getRandInt()
     embed = discord.Embed(color=discord.Color.brand_green(), )
@@ -565,10 +565,54 @@ async def random(ctx):
 
 @bot.command()
 @commands.is_owner()
-async def olape(ctx):
+async def olape(ctx:commands.Context):
     """Gently puts the bot to sleep, so he can rest and recover for the coming day."""
     savealldata()
     await ctx.send("Goodnight! See you tomorrow :)")
     quit()
+
+@bot.command()
+async def leaderboard(ctx:commands.Context):
+    """Shows the team scores and individual leaderboard of barrel spam scores"""
+    # start embed
+    embed = discord.Embed(color=discord.Color.dark_blue(), title="Barrel Spam Leaderboard", description="")
+    embed.add_field(name="Team Scores", value=f"**Decimal: {barrelspamteamdata['decimal']}**\n**Binary: {barrelspamteamdata['binary']}**", inline=False)
+    
+    # collect and sort all scores
+    ind_data_as_array = [[i,j] for i,j in barrelspamdata.items()]
+    ind_data_as_array.sort(key=lambda x: x[1], reverse=True)
+    valstr = ""
+    for i, _list in enumerate(ind_data_as_array):
+        valstr += "**"+str(i+1)+") "
+        member = ctx.guild.get_member(int(_list[0]))
+        valstr += member.display_name + "**"
+        team = get_user_team(_list[0], ctx.guild)
+        if team == "decimal":
+            valstr += " *(Decimal Enthusiasts)*"
+        elif team == "binary":
+            valstr += " *(Binary Enjoyer)*"
+        valstr += ": **"+str(_list[1])+"**\n"
+    embed.add_field(name="Individual Scores", value=valstr, inline=False)
+
+    # send
+    await ctx.send(embed=embed)    
+
+@bot.command()
+async def rank(ctx:commands.Context):
+    """Shows your individual barrel spam score and rank"""
+    # start embed
+    embed = discord.Embed(color=discord.Color.dark_blue(), title="Barrel Spam Rank", description="")
+    embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
+
+    # get scores and sort
+    ind_data_as_array = [[i,j] for i,j in barrelspamdata.items()]
+    ind_data_as_array.sort(key=lambda x: x[1], reverse=True)
+    for i, _list in enumerate(ind_data_as_array):
+        if _list[0] == str(ctx.author.id):
+            embed.add_field(name=f"Rank: {i+1} out of {len(ind_data_as_array)}", value=f"**Score: {_list[1]}**")
+            break
+    
+    # send
+    await ctx.send(embed=embed)
 
 bot.run(TOKEN)
