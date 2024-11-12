@@ -12,8 +12,9 @@ from numpy.random import default_rng
 
 # Command prefix function
 def isCommand(bot:commands.Bot, message:discord.Message) -> bool:
-    if re.match("bb,? ", message.content) is not None:
-        return m.group(0)
+    _m = re.match("bb,? ", message.content)
+    if _m is not None:
+        return _m.group(0)
     m = re.match("(hey |hello |hi )?barrel ?bot[,!.]? +", message.content, flags=re.I)
     if m == None:
         return "Barrelbot, "
@@ -125,11 +126,9 @@ def getRandInt() -> int:
 # Command helper functions
 
 def checkValidBarrelSpam(msg:discord.Message):
-    m = re.match("(\d+) ?(<[^>]+>)", msg.content)
+    m = re.match("(\d+) ?(<:\w*barrel\w*:\d+>)", msg.content, flags=re.I)
     if m == None:
         return False, 0
-    if m.group(2) not in barrel_emojis:
-        return False, 0    
     global next_barrelspam
     if (int(m.group(1)) == next_barrelspam) or (next_barrelspam == None):
         return True, int(m.group(1))
@@ -208,7 +207,7 @@ async def continueSequence(message:discord.Message, spamint:int) -> None:
     barrelspamdata[authorid] += score
     barrelspamtempdata[authorid] += score
 
-    await message.add_reaction("✅")
+    #await message.add_reaction("✅")
     
 async def endLongRunSequence(message:discord.Message) -> None:
     # update next spam
@@ -297,7 +296,9 @@ async def endShortRunSequence(message:discord.Message) -> None:
     barrelspamtempdata = {}
 
     # send quick message
-    await message.channel.send(f"Whoops!\nSince this run only got to {finalint}, scores aren't counted. Runs must be {spam_threshold} or higher to count. Start again below! You've got this!")
+    msg = await message.channel.send(f"Whoops!\nSince this run only got to {finalint}, scores aren't counted. Runs must be {spam_threshold} or higher to count. Start again below! You've got this!")
+
+    await msg.delete(delay=5)
 
 
 # Bot events
@@ -319,6 +320,7 @@ async def on_message(message:discord.Message):
             responsemsg = await message.channel.send(f"{message.author.mention}, you must join a team before spamming!")
             await message.delete(delay=5)
             await responsemsg.delete(delay=5)
+            return
         isspam, spamint = checkValidBarrelSpam(message)
         if isspam:
             await continueSequence(message, spamint)
@@ -330,9 +332,12 @@ async def on_message(message:discord.Message):
             await endShortRunSequence(message)
         
     # auto react
-    m = re.search("<:barrel:1296987889942397001>", message.content)
+    m = re.search("<:\w*barrel\w*:\d+>", message.content)
     if m is not None:
-        await message.add_reaction("<:barrel:1296987889942397001>")
+        try:
+            await message.add_reaction(m.group(0))
+        except:
+            pass
 
     # process commands
     await bot.process_commands(message)
@@ -560,10 +565,10 @@ async def random(ctx):
 
 @bot.command()
 @commands.is_owner()
-async def omoli(ctx):
-    """Kills the bot. You must be the bot owner to activate this command."""
+async def olape(ctx):
+    """Gently puts the bot to sleep, so he can rest and recover for the coming day."""
     savealldata()
-    await ctx.send("Ok bye bye")
+    await ctx.send("Goodnight! See you tomorrow :)")
     quit()
 
 bot.run(TOKEN)
