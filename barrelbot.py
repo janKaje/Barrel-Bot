@@ -45,9 +45,6 @@ TESTCHANNELID = 733508209288937544
 with open("token.txt") as file:
     TOKEN = file.read()
 
-with open("barrelemojis.json") as file:
-    barrel_emojis = json.load(file)
-
 with open("barrelspamdata.json") as file:
     barrelspamdata = json.load(file)
 
@@ -217,6 +214,7 @@ async def endLongRunSequence(message:discord.Message) -> None:
     global barrelspamteamdata
     finalint = max(0, next_barrelspam-1)
     next_barrelspam = 0
+    penalty = math.floor(finalint/3)
 
     # Send end run msg
     init_msg = await message.channel.send(f"Run over! Fetching data...")
@@ -265,9 +263,14 @@ async def endLongRunSequence(message:discord.Message) -> None:
             embed.add_field(name="Since it was a tie, both teams earn points:",\
                             value=f"Decimal: {math.ceil(thisrunteamdata['decimal']/2)}\nBinary: {math.ceil(thisrunteamdata['binary']/2)}", inline=False)
 
+        # inflict penalty
+        penaltyteam = get_user_team(str(message.author.id), message.guild)
+        barrelspamteamdata[penaltyteam] -= penalty
+        embed.add_field(name=f"{message.author.display_name} ended the run, and got Team {penaltyteam.capitalize()} a penalty of {penalty} points <:barrelsadge:1298695216185872500>", value="", inline=False)
+
         # mvp and team standings
         mvpmember = message.guild.get_member(int(mvp[0]))
-        embed.add_field(name="MVP of this run goes to:", value=f"{mvpmember.display_name}, with a total of {mvp[1]}", inline=False)
+        embed.add_field(name="MVP of this run goes to:", value=f"{mvpmember.display_name}, with a total of {mvp[1]} this run", inline=False)
         embed.add_field(name="Current team standings:", value=f"Decimal: {barrelspamteamdata['decimal']}\nBinary: {barrelspamteamdata['binary']}", inline=False)
 
         # send message
