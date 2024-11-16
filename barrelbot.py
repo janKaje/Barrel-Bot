@@ -375,8 +375,15 @@ async def on_ready():
             if check2 and past_spamint == 0:
                 break
 
+    # if the current number is wrong, next spam number resets to 0
+    checkagain, _ = checkValidBarrelSpam(last_spam)
+    if checkagain == False:
+        spamchannel.send(f"I took a nap and when I came back, the spam number was off! You guys were supposed to be at {next_barrelspam-1}... "+\
+                         "Guess you get to restart at 0!")
+        next_barrelspam = 0
+
     # print next spam number
-    print(next_barrelspam)
+    print(f"Next spam number: {next_barrelspam}")
 
 @bot.event
 async def on_message(message:discord.Message):
@@ -704,7 +711,7 @@ async def leaderboard(ctx:commands.Context):
         valstr += member.display_name + "**"
         team = get_user_team(_list[0], ctx.guild)
         if team == "decimal":
-            valstr += " *(Decimal Enthusiasts)*"
+            valstr += " *(Decimal Enthusiast)*"
         elif team == "binary":
             valstr += " *(Binary Enjoyer)*"
         valstr += ": **"+str(_list[1])+"**\n"
