@@ -223,7 +223,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         """Checks if the given message is a valid spam message. By default, it takes into account the expected next spam number.
         However, if ignore_number is set to True, it only checks if the format is valid and returns the decimal interpretation
         of the spam number."""
-        m = re.match("(\d+) ?(<:\w*barrel\w*:\d+>)", msg.content, flags=re.I)
+        m = re.match(r"(\d+) ?(<:\w*barrel\w*:\d+>)", msg.content, flags=re.I)
         if m == None:
             return False, 0
         global next_barrelspam

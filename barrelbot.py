@@ -9,6 +9,12 @@ from discord.ext import commands
 from cogs.barrelspam import savealldata as spamsave
 from cogs.fun import savealldata as funsave
 
+try:
+    import dotenv
+    dotenv.load_dotenv()
+except ImportError:
+    pass
+
 
 # Command prefix function
 def isCommand(bot: commands.Bot, message: discord.Message) -> str:
@@ -45,10 +51,9 @@ bot.remove_command('help')
 # Create global variables
 dir_path = os.path.dirname(os.path.abspath(__file__))
 
-# Open saved data
-with open("token.txt") as file:
-    TOKEN = file.read()
-
+# get token
+TOKEN = os.environ["TOKEN"]
+print(TOKEN)
 
 # Command helper functions
 
