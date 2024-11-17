@@ -9,7 +9,6 @@ from discord.ext import commands
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 next_barrelspam = None
-timer = time.time()
 
 
 async def setup(bot):
@@ -206,12 +205,6 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
                 await self.endLongRunSequence(message)
             else:
                 await self.endShortRunSequence(message)
-
-        # save 
-        global timer
-        if time.time() - timer > 43200:
-            savealldata()
-            timer = time.time()
 
     @commands.Cog.listener()
     async def on_message_edit(self, msgbefore: discord.Message, msgafter: discord.Message):
@@ -498,3 +491,4 @@ def savealldata():
     save_to_json(barrelspamdata, dir_path + "/data/barrelspamdata.json")
     save_to_json(barrelspamteamdata, dir_path + "/data/barrelspamteamdata.json")
     save_to_json(barrelspamtempdata, dir_path + "/data/barrelspamtempdata.json")
+    print("spam data saved")

@@ -2,9 +2,14 @@ import math
 import os
 import re
 import sys
+import datetime as dt
+import requests
+import json
+import base64
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
+from github import Github, InputGitTreeElement, Auth
 
 from cogs.barrelspam import savealldata as spamsave
 from cogs.fun import savealldata as funsave
@@ -53,13 +58,39 @@ dir_path = os.path.dirname(os.path.abspath(__file__))
 
 # get token
 TOKEN = os.environ["TOKEN"]
-print(TOKEN)
 
 # Command helper functions
 
 def savealldata():
     spamsave()
     funsave()
+
+    token = os.environ["GHT"]
+    auth = Auth.Token(token)
+    g = Github(auth=auth)
+    repo = g.get_user().get_repo('Barrel-Bot') # repo name
+    file_names = [
+        'data/barrelspamdata.json',
+        'data/barrelspamteamdata.json',
+        'data/randomnumberscores.json'
+    ]
+    file_list = [dir_path + "/" + name for name in file_names]
+    commit_message = 'auto update scores ' + dt.datetime.now().isoformat(sep=" ", timespec="seconds")
+    master_ref = repo.get_git_ref('heads/main')
+    master_sha = master_ref.object.sha
+    base_tree = repo.get_git_tree(master_sha)
+
+    element_list = list()
+    for i, entry in enumerate(file_list):
+        with open(entry) as input_file:
+            data = input_file.read()
+        element = InputGitTreeElement(file_names[i], '100644', 'blob', data)
+        element_list.append(element)
+
+    tree = repo.create_git_tree(element_list, base_tree)
+    parent = repo.get_git_commit(master_sha)
+    commit = repo.create_git_commit(commit_message, tree, [parent])
+    master_ref.edit(commit.sha)
 
 
 # Bot events
@@ -108,6 +139,12 @@ async def on_error(event, *args, **kwargs):
     await bot.get_user(474349369274007552).send(f'There was an error on {event}:\n{args}\n{kwargs}\n'
                                                 f'Error message:\n{sys.exc_info()}')
 
+
+# Bot tasks
+
+@tasks.loop(hours=24)
+async def savedata():
+    savealldata()
 
 # Bot commands
 

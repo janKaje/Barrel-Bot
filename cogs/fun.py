@@ -3,14 +3,13 @@ import math
 import os
 import random as rand
 import re
-import time
+import asyncio
 
 import discord
 from discord.ext import commands
 from numpy.random import default_rng
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-timer = time.time()
 
 
 async def setup(bot):
@@ -54,27 +53,27 @@ class fun(commands.Cog, name="Fun"):
         `Hey BarrelBot, introduce yourself!`"""
         if re.match("yourself", arg) is not None:
             async with ctx.typing():
-                time.sleep(1)
+                await asyncio.sleep(1)
                 await ctx.send("Hi! I'm BarrelBot. Nice to meet you!")
             async with ctx.typing():
-                time.sleep(1.2)
+                await asyncio.sleep(1.2)
                 await ctx.send("I can do lots of things for you. If you want to see everything you can ask me, "
                                "type \"Hey BarrelBot, help\".")
             async with ctx.typing():
-                time.sleep(1.8)
+                await asyncio.sleep(1.8)
                 await ctx.send("I'll understand you if you say hey, hi, or hello before my name! And feel free to use "
                                "capital letters or not. It doesn't really matter to me :slight_smile:")
             async with ctx.typing():
-                time.sleep(2.1)
+                await asyncio.sleep(2.1)
                 await ctx.send("I'm here to help the <:barrel:1296987889942397001> cult in their spiritual journey "
                                "towards the Almighty <:barrel:1296987889942397001>, " + \
                                "so I try to help out around here where I can.")
             async with ctx.typing():
-                time.sleep(1.7)
+                await asyncio.sleep(1.7)
                 await ctx.send("One cool thing I do is watch <#1297028406504067142> and keep track of everyone's "
                                "scores.")
             async with ctx.typing():
-                time.sleep(1.2)
+                await asyncio.sleep(1.2)
                 await ctx.send("That's all for now! May the <:barrel:1296987889942397001> be with you :smile:")
             return
         else:
@@ -201,12 +200,6 @@ class fun(commands.Cog, name="Fun"):
             except:
                 pass
 
-        # save 
-        global timer
-        if time.time() - timer > 43200:
-            savealldata()
-            timer = time.time()
-
     @commands.Cog.listener()
     async def on_disconnect(self, ):
         """Called when the bot disconnects."""
@@ -232,3 +225,4 @@ def getRandInt() -> int:
 def savealldata():
     """Saves data to file."""
     save_to_json(randomnumberscores, dir_path + "/data/randomnumberscores.json")
+    print("random scores saved")
