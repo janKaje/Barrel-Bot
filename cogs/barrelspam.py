@@ -42,7 +42,7 @@ with open(dir_path + "/data/barrelspamtempdata.json") as file:
 class barrelspam(commands.Cog, name="Barrel Spam"):
     """Functionality for barrel spam game"""
 
-    def __init__(self, bot):
+    def __init__(self, bot:commands.Bot):
         self.bot = bot
         print(f"cog: {self.qualified_name} loaded")
 
@@ -152,8 +152,9 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         spamchannel = self.bot.get_channel(BARRELCULTSPAMCHANNELID)
 
         # get last message and if spam
-        last_spam = await spamchannel.fetch_message(spamchannel.last_message_id)
-        check, last_spamint = self.checkValidBarrelSpam(last_spam, ignore_number=True)
+        async for past_spam in spamchannel.history(limit=1):
+            check, last_spamint = self.checkValidBarrelSpam(past_spam, ignore_number=True)
+            break
 
         if check == False:
             # if the previous message isn't spam, the numbers reset to 0

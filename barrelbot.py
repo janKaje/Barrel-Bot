@@ -1,6 +1,7 @@
 import math
 import os
 import re
+import sys
 
 import discord
 from discord.ext import commands
@@ -99,7 +100,8 @@ async def on_command_error(ctx: commands.Context, error):
 
 @bot.event
 async def on_error(event, *args, **kwargs):
-    await bot.get_user(474349369274007552).send(f'There was an error on {event}:\n{args}\n{kwargs}')
+    await bot.get_user(474349369274007552).send(f'There was an error on {event}:\n{args}\n{kwargs}\n'
+                                                f'Error message:\n{sys.exc_info()}')
 
 
 # Bot commands
