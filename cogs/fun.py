@@ -231,4 +231,4 @@ def getRandInt() -> int:
 
 def savealldata():
     """Saves data to file."""
-    save_to_json(randomnumberscores, "randomnumberscores.json")
+    save_to_json(randomnumberscores, dir_path + "/data/randomnumberscores.json")
