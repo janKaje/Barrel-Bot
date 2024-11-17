@@ -35,8 +35,11 @@ with open(dir_path + "/data/barrelspamdata.json") as file:
 with open(dir_path + "/data/barrelspamteamdata.json") as file:
     barrelspamteamdata = json.load(file)
 
-with open(dir_path + "/data/barrelspamtempdata.json") as file:
-    barrelspamtempdata = json.load(file)
+try:
+    with open(dir_path + "/data/barrelspamtempdata.json") as file:
+        barrelspamtempdata = json.load(file)
+except FileNotFoundError:
+    barrelspamtempdata = {}
 
 
 class barrelspam(commands.Cog, name="Barrel Spam"):
