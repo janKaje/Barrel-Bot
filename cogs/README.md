@@ -1,6 +1,14 @@
 ## Details of Barrel Spam Rules
 
-### To be updated each time the logic is changed
+*To be updated each time the logic is changed*
+
+### Intro to :barrel: spamming
+
+The art of :barrel: spamming is an ancient one, and we are proud to honor this heritage. One of Barrelbot's main functionalities is assisting with :barrel: spamming and making it more enjoyable for the loyal spammers. :barrel: spamming involves sending a :barrel: emoji with a number before indicating the number of :barrel:s in the sequence. The spam channel in the Server of the Barrel Cult is strict with its rules - one must start each sequence with a 0 and if at any time one of the rules is not followed, the "run" is over and the sequence must reset at 0. The spam channel in the Planetsmith Server is more lax, and has few if any rules. Currently, Barrelbot is only assisting the spammers in the Server of the Barrel Cult. There, the following rules and logic apply.
+
+### How Barrelbot works in the Server of the Barrel Cult
+
+You must be part of a team to spam in the spam channel. If you try to without being on a team, Barrelbot will ask you to join a team and delete your message. Being on a team means having either the Decimal Enthusiast or the Binary Enjoyer role. You can join a team with the command `barrelbot, join <teamname>`
 
 Barrelbot will count a run as over if any of the following conditions are met:
 1. A message is sent with the wrong number
@@ -8,7 +16,9 @@ Barrelbot will count a run as over if any of the following conditions are met:
 3. A message is sent that does not match the general formatting rules
 4. A message in the channel (any message, no matter how old) is edited
 
-The number can be in either base 2 or base 10, with any number of leading zeros. The emoji can be any :barrel: emoji; as long as the emoji name contains the word "barrel," it will work.
+The number can be in either base 2 or base 10, with any number of leading zeros. 
+
+The emoji can be any :barrel: emoji; as long as the emoji name contains the word "barrel," it will work.
 
 When the run is over,
 * If the run lasted long enough to get to spam number 10: 
