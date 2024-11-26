@@ -92,7 +92,7 @@ class fun(commands.Cog, name="Fun"):
             return
 
         # if is a mention, return 10 with a :3 face
-        if re.match("<@\d+>", item) is not None:
+        if re.match(r"<@\d+>", item) is not None:
             await ctx.send(f"I'd give {item} a 10/10 :3")
             return
 
@@ -193,7 +193,7 @@ class fun(commands.Cog, name="Fun"):
             return
 
         # auto react
-        m = re.search("<:\w*barrel\w*:\d+>", message.content)
+        m = re.search(r"<:\w*barrel\w*:\d+>", message.content)
         if m is not None:
             try:
                 await message.add_reaction(m.group(0))

@@ -2,7 +2,6 @@ import json
 import math
 import os
 import re
-import time
 
 import discord
 from discord.ext import commands
@@ -188,7 +187,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             return
 
         # barrel spam score logging
-        if message.channel.id == BARRELCULTSPAMCHANNELID or message.channel.id == TESTCHANNELID:
+        if message.channel.id == BARRELCULTSPAMCHANNELID: # or message.channel.id == TESTCHANNELID:
             team = self.get_user_team(str(message.author.id), message.guild)
             if team == "not in team":
                 responsemsg = await message.channel.send(
@@ -209,7 +208,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
     @commands.Cog.listener()
     async def on_message_edit(self, msgbefore: discord.Message, msgafter: discord.Message):
         """Called when a message is edited."""
-        if msgbefore.channel.id == BARRELCULTSPAMCHANNELID or msgbefore.channel.id == TESTCHANNELID:
+        if msgbefore.channel.id == BARRELCULTSPAMCHANNELID: # or msgbefore.channel.id == TESTCHANNELID:
             if next_barrelspam > SPAM_THRESHOLD:
                 await self.endLongRunSequence(msgbefore)
             else:
@@ -261,7 +260,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         authorid = str(message.author.id)
         if authorid not in barrelspamdata.keys():
             barrelspamdata[authorid] = 0
-        if authorid not in barrelspamteamdata.keys():
+        if authorid not in barrelspamtempdata.keys():
             barrelspamtempdata[authorid] = 0
 
         # increase score
@@ -277,6 +276,12 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             score += getPaliScore(spamint)
         if isDecPali(spamint):
             score += getPaliScore(spamint)
+        if isPower2(spamint):
+            score += getPower2Score(spamint)
+        if isPerfectSquare(spamint):
+            score += getPerfectSquareScore(spamint)
+        if isThueMorse(spamint):
+            score += getThueMorseScore(spamint)
         if score == 0:
             score += 1
 
@@ -294,7 +299,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         global barrelspamteamdata
         finalint = max(0, next_barrelspam - 1)
         next_barrelspam = 0
-        penalty = math.floor(finalint / 4)
+        penalty = math.floor(finalint / 5)
 
         # Send end run msg
         init_msg = await message.channel.send(f"Run over! Fetching data...")
@@ -318,13 +323,17 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             if thisrunteamdata["decimal"] > thisrunteamdata["binary"]:
                 winningteam = "decimal"
                 barrelspamteamdata["decimal"] += thisrunteamdata["decimal"]
+                barrelspamteamdata["binary"] += math.ceil(thisrunteamdata["binary"] / 2)
+
             elif thisrunteamdata["decimal"] < thisrunteamdata["binary"]:
                 winningteam = "binary"
                 barrelspamteamdata["binary"] += thisrunteamdata["binary"]
+                barrelspamteamdata["decimal"] += math.ceil(thisrunteamdata["decimal"] / 2)
+
             else:
                 winningteam = "tie"
-                barrelspamteamdata["decimal"] += math.ceil(thisrunteamdata["decimal"] / 2)
-                barrelspamteamdata["binary"] += math.ceil(thisrunteamdata["binary"] / 2)
+                barrelspamteamdata["decimal"] += math.ceil(thisrunteamdata["decimal"] * 0.75)
+                barrelspamteamdata["binary"] += math.ceil(thisrunteamdata["binary"] * 0.75)
 
             # compile message
             embed = discord.Embed(color=discord.Color.brand_red())
@@ -333,16 +342,19 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
 
             # winning team stuff
             if winningteam == "decimal":
-                embed.title = "Run over, Team Decimal won!"
-                embed.add_field(name="Points won for Team Decimal:", value=str(thisrunteamdata["decimal"]),
+                embed.title = "Run over - Team Decimal won!"
+                embed.add_field(name="", \
+                                value=f"Decimal: {math.ceil(thisrunteamdata['decimal'])}\nBinary: {math.ceil(thisrunteamdata['binary'] * 0.5)}",
                                 inline=False)
             elif winningteam == "binary":
-                embed.title = "Run over, Team Binary won!"
-                embed.add_field(name="Points won for Team Binary:", value=str(thisrunteamdata["binary"]), inline=False)
+                embed.title = "Run over - Team Binary won!"
+                embed.add_field(name="", \
+                                value=f"Decimal: {math.ceil(thisrunteamdata['decimal'] * 0.5)}\nBinary: {math.ceil(thisrunteamdata['binary'])}",
+                                inline=False)
             else:
-                embed.title = "Run over, and ended in a tie!"
-                embed.add_field(name="Since it was a tie, both teams earn points:", \
-                                value=f"Decimal: {math.ceil(thisrunteamdata['decimal'] / 2)}\nBinary: {math.ceil(thisrunteamdata['binary'] / 2)}",
+                embed.title = "Run over - and ended in a tie!"
+                embed.add_field(name="", \
+                                value=f"Decimal: {math.ceil(thisrunteamdata['decimal'] * 0.75)}\nBinary: {math.ceil(thisrunteamdata['binary'] * 0.75)}",
                                 inline=False)
 
             # inflict penalty
@@ -453,7 +465,10 @@ def isPalindrome(inputstr: str) -> bool:
 
 def isBinPali(inputint: int) -> bool:
     """Checks if the number is a palindrome in binary"""
-    return isPalindrome(bin(inputint)[2:])
+    binstr = format(inputint, "b")  
+    padding = 8 - (len(binstr) % 8)
+    binstr = "0"*padding+binstr
+    return isPalindrome(binstr)
 
 
 def isDecPali(inputint: int) -> bool:
@@ -461,9 +476,39 @@ def isDecPali(inputint: int) -> bool:
     return isPalindrome(str(inputint))
 
 
+def isPower2(inputint: int) -> bool:
+    """Checks if the number is a power of 2"""
+    return (inputint & (inputint - 1)) == 0
+
+
+def generate_sequence(seq_length: int):
+    """Thue–Morse sequence."""
+    value = 1
+    for n in range(seq_length):
+        # Note: assumes that (-1).bit_length() gives 1
+        x = (n ^ (n - 1)).bit_length() + 1
+        if x & 1 == 0:
+            # Bit index is even, so toggle value
+            value = 1 - value
+        yield str(value)
+
+
+def get_thuemorse(n:int) -> int:
+    asstr = "".join(generate_sequence(n))
+    return int(asstr, base=2)
+
+
+def isThueMorse(n:int) -> bool:
+    lenseq = len(format(n, "b"))+1
+    if n == 0:
+        lenseq = 1
+    thueMorseAtLen = get_thuemorse(lenseq)
+    return thueMorseAtLen == n
+
+
 def getPrimeScore(n: int) -> int:
     """Gets score of a prime number"""
-    return math.ceil(n / 3)
+    return math.ceil(n / 4)
 
 
 def getFibScore(n: int) -> int:
@@ -479,6 +524,20 @@ def getMersenneScore(n: int) -> int:
 def getPaliScore(n: int) -> int:
     """Gets score of a palindrome number"""
     return math.ceil(n / 2)
+
+
+def getPower2Score(n: int) -> int:
+    """Gets score of a power of 2"""
+    return math.ceil(n / 2)
+
+
+def getPerfectSquareScore(n: int) -> int:
+    """Gets score of a perfect square"""
+    return math.ceil(n / 2)
+
+
+def getThueMorseScore(n:int) -> int:
+    return math.ceil(n / 1.5)
 
 
 def save_to_json(data, filename: str) -> None:

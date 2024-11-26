@@ -3,9 +3,6 @@ import os
 import re
 import sys
 import datetime as dt
-import requests
-import json
-import base64
 
 import discord
 from discord.ext import commands, tasks
@@ -99,10 +96,19 @@ def savealldata():
 async def on_ready():
     """Called when the bot starts and is ready."""
     # Load cogs
-    await bot.load_extension("cogs.barrelspam")
-    await bot.load_extension("cogs.fun")
-    await bot.load_extension("cogs.utilities")
-    await bot.change_presence(activity=discord.Game('My name is barrelbot!'))
+    try:
+        await bot.load_extension("cogs.barrelspam")
+    except:
+        pass
+    try:
+        await bot.load_extension("cogs.fun")
+    except:
+        pass
+    try:
+        await bot.load_extension("cogs.utilities")
+    except:
+        pass
+    await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
 
 
 @bot.event
