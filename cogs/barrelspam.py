@@ -4,7 +4,7 @@ import os
 import re
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 next_barrelspam = None
@@ -21,6 +21,12 @@ DECIMALROLEID = 1303766261574008943
 BINARYROLEID = 1303766864391831644
 
 BARRELCULTSPAMCHANNELID = 1297028406504067142
+
+IND_DATA_MSG_ID = 1310847757921157150
+TEAM_DATA_MSG_ID = 1310847752871350313
+TEMP_DATA_MSG_ID = 1310847765517172776
+
+DATA_CHANNEL_ID = 735631640939986964
 
 # Test IDs for the bot testing server
 TESTROLEID = 735637859872276501
@@ -134,7 +140,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
     @commands.command()
     @commands.is_owner()
     async def savespamdata(self, ctx: commands.Context):
-        savealldata()
+        await self.savealldata()
         await ctx.send("Done!")
 
     @commands.command()
@@ -406,12 +412,32 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
     @commands.Cog.listener()
     async def on_disconnect(self):
         """Called when the bot disconnects."""
-        savealldata()
+        await self.savealldata()
 
     @commands.Cog.listener()
     async def on_shard_disconnect(self, shard_id):
         """Called when the shard disconnects."""
-        savealldata()
+        await self.savealldata()
+
+    async def savealldata(self):
+        save_to_json(barrelspamdata, dir_path + "/data/barrelspamdata.json")
+        save_to_json(barrelspamteamdata, dir_path + "/data/barrelspamteamdata.json")
+        save_to_json(barrelspamtempdata, dir_path + "/data/barrelspamtempdata.json")
+
+        datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
+        ind_data_msg = await datachannel.fetch_message(IND_DATA_MSG_ID)
+        team_data_msg = await datachannel.fetch_message(TEAM_DATA_MSG_ID)
+        temp_data_msg = await datachannel.fetch_message(TEMP_DATA_MSG_ID)
+
+        await ind_data_msg.edit(content=json.dumps(barrelspamdata))
+        await team_data_msg.edit(content=json.dumps(barrelspamteamdata))
+        await temp_data_msg.edit(content=json.dumps(barrelspamtempdata))
+
+        print("spam data saved")
+
+    @tasks.loop(hours=1)
+    async def hourlyloop(self):
+        await self.savealldata()
 
 
 # MATH FUNCTIONS
@@ -544,10 +570,3 @@ def save_to_json(data, filename: str) -> None:
     """Saves specific dataset to file"""
     with open(filename, "w") as file:
         json.dump(data, file)
-
-
-def savealldata():
-    save_to_json(barrelspamdata, dir_path + "/data/barrelspamdata.json")
-    save_to_json(barrelspamteamdata, dir_path + "/data/barrelspamteamdata.json")
-    save_to_json(barrelspamtempdata, dir_path + "/data/barrelspamtempdata.json")
-    print("spam data saved")

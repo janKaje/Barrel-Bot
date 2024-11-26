@@ -6,7 +6,7 @@ import re
 import asyncio
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from numpy.random import default_rng
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,17 +23,22 @@ with open(dir_path + "/data/randomnumberscores.json") as file:
     randomnumberscores = json.load(file)
 
 
+DATA_CHANNEL_ID = 735631640939986964
+
+DATA_MSG_ID = 1310847777302908929
+
+
 class fun(commands.Cog, name="Fun"):
     """Random fun things"""
 
-    def __init__(self, bot):
+    def __init__(self, bot:commands.Bot):
         self.bot = bot
         print(f"cog: {self.qualified_name} loaded")
 
     @commands.command()
     @commands.is_owner()
     async def savefundata(self, ctx: commands.Context):
-        savealldata()
+        await self.savealldata()
         await ctx.send("Done!")
 
     @commands.command()
@@ -203,12 +208,28 @@ class fun(commands.Cog, name="Fun"):
     @commands.Cog.listener()
     async def on_disconnect(self, ):
         """Called when the bot disconnects."""
-        savealldata()
+        await self.savealldata()
 
     @commands.Cog.listener()
     async def on_shard_disconnect(self, shard_id):
         """Called when the shard disconnects."""
-        savealldata()
+        await self.savealldata()
+
+    async def savealldata(self):
+        """Saves data to file."""
+        save_to_json(randomnumberscores, dir_path + "/data/randomnumberscores.json")
+
+        datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
+        datamsg = await datachannel.fetch_message(DATA_MSG_ID)
+        print(type(json.dumps(randomnumberscores)))
+
+        await datamsg.edit(content=json.dumps(randomnumberscores))
+
+        print("random scores saved")
+
+    @tasks.loop(hours=1)
+    async def hourlyloop(self):
+        await self.savealldata()
 
 
 def save_to_json(data, filename: str) -> None:
@@ -220,9 +241,3 @@ def save_to_json(data, filename: str) -> None:
 def getRandInt() -> int:
     """Gets a random number from an exponential distribution"""
     return math.ceil(default_rng().exponential(40))
-
-
-def savealldata():
-    """Saves data to file."""
-    save_to_json(randomnumberscores, dir_path + "/data/randomnumberscores.json")
-    print("random scores saved")
