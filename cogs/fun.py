@@ -221,7 +221,6 @@ class fun(commands.Cog, name="Fun"):
 
         datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
         datamsg = await datachannel.fetch_message(DATA_MSG_ID)
-        print(type(json.dumps(randomnumberscores)))
 
         await datamsg.edit(content=json.dumps(randomnumberscores))
 

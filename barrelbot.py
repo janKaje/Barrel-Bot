@@ -6,6 +6,9 @@ import sys
 import discord
 from discord.ext import commands
 
+from cogs.fun import fun as fun_cog
+from cogs.barrelspam import barrelspam as barrelspam_cog
+
 try:
     import dotenv
     dotenv.load_dotenv()
@@ -118,6 +121,13 @@ async def olape(ctx: commands.Context):
     await ctx.send("Goodnight! See you tomorrow :)")
     quit()
 
+
+@bot.command()
+@commands.is_owner()
+async def test(ctx: commands.Context):
+    await fun_cog(bot).savealldata()
+    await barrelspam_cog(bot).savealldata()
+    await ctx.send("success")
 
 # Run the bot
 bot.run(TOKEN)

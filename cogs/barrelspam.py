@@ -2,6 +2,7 @@ import json
 import math
 import os
 import re
+import asyncio
 
 import discord
 from discord.ext import commands, tasks
@@ -211,6 +212,11 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             else:
                 await self.endShortRunSequence(message)
 
+        # debug
+        # if message.channel.id == 733508144617226302:
+        #     print(message.content)
+        #     print(self.checkValidBarrelSpam(message, ignore_number=True))
+
     @commands.Cog.listener()
     async def on_message_edit(self, msgbefore: discord.Message, msgafter: discord.Message):
         """Called when a message is edited."""
@@ -224,7 +230,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         """Checks if the given message is a valid spam message. By default, it takes into account the expected next spam number.
         However, if ignore_number is set to True, it only checks if the format is valid and returns the decimal interpretation
         of the spam number."""
-        m = re.match(r"(\d+) ?(<:\w*barrel\w*:\d+>)", msg.content, flags=re.I)
+        m = re.match(r"(\d+) ?(<a?:\w*barrel\w*:\d+>)", msg.content, flags=re.I)
         if m == None:
             return False, 0
         global next_barrelspam
@@ -349,17 +355,17 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             # winning team stuff
             if winningteam == "decimal":
                 embed.title = "Run over - Team Decimal won!"
-                embed.add_field(name="", \
+                embed.add_field(name="__Points Won__", \
                                 value=f"Decimal: {math.ceil(thisrunteamdata['decimal'])}\nBinary: {math.ceil(thisrunteamdata['binary'] * 0.5)}",
                                 inline=False)
             elif winningteam == "binary":
                 embed.title = "Run over - Team Binary won!"
-                embed.add_field(name="", \
+                embed.add_field(name="__Points Won__", \
                                 value=f"Decimal: {math.ceil(thisrunteamdata['decimal'] * 0.5)}\nBinary: {math.ceil(thisrunteamdata['binary'])}",
                                 inline=False)
             else:
                 embed.title = "Run over - and ended in a tie!"
-                embed.add_field(name="", \
+                embed.add_field(name="__Points Won__", \
                                 value=f"Decimal: {math.ceil(thisrunteamdata['decimal'] * 0.75)}\nBinary: {math.ceil(thisrunteamdata['binary'] * 0.75)}",
                                 inline=False)
 
