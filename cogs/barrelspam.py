@@ -52,7 +52,18 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
 
     def __init__(self, bot:commands.Bot):
         self.bot = bot
-        print(f"cog: {self.qualified_name} loaded")
+        self.emoji_reactions = {
+            1: "1️⃣",
+            2: "2️⃣",
+            3: "3️⃣",
+            4: "4️⃣",
+            5: "5️⃣",
+            6: "6️⃣",
+            7: "7️⃣",
+            8: "8️⃣",
+            9: "9️⃣",
+            10: "🔟"
+        }
 
     @commands.command()
     async def join(self, ctx: commands.Context, *, teamname):
@@ -186,6 +197,14 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         # print next spam number
         print(f"Next spam number: {next_barrelspam}")
 
+        self.datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
+        self.ind_data_msg = await self.datachannel.fetch_message(IND_DATA_MSG_ID)
+        self.team_data_msg = await self.datachannel.fetch_message(TEAM_DATA_MSG_ID)
+        self.temp_data_msg = await self.datachannel.fetch_message(TEMP_DATA_MSG_ID)
+
+        # print loaded
+        print(f"cog: {self.qualified_name} loaded")
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         """Called whenever a message is sent that the bot can see."""
@@ -277,28 +296,47 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
 
         # increase score
         score = 0
+        reactions = []
         if isPrime(spamint):
             if isMersenne(spamint):
                 score += getMersenneScore(spamint)
+                reactions.append("🇲")
             else:
                 score += getPrimeScore(spamint)
+                reactions.append("🇵")
         if isFibonacci(spamint):
             score += getFibScore(spamint)
+            reactions.append("🇫")
         if isBinPali(spamint):
             score += getPaliScore(spamint)
+            reactions.append("🔂")
         if isDecPali(spamint):
             score += getPaliScore(spamint)
+            reactions.append("🔁")
         if isPower2(spamint):
             score += getPower2Score(spamint)
+            reactions.append("↗️")
         if isPerfectSquare(spamint):
             score += getPerfectSquareScore(spamint)
+            reactions.append("⏹️")
         if isThueMorse(spamint):
             score += getThueMorseScore(spamint)
+            reactions.append("🇹")
         if score == 0:
             score += 1
 
         barrelspamdata[authorid] += score
         barrelspamtempdata[authorid] += score
+
+        scorereactions = [self.emoji_reactions[min(score, 10)]]
+        
+        if score > 10:
+            scorereactions.append("➕")
+
+        reactions = scorereactions + reactions
+
+        for reaction in reactions:
+            await message.add_reaction(reaction)
 
         # to add in future: react to spam msg with emojis that indicate score or special numbers
 
@@ -428,16 +466,10 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
     async def savealldata(self):
         save_to_json(barrelspamdata, dir_path + "/data/barrelspamdata.json")
         save_to_json(barrelspamteamdata, dir_path + "/data/barrelspamteamdata.json")
-        save_to_json(barrelspamtempdata, dir_path + "/data/barrelspamtempdata.json")
 
-        datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
-        ind_data_msg = await datachannel.fetch_message(IND_DATA_MSG_ID)
-        team_data_msg = await datachannel.fetch_message(TEAM_DATA_MSG_ID)
-        temp_data_msg = await datachannel.fetch_message(TEMP_DATA_MSG_ID)
-
-        await ind_data_msg.edit(content=json.dumps(barrelspamdata))
-        await team_data_msg.edit(content=json.dumps(barrelspamteamdata))
-        await temp_data_msg.edit(content=json.dumps(barrelspamtempdata))
+        await self.ind_data_msg.edit(content=json.dumps(barrelspamdata))
+        await self.team_data_msg.edit(content=json.dumps(barrelspamteamdata))
+        await self.temp_data_msg.edit(content=json.dumps(barrelspamtempdata))
 
         print("spam data saved")
 

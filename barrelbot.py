@@ -117,7 +117,8 @@ async def on_error(event, *args, **kwargs):
 @commands.is_owner()
 async def olape(ctx: commands.Context):
     """Gently puts the bot to sleep, so he can rest and recover for the coming day."""
-    # savealldata()
+    await fun_cog(bot).savealldata()
+    await barrelspam_cog(bot).savealldata()
     await ctx.send("Goodnight! See you tomorrow :)")
     quit()
 

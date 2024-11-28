@@ -26,7 +26,7 @@ When the run is over,
     * Whichever team got the most points for the run "wins" and gets all of those points added to their team score
     * The "losing" team gets half of their earned points
     * If there is a tie, both teams get 3/4 of their earned points
-    * The team of the person who ended the run gets a penalty of `ceil(spam number / 5)` taken from their score
+    * The team of the person who ended the run gets a penalty of `floor(spam number / 5)` taken from their score
     * The spam number is reset to 0
 * If the run did not last long enough to get to spam number 10:
     * Each person who spammed in that run gets their points rolled back (i.e. if you spammed twice, got four points, and the run ended before 10, you would not get those points added to your total score)
@@ -42,3 +42,14 @@ On a valid :barrel: spam,
         * Numbers are palindromic base 2 if their base 2 representation in byte format (with enough leading zeros to increase the digit length of the number to a multiple of 8) is equal to its digits in reversed order
     * Numbers fitting a modified Thue-Morse sequence: `ceil(spam number / 1.5)`
         * The modified Thue-Morse sequence contains each integer whose binary representation is the first n bits of the full Thue-Morse sequence, where n is a positive integer. 
+* Barrelbot will react to your message with the following emojis, indicating how many points you earned and what special numbers (if any) your spam number was:
+    * 1️⃣, 2️⃣, 3️⃣, 4️⃣, 5️⃣, 6️⃣, 7️⃣, 8️⃣, 9️⃣, and 🔟 indicate point totals from 1-10
+    * A point total of more than 10 will be represented by 🔟➕
+    * Prime numbers are indicated by a 🇵
+    * Mersenne primes are indicated by a 🇲
+    * Fibonacci numbers are indicated by a 🇫
+    * Base 10 palindromes are indicated by a 🔁
+    * Base 2 palindromes are indicated by a 🔂
+    * Powers of two are indicated by a ↗️
+    * Perfect squares are indicated by a ⏹️ 
+    * Numbers in the modified Thue-Morse sequence are indicated by a 🇹

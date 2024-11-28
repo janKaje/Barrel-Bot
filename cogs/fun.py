@@ -33,7 +33,6 @@ class fun(commands.Cog, name="Fun"):
 
     def __init__(self, bot:commands.Bot):
         self.bot = bot
-        print(f"cog: {self.qualified_name} loaded")
 
     @commands.command()
     @commands.is_owner()
@@ -215,14 +214,20 @@ class fun(commands.Cog, name="Fun"):
         """Called when the shard disconnects."""
         await self.savealldata()
 
+    async def cog_load(self):
+        
+        # load for data saving
+        self.datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
+        self.datamsg = await self.datachannel.fetch_message(DATA_MSG_ID)
+
+        # print loaded
+        print(f"cog: {self.qualified_name} loaded")
+
     async def savealldata(self):
         """Saves data to file."""
         save_to_json(randomnumberscores, dir_path + "/data/randomnumberscores.json")
 
-        datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
-        datamsg = await datachannel.fetch_message(DATA_MSG_ID)
-
-        await datamsg.edit(content=json.dumps(randomnumberscores))
+        await self.datamsg.edit(content=json.dumps(randomnumberscores))
 
         print("random scores saved")
 
