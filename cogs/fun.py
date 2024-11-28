@@ -42,7 +42,7 @@ class fun(commands.Cog, name="Fun"):
 
     @commands.command()
     @commands.is_owner()
-    async def fetch_numberscores(self, ctx: commands.Context):
+    async def getfundata(self, ctx: commands.Context):
         await ctx.send(json.dumps(randomnumberscores))
 
     @commands.command()

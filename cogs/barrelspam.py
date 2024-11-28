@@ -157,7 +157,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
 
     @commands.command()
     @commands.is_owner()
-    async def fetch_spamdata(self, ctx: commands.Context):
+    async def getspamdata(self, ctx: commands.Context):
         await ctx.send(json.dumps(barrelspamdata))
         await ctx.send(json.dumps(barrelspamteamdata))
         await ctx.send(json.dumps(barrelspamtempdata))
@@ -249,6 +249,9 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         """Checks if the given message is a valid spam message. By default, it takes into account the expected next spam number.
         However, if ignore_number is set to True, it only checks if the format is valid and returns the decimal interpretation
         of the spam number."""
+
+        # if self.bot.isdebugstate:
+
         m = re.match(r"(\d+) ?(<a?:\w*barrel\w*:\d+>)", msg.content, flags=re.I)
         if m == None:
             return False, 0
@@ -309,10 +312,10 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             reactions.append("🇫")
         if isBinPali(spamint):
             score += getPaliScore(spamint)
-            reactions.append("🔂")
+            reactions.append("✨")
         if isDecPali(spamint):
             score += getPaliScore(spamint)
-            reactions.append("🔁")
+            reactions.append("<:holybarrel:1303080132642209826>")
         if isPower2(spamint):
             score += getPower2Score(spamint)
             reactions.append("↗️")
@@ -336,7 +339,10 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         reactions = scorereactions + reactions
 
         for reaction in reactions:
-            await message.add_reaction(reaction)
+            try:
+                await message.add_reaction(reaction)
+            except:
+                pass
 
         # to add in future: react to spam msg with emojis that indicate score or special numbers
 
@@ -500,6 +506,8 @@ def isPrime(number: int) -> bool:
 
 def isPerfectSquare(x: int) -> bool:
     """Checks if the number is a perfect square"""
+    if x <= 2:
+        return False
     s = int(math.sqrt(x))
     return s * s == x
 
@@ -542,6 +550,8 @@ def isDecPali(inputint: int) -> bool:
 
 def isPower2(inputint: int) -> bool:
     """Checks if the number is a power of 2"""
+    if inputint <= 1:
+        return False
     return (inputint & (inputint - 1)) == 0
 
 
@@ -563,6 +573,8 @@ def get_thuemorse(n:int) -> int:
 
 
 def isThueMorse(n:int) -> bool:
+    if n <= 1:
+        return False
     lenseq = len(format(n, "b"))+1
     if n == 0:
         lenseq = 1

@@ -1,12 +1,10 @@
 import os
 import re
-import time
 
 import discord
 from discord.ext import commands
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-timer = time.time()
 
 
 async def setup(bot):

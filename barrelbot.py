@@ -130,5 +130,17 @@ async def test(ctx: commands.Context):
     await barrelspam_cog(bot).savealldata()
     await ctx.send("success")
 
+
+# @bot.command()
+# @commands.is_owner()
+# async def debug(ctx: commands.Context, onoff: str):
+#     if onoff.lower() == "on":
+#         switch = True
+#     else:
+#         switch = False
+
+#     bot.isdebugstate = switch
+
+
 # Run the bot
 bot.run(TOKEN)

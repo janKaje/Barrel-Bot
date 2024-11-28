@@ -48,8 +48,8 @@ On a valid :barrel: spam,
     * Prime numbers are indicated by a 🇵
     * Mersenne primes are indicated by a 🇲
     * Fibonacci numbers are indicated by a 🇫
-    * Base 10 palindromes are indicated by a 🔁
-    * Base 2 palindromes are indicated by a 🔂
+    * Base 10 palindromes are indicated by a :holybarrel:
+    * Base 2 palindromes are indicated by a ✨
     * Powers of two are indicated by a ↗️
     * Perfect squares are indicated by a ⏹️ 
     * Numbers in the modified Thue-Morse sequence are indicated by a 🇹
