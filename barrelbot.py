@@ -54,6 +54,16 @@ dir_path = os.path.dirname(os.path.abspath(__file__))
 # get token
 TOKEN = os.environ["TOKEN"]
 
+# prep for save functions
+async def saveeverything():
+    funcog = fun_cog(bot)
+    spamcog = barrelspam_cog(bot)
+    await funcog.saveprep()
+    await spamcog.saveprep()
+    await funcog.savealldata()
+    await spamcog.savealldata()
+
+
 # Bot events
 
 @bot.event
@@ -117,17 +127,15 @@ async def on_error(event, *args, **kwargs):
 @commands.is_owner()
 async def olape(ctx: commands.Context):
     """Gently puts the bot to sleep, so he can rest and recover for the coming day."""
-    await fun_cog(bot).savealldata()
-    await barrelspam_cog(bot).savealldata()
+    await saveeverything()
     await ctx.send("Goodnight! See you tomorrow :)")
     quit()
 
 
 @bot.command()
 @commands.is_owner()
-async def test(ctx: commands.Context):
-    await fun_cog(bot).savealldata()
-    await barrelspam_cog(bot).savealldata()
+async def save_everything(ctx: commands.Context):
+    await saveeverything()
     await ctx.send("success")
 
 

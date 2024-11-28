@@ -205,6 +205,13 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         # print loaded
         print(f"cog: {self.qualified_name} loaded")
 
+    async def saveprep(self):
+
+        self.datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
+        self.ind_data_msg = await self.datachannel.fetch_message(IND_DATA_MSG_ID)
+        self.team_data_msg = await self.datachannel.fetch_message(TEAM_DATA_MSG_ID)
+        self.temp_data_msg = await self.datachannel.fetch_message(TEMP_DATA_MSG_ID)
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         """Called whenever a message is sent that the bot can see."""
