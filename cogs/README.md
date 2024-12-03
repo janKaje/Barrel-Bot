@@ -22,7 +22,7 @@ The emoji can be any :barrel: emoji; as long as the emoji name contains the word
 
 When the run is over,
 * If the run lasted long enough to get to spam number 10: 
-    * Each team's total is counted up
+    * Each team's total is counted up from the individual scores of its members from that run
     * Whichever team got the most points for the run "wins" and gets all of those points added to their team score
     * The "losing" team gets half of their earned points
     * If there is a tie, both teams get 3/4 of their earned points
@@ -33,6 +33,7 @@ When the run is over,
     * The spam number is reset to 0
 
 On a valid :barrel: spam,
+* You will gain points added to your individual score. The default number of points is 1.
 * If your spam number is part of the following sequences of special numbers, you will gain extra points as follows:
     * Prime numbers: `ceil(spam number / 4)`
     * Mersenne prime numbers: `ceil(spam number / 1.5)`, overriding the usual prime number score
@@ -53,3 +54,5 @@ On a valid :barrel: spam,
     * Powers of two are indicated by a ↗️
     * Perfect squares are indicated by a ⏹️ 
     * Numbers in the modified Thue-Morse sequence are indicated by a 🇹
+
+The person with the highest individual point total is given the Lord of Barrel Spam role as a trophy. This is updated hourly.

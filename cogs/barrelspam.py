@@ -23,6 +23,8 @@ BINARYROLEID = 1303766864391831644
 
 BARRELCULTSPAMCHANNELID = 1297028406504067142
 
+LORD_ROLE_ID = 1313332375849009193
+
 IND_DATA_MSG_ID = 1310847757921157150
 TEAM_DATA_MSG_ID = 1310847752871350313
 TEMP_DATA_MSG_ID = 1310847765517172776
@@ -163,6 +165,12 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         await ctx.send(json.dumps(barrelspamtempdata))
         await ctx.send(next_barrelspam)
 
+    @commands.command()
+    @commands.is_owner()
+    async def lordify(self, ctx: commands.Context):
+        await self.update_whos_lord()
+        await ctx.send(f"Complete. Now {self.lord_role.members[0].display_name} is Lord of <#1297028406504067142>")
+
     async def cog_load(self):
         """Called when the bot starts and is ready."""
 
@@ -201,6 +209,9 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         self.ind_data_msg = await self.datachannel.fetch_message(IND_DATA_MSG_ID)
         self.team_data_msg = await self.datachannel.fetch_message(TEAM_DATA_MSG_ID)
         self.temp_data_msg = await self.datachannel.fetch_message(TEMP_DATA_MSG_ID)
+        
+        self.cult_guild = (await self.bot.fetch_channel(BARRELCULTSPAMCHANNELID)).guild
+        self.lord_role = self.cult_guild.get_role(LORD_ROLE_ID)
 
         # print loaded
         print(f"cog: {self.qualified_name} loaded")
@@ -486,9 +497,31 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
 
         print("spam data saved")
 
+    async def update_whos_lord(self):
+        """Just updates who the barrel spam lord is"""
+
+        # get spam data and sort
+        ind_data_as_array = [[i, j] for i, j in barrelspamdata.items()]
+        ind_data_as_array.sort(key=lambda x: x[1], reverse=True)
+        next_lord = self.cult_guild.get_member(int(ind_data_as_array[0][0]))
+
+        # remove the lord role from everyone but the next lord (if applicable)
+        lords = self.lord_role.members
+        for member in lords:
+            if member.id != next_lord.id:
+                await member.remove_roles(self.lord_role)
+        
+        # add it to the next lord (if applicable)
+        if self.lord_role not in next_lord.roles:
+            await next_lord.add_roles(self.lord_role)
+            print(f"{next_lord.display_name} is now lord of barrel spam") # only prints on switch bc why not
+
+
     @tasks.loop(hours=1)
     async def hourlyloop(self):
+        """Runs every hour - mostly to save data and update lord role"""
         await self.savealldata()
+        await self.update_whos_lord()
 
 
 # MATH FUNCTIONS
