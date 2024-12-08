@@ -2,7 +2,7 @@ import json
 import math
 import os
 import re
-import asyncio
+from datetime import datetime as dt
 
 import discord
 from discord.ext import commands, tasks
@@ -72,6 +72,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         """Join a team to spam some barrels! You can join Team Decimal or Team Binary.
         Example:
         `Hey BarrelBot, join Team Decimal`"""
+
         # if they ask to join team decimal
         if re.match("(team )?decimal", teamname, flags=re.I):
             # iterate through roles to clean up
@@ -104,10 +105,12 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             await ctx.send(
                 "Didn't quite get that. You can ask to join Team Decimal or Team Binary with \"barrelbot, join team "
                 "decimal\" or \"barrelbot, join team binary\"")
+            
 
     @commands.command()
     async def leaderboard(self, ctx: commands.Context):
         """Shows the team scores and individual leaderboard of barrel spam scores."""
+
         # start embed
         embed = discord.Embed(color=discord.Color.dark_blue(), title="Barrel Spam Leaderboard", description="")
         embed.add_field(name="Team Scores",
@@ -136,6 +139,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
     @commands.command()
     async def rank(self, ctx: commands.Context):
         """Shows your individual barrel spam score and rank."""
+
         # start embed
         embed = discord.Embed(color=discord.Color.dark_blue(), title="Barrel Spam Rank", description="")
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
@@ -196,25 +200,37 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
                     break
 
         # if the current number is wrong, next spam number resets to 0
-        if last_spamint != next_barrelspam - 1:
-            await spamchannel.send(
-                f"I took a nap and when I came back, the spam number was off! You guys were supposed to be at {next_barrelspam - 1}... " + \
-                "Guess you get to restart at 0!")
-            next_barrelspam = 0
+        if last_spamint != next_barrelspam - 1: # only works if previous number was printed in decimal
+
+            # this mess makes sure that it's actually wrong and not just in binary
+            try:
+                if int(str(last_spamint), base=2) == next_barrelspam - 1:
+                    isWrong = False
+                else:
+                    isWrong = True
+            except ValueError:
+                isWrong = True
+            
+            if isWrong:
+                print(f"Spam number off: should be {next_barrelspam}, was {last_spamint}")
+                await spamchannel.send(
+                    f"I took a nap and when I came back, the spam number was off! You guys were supposed to be at {next_barrelspam - 1}... " + \
+                    "Guess you get to restart at 0!")
+                next_barrelspam = 0
 
         # print next spam number
         print(f"Next spam number: {next_barrelspam}")
 
-        self.datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
-        self.ind_data_msg = await self.datachannel.fetch_message(IND_DATA_MSG_ID)
-        self.team_data_msg = await self.datachannel.fetch_message(TEAM_DATA_MSG_ID)
-        self.temp_data_msg = await self.datachannel.fetch_message(TEMP_DATA_MSG_ID)
+        await self.saveprep()
         
         self.cult_guild = (await self.bot.fetch_channel(BARRELCULTSPAMCHANNELID)).guild
         self.lord_role = self.cult_guild.get_role(LORD_ROLE_ID)
 
         # print loaded
         print(f"cog: {self.qualified_name} loaded")
+
+        # start hourly loop
+        self.hourlyloop.start()
 
     async def saveprep(self):
 
@@ -482,10 +498,10 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         """Called when the bot disconnects."""
         await self.savealldata()
 
-    @commands.Cog.listener()
-    async def on_shard_disconnect(self, shard_id):
-        """Called when the shard disconnects."""
-        await self.savealldata()
+    # @commands.Cog.listener()
+    # async def on_shard_disconnect(self, shard_id):
+    #     """Called when the shard disconnects."""
+    #     await self.savealldata()
 
     async def savealldata(self):
         save_to_json(barrelspamdata, dir_path + "/data/barrelspamdata.json")
@@ -514,14 +530,17 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         # add it to the next lord (if applicable)
         if self.lord_role not in next_lord.roles:
             await next_lord.add_roles(self.lord_role)
-            print(f"{next_lord.display_name} is now lord of barrel spam") # only prints on switch bc why not
+            
+        print(f"{next_lord.display_name} is now lord of barrel spam") # only prints on switch bc why not
 
 
     @tasks.loop(hours=1)
     async def hourlyloop(self):
         """Runs every hour - mostly to save data and update lord role"""
+        print(f"{dt.now().isoformat(sep=' ')} INFO\tHourly loop started!")
         await self.savealldata()
         await self.update_whos_lord()
+        print(f"{dt.now().isoformat(sep=' ')} INFO\tHourly loop finished!")
 
 
 # MATH FUNCTIONS

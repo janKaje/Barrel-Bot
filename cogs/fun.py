@@ -48,7 +48,11 @@ class fun(commands.Cog, name="Fun"):
     @commands.command()
     async def ping(self, ctx: commands.Context):
         """Pong!"""
-        await ctx.send(f'Pong! {round(self.bot.latency * 1000)}ms')
+        to_send = f'Pong! {round(self.bot.latency * 1000)}ms'
+        isowner = await self.bot.is_owner(ctx.author)
+        if isowner and os.environ["MACHINE"] == "homelaptop":
+            to_send += "\nI'm running in development mode. How's the coding?"
+        await ctx.send(to_send)
 
     @commands.command()
     async def introduce(self, ctx: commands.Context, *, arg):
@@ -209,19 +213,21 @@ class fun(commands.Cog, name="Fun"):
         """Called when the bot disconnects."""
         await self.savealldata()
 
-    @commands.Cog.listener()
-    async def on_shard_disconnect(self, shard_id):
-        """Called when the shard disconnects."""
-        await self.savealldata()
+    # @commands.Cog.listener()
+    # async def on_shard_disconnect(self, shard_id):
+    #     """Called when the shard disconnects."""
+    #     await self.savealldata()
 
     async def cog_load(self):
         
         # load for data saving
-        self.datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
-        self.datamsg = await self.datachannel.fetch_message(DATA_MSG_ID)
+        await self.saveprep()
 
         # print loaded
         print(f"cog: {self.qualified_name} loaded")
+        
+        # start hourly loop
+        self.hourlyloop.start()
 
     async def saveprep(self):
         

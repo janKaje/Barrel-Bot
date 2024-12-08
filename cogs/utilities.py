@@ -23,6 +23,12 @@ class utilities(commands.Cog, name="Utilities"):
         """Provides a link to my github page."""
         await ctx.send("https://github.com/janKaje/Barrel-Bot")
 
+    @commands.command()
+    @commands.is_owner()
+    async def debuginfo(self, ctx: commands.Context):
+        print(os.environ)
+        await ctx.send("All environment variables printed in console.")
+
     # Custom Help command
     @commands.command()
     async def help(self, ctx: commands.Context, *, cmd=None):

@@ -56,10 +56,13 @@ TOKEN = os.environ["TOKEN"]
 
 # prep for save functions
 async def saveeverything():
+
     funcog = fun_cog(bot)
     spamcog = barrelspam_cog(bot)
+
     await funcog.saveprep()
     await spamcog.saveprep()
+
     await funcog.savealldata()
     await spamcog.savealldata()
 
@@ -83,7 +86,7 @@ async def on_ready():
     except:
         pass
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
-    print("Loaded and ready!")
+    print(f"Loaded and ready! Running on {os.environ['MACHINE']}")
 
 
 @bot.event
@@ -137,17 +140,6 @@ async def olape(ctx: commands.Context):
 async def save_everything(ctx: commands.Context):
     await saveeverything()
     await ctx.send("success")
-
-
-# @bot.command()
-# @commands.is_owner()
-# async def debug(ctx: commands.Context, onoff: str):
-#     if onoff.lower() == "on":
-#         switch = True
-#     else:
-#         switch = False
-
-#     bot.isdebugstate = switch
 
 
 # Run the bot
