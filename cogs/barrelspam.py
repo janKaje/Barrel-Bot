@@ -537,10 +537,9 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
     @tasks.loop(hours=1)
     async def hourlyloop(self):
         """Runs every hour - mostly to save data and update lord role"""
-        print(f"{dt.now().isoformat(sep=' ')} INFO\tHourly loop started!")
         await self.savealldata()
         await self.update_whos_lord()
-        print(f"{dt.now().isoformat(sep=' ')} INFO\tHourly loop finished!")
+        print(f"{dt.now().isoformat(sep=' ', timespec='seconds')} INFO\tHourly loop finished!")
 
 
 # MATH FUNCTIONS

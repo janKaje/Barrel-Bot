@@ -101,15 +101,29 @@ class barrelnews(commands.Cog, name="Barrel News"):
     def get_deadline(self, prev:bool) -> dt.datetime:
         now = dt.datetime.now(tz=dt.timezone.utc)
         nowtime = now.time().replace(tzinfo=dt.timezone.utc)
+        to_return = None
         if prev:
-            if nowtime >= deadline_time:
+            if nowtime > deadline_time:
                 # same day
-                return now.replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
-            # previous day
-            return (now - dt.timedelta(days=1)).replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+                to_return = now.replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+            else:
+                # previous day
+                to_return = (now - dt.timedelta(days=1)).replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+
+            if (now - to_return).total_seconds() < 60: # if difference is small, get day before 
+                return to_return - dt.timedelta(days=1)
+            else:
+                return to_return
+        else:
+            if nowtime >= deadline_time:
+                # next day
+                to_return = (now + dt.timedelta(days=1)).replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+            else:
+                # same day
+                to_return = now.replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+
+            if (to_return - now).total_seconds() < 60: # if difference is small, get day after
+                return to_return + dt.timedelta(days=1)
+            else:
+                return to_return
         
-        if nowtime >= deadline_time:
-            # next day
-            return (now + dt.timedelta(days=1)).replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
-        # same day
-        return now.replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
