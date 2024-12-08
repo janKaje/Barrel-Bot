@@ -85,6 +85,10 @@ async def on_ready():
         await bot.load_extension("cogs.utilities")
     except:
         pass
+    try:
+        await bot.load_extension("cogs.barrelnews")
+    except:
+        pass
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
     print(f"Loaded and ready! Running on {os.environ['MACHINE']}")
 

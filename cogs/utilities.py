@@ -14,7 +14,7 @@ async def setup(bot):
 class utilities(commands.Cog, name="Utilities"):
     """Random other stuff"""
 
-    def __init__(self, bot):
+    def __init__(self, bot:commands.Bot):
         self.bot = bot
         print(f"cog: {self.qualified_name} loaded")
 
@@ -85,6 +85,7 @@ class utilities(commands.Cog, name="Utilities"):
             await addcommands(self.bot.get_cog('Utilities'))
             await addcommands(self.bot.get_cog('Fun'))
             await addcommands(self.bot.get_cog("Barrel Spam"))
+            await addcommands(self.bot.get_cog("Barrel News"))
 
             if await self.bot.is_owner(ctx.author):
                 info = ''
