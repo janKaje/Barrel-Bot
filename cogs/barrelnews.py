@@ -39,7 +39,7 @@ class barrelnews(commands.Cog, name="Barrel News"):
         prev_d = self.get_deadline(True)
         next_d = self.get_deadline(False)
         already = await self.check_if_already_posted()
-        days_since_reveal = (dt.date.today() - dt.date(year=2024, month=1, day=25)).days
+        days_since_reveal = (dt.date.today() - dt.date(year=2024, month=1, day=25)).days - 1
         days_of_bnn = days_since_reveal - 266 - 6 #6 days missed?
 
         outstr = f"Previous deadline: <t:{int(prev_d.timestamp())}>, or <t:{int(prev_d.timestamp())}:R>\n" +\
@@ -69,7 +69,7 @@ class barrelnews(commands.Cog, name="Barrel News"):
         if await self.check_if_already_posted():
             return
         
-        days_since_reveal = (dt.date.today() - dt.date(year=2024, month=1, day=25)).days
+        days_since_reveal = (dt.date.today() - dt.date(year=2024, month=1, day=25)).days - 1
         days_of_bnn = days_since_reveal - 266 - 6 #6 days missed?
 
         await self.news_channel.send(f"# TODAY\n## ON BNN\nDay {days_of_bnn} of bringing you your daily {BARREL_EMOJI} news\n"\

@@ -4,4 +4,6 @@ data/barrelspamtempdata.json
 __pycache__
 cogs/__pycache__
 .env
+notes.txt
 cogs/analytics.py
+data/analytics.pkl

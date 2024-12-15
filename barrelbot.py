@@ -6,9 +6,6 @@ import sys
 import discord
 from discord.ext import commands
 
-from cogs.fun import fun as fun_cog
-from cogs.barrelspam import barrelspam as barrelspam_cog
-
 try:
     import dotenv
     dotenv.load_dotenv()
@@ -50,21 +47,29 @@ bot.remove_command('help')
 
 # Create global variables
 dir_path = os.path.dirname(os.path.abspath(__file__))
+defaultctx = None
 
 # get token
 TOKEN = os.environ["TOKEN"]
 
 # prep for save functions
-async def saveeverything():
+async def save_everything():
 
-    funcog = fun_cog(bot)
-    spamcog = barrelspam_cog(bot)
+    global defaultctx
+    assert defaultctx != None, "Default context hasn't been established yet"
 
-    await funcog.saveprep()
-    await spamcog.saveprep()
+    funcog = bot.get_cog("Fun")
+    spamcog = bot.get_cog("Barrel Spam")
 
-    await funcog.savealldata()
-    await spamcog.savealldata()
+    for command in funcog.get_commands():
+        if command.name == "savefundata":
+            await command.__call__(defaultctx)
+            break
+
+    for command in spamcog.get_commands():
+        if command.name == "savespamdata":
+            await command.__call__(defaultctx)
+            break
 
 
 # Bot events
@@ -90,6 +95,10 @@ async def on_ready():
     except:
         pass
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
+
+    global defaultctx
+    defaultctx = await bot.get_context(await (await bot.fetch_channel(735631686313967646)).fetch_message(1315938006259073087))
+
     print(f"Loaded and ready! Running on {os.environ['MACHINE']}")
 
 
@@ -134,15 +143,15 @@ async def on_error(event, *args, **kwargs):
 @commands.is_owner()
 async def olape(ctx: commands.Context):
     """Gently puts the bot to sleep, so he can rest and recover for the coming day."""
-    await saveeverything()
+    await save_everything()
     await ctx.send("Goodnight! See you tomorrow :)")
     quit()
 
 
 @bot.command()
 @commands.is_owner()
-async def save_everything(ctx: commands.Context):
-    await saveeverything()
+async def saveeverything(ctx: commands.Context):
+    await save_everything()
     await ctx.send("success")
 
 

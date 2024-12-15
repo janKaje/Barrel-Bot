@@ -539,7 +539,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         """Runs every hour - mostly to save data and update lord role"""
         await self.savealldata()
         await self.update_whos_lord()
-        print(f"{dt.now().isoformat(sep=' ', timespec='seconds')} INFO\tHourly loop finished!")
+        print(f"{dt.now().isoformat(sep=' ', timespec='seconds')} INFO\t Hourly loop finished!")
 
 
 # MATH FUNCTIONS

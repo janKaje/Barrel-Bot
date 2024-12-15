@@ -208,10 +208,6 @@ class fun(commands.Cog, name="Fun"):
             except:
                 pass
 
-        if message.content == "@someone":
-            member_to_ping = rand.choice(message.guild.members)
-            await message.channel.send(member_to_ping.mention)
-
     @commands.Cog.listener()
     async def on_disconnect(self, ):
         """Called when the bot disconnects."""
