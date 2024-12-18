@@ -80,7 +80,8 @@ async def save_everything():
 async def load_cog(cogname):
     try:
         await bot.load_extension(cogname)
-    except:
+    except Exception as e:
+        print(f"was not able to load cog {cogname}:\n{e.with_traceback(None)}")
         pass
 
 # Bot events
@@ -129,7 +130,7 @@ async def on_command_error(ctx: commands.Context, error):
     elif isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f'That command is on cooldown. Try again in {math.ceil(error.retry_after)} second(s).')
     else:
-        await ctx.send(f'An unknown error occurred:\n{error}')
+        await ctx.send(f'An unknown error occurred:\n{error.with_traceback(None)}')
 
 
 @bot.event

@@ -39,12 +39,12 @@ class Analytics(commands.Cog, name="Analytics"):
     async def show_analytics(self, ctx: commands.Context, graphtype='normal', style='seaborn-v0_8'):
 
         """Shows an analytics graph.
-        :graphtype: The type of graph to show.
-            options: normal, adjusted
-            default: normal
-        :style: The style to use for displaying the graph.
-            options: any found on https://matplotlib.org/stable/gallery/style_sheets/style_sheets_reference.html
-            default: seaborn-v0_8"""
+        `graphtype` The type of graph to show.
+        options: normal, adjusted
+        default: normal
+        `style` The style to use for displaying the graph.
+        options: any found on https://matplotlib.org/stable/gallery/style_sheets/style_sheets_reference.html
+        default: seaborn-v0_8"""
         
         async with ctx.channel.typing():
             if graphtype == 'normal':
