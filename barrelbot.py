@@ -60,6 +60,7 @@ async def save_everything():
 
     funcog = bot.get_cog("Fun")
     spamcog = bot.get_cog("Barrel Spam")
+    analyticscog = bot.get_cog("Analytics")
 
     for command in funcog.get_commands():
         if command.name == "savefundata":
@@ -71,6 +72,16 @@ async def save_everything():
             await command.__call__(defaultctx)
             break
 
+    for command in analyticscog.get_commands():
+        if command.name == "saveanalyticsdata":
+            await command.__call__(defaultctx)
+            break
+
+async def load_cog(cogname):
+    try:
+        await bot.load_extension(cogname)
+    except:
+        pass
 
 # Bot events
 
@@ -78,22 +89,12 @@ async def save_everything():
 async def on_ready():
     """Called when the bot starts and is ready."""
     # Load cogs
-    try:
-        await bot.load_extension("cogs.barrelspam")
-    except:
-        pass
-    try:
-        await bot.load_extension("cogs.fun")
-    except:
-        pass
-    try:
-        await bot.load_extension("cogs.utilities")
-    except:
-        pass
-    try:
-        await bot.load_extension("cogs.barrelnews")
-    except:
-        pass
+    await load_cog("cogs.barrelspam")
+    await load_cog("cogs.fun")
+    await load_cog("cogs.utilities")
+    await load_cog("cogs.barrelnews")
+    await load_cog("cogs.analytics")
+
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
 
     global defaultctx
@@ -153,6 +154,27 @@ async def olape(ctx: commands.Context):
 async def saveeverything(ctx: commands.Context):
     await save_everything()
     await ctx.send("success")
+
+
+@bot.command()
+@commands.is_owner()
+async def reloadcog(ctx: commands.Context, cogname: str):
+    try:
+        await bot.reload_extension("cogs."+cogname)
+        await ctx.send(f"Reloaded {cogname}")
+    except Exception as e:
+        print(f"was not able to reload cog {cogname}:\n{e.with_traceback(None)}")
+        pass
+
+@bot.command()
+@commands.is_owner()
+async def run_raw_code(ctx: commands.Context, *, code:str):
+    if code == '':
+        return
+    try:
+        eval(code)
+    except Exception as e:
+        await ctx.send(f"Something went wrong:\n{e.with_traceback(None)}")
 
 
 # Run the bot

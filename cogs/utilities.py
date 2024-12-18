@@ -86,6 +86,7 @@ class utilities(commands.Cog, name="Utilities"):
             await addcommands(self.bot.get_cog('Fun'))
             await addcommands(self.bot.get_cog("Barrel Spam"))
             await addcommands(self.bot.get_cog("Barrel News"))
+            await addcommands(self.bot.get_cog("Analytics"))
 
             if await self.bot.is_owner(ctx.author):
                 info = ''

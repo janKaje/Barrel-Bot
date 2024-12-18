@@ -251,9 +251,9 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             team = self.get_user_team(str(message.author.id), message.guild)
             if team == "not in team":
                 responsemsg = await message.channel.send(
-                    f"{message.author.mention}, you must join a team before spamming!")
-                await message.delete(delay=5)
-                await responsemsg.delete(delay=5)
+                    f"{message.author.mention}, you must join a team before spamming! Go to <#1297596333976453291> and type `bb help join`")
+                await message.delete(delay=10)
+                await responsemsg.delete(delay=10)
                 return
             isspam, spamint = self.checkValidBarrelSpam(message)
             if isspam:

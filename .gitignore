@@ -5,5 +5,4 @@ __pycache__
 cogs/__pycache__
 .env
 notes.txt
-cogs/analytics.py
 data/analytics.pkl
