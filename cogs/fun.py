@@ -208,16 +208,6 @@ class fun(commands.Cog, name="Fun"):
             except:
                 pass
 
-    @commands.Cog.listener()
-    async def on_disconnect(self, ):
-        """Called when the bot disconnects."""
-        await self.savealldata()
-
-    # @commands.Cog.listener()
-    # async def on_shard_disconnect(self, shard_id):
-    #     """Called when the shard disconnects."""
-    #     await self.savealldata()
-
     async def cog_load(self):
         
         # load for data saving

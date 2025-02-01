@@ -493,16 +493,6 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             f"Whoops!\nSince this run only got to {finalint}, scores aren't counted. Runs must be {SPAM_THRESHOLD} or higher to count. Start again below! You've got this!")
         await msg.delete(delay=5)
 
-    @commands.Cog.listener()
-    async def on_disconnect(self):
-        """Called when the bot disconnects."""
-        await self.savealldata()
-
-    # @commands.Cog.listener()
-    # async def on_shard_disconnect(self, shard_id):
-    #     """Called when the shard disconnects."""
-    #     await self.savealldata()
-
     async def savealldata(self):
         save_to_json(barrelspamdata, dir_path + "/data/barrelspamdata.json")
         save_to_json(barrelspamteamdata, dir_path + "/data/barrelspamteamdata.json")
