@@ -43,7 +43,6 @@ reminders = [
     BARREL_EMOJI*20 + "\n" + BARREL_REP_MENTION + "\n" + BARREL_EMOJI*20,
     "<t:{}:R> the day will be over and we shall be left alone, without the guiding light of daily " + BARREL_EMOJI + " news. That is, unless the " + BARREL_REP_MENTION + " deign us worthy of such a blessing.",
     "Hewwo!!! :3 I am bawwewbot and I am hewe to wemind da " + BARREL_REP_MENTION + " to do deiw daiwy bawwew news!!! :heart_eyes_cat: :blush: <3 <3 uwu ^w^",
-    BARREL_REP_MENTION,
     BARREL_REP_MENTION + "\n中國早上好！現在我有冰淇淋。我真的很喜歡冰淇淋，但是，速度與激情 9，與速度與激情 9 相比，我最喜歡。所以，現在是音樂時間。準備好。 1, 2, 3.整整兩週後，速度與激情9，整整兩週後，速度與激情9，整整兩週後，速度與激情9。不要忘記，不要錯過它。去電影院看《速度與激情9》，這是一部很棒的電影！動作很棒，比如“我會尖叫”。再見。",
 ]
 
