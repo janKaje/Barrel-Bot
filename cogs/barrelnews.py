@@ -1,6 +1,7 @@
 import os
 import datetime as dt
-from random import choice, randint
+from random import choice, randint, random
+from math import floor
 
 import discord
 from discord.ext import commands, tasks
@@ -23,6 +24,205 @@ remind_time = dt.time(hour=REMINDER_TIME[0], minute=REMINDER_TIME[1], tzinfo=dt.
 deadline_time = dt.time(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], tzinfo=dt.timezone.utc)
 
 
+async def setup(bot):
+    await bot.add_cog(barrelnews(bot))
+
+
+class barrelnews(commands.Cog, name="Barrel News"):
+
+    """To help with barrel news reminders and posts"""
+
+    def __init__(self, bot:commands.Bot):
+        self.bot = bot
+
+        print(f"cog: {self.qualified_name} loaded")
+
+    @commands.command()
+    @commands.has_role(BARREL_REP_ROLE_ID)
+    async def test_timing(self, ctx: commands.Context):
+        prev_d = self.get_deadline(True)
+        next_d = self.get_deadline(False)
+        already = await self.check_if_already_posted()
+        days_since_reveal = (dt.date.today() - dt.date(year=2024, month=1, day=25)).days - 1
+        days_of_bnn = days_since_reveal - 266 - 6 #6 days missed?
+
+        outstr = f"Previous deadline: <t:{int(prev_d.timestamp())}>, or <t:{int(prev_d.timestamp())}:R>\n" +\
+                 f"Next deadline: <t:{int(next_d.timestamp())}>, or <t:{int(next_d.timestamp())}:R>\n" +\
+                 f"Already done for today: {already}\n" +\
+                 f"Days since PS reveal: {days_since_reveal}\n" +\
+                 f"Day of BNN: {days_of_bnn}"
+
+        await ctx.send(outstr)
+
+    @commands.command()
+    @commands.is_owner()
+    async def test_reminder(self, ctx: commands.Context):
+
+        remindmsg = self.get_reminder()
+
+        await ctx.send(remindmsg)
+
+    @commands.command()
+    @commands.is_owner()
+    async def test_bnnmsg(self, ctx: commands.Context, msgtype: str):
+
+        try:
+            await ctx.send(self.get_bnnmsg(int(msgtype)))
+        except:
+            msgtype = randint(1, 5)
+            await ctx.send(self.get_bnnmsg(msgtype))
+
+
+    @tasks.loop(time=remind_time)
+    async def remind_loop(self):
+        """Called every day at the time of reminder"""
+        # check if bnn already posted
+        if await self.check_if_already_posted():
+            return
+
+        remindmsg = self.get_reminder()
+
+        await self.news_channel.send(remindmsg)
+        
+    @tasks.loop(time=deadline_time)
+    async def post_loop(self):
+        """Called every day at the deadline. If the barrel reps haven't already sent BNN, barrelbot will"""
+        # check if bnn already posted
+        if await self.check_if_already_posted():
+            return
+
+        msgtype = randint(1, 5)
+
+        bnnmsg = self.get_bnnmsg(msgtype)
+
+        await self.news_channel.send(bnnmsg)
+
+    async def cog_load(self):
+
+        self.news_channel:discord.TextChannel = await self.bot.fetch_channel(BARREL_NEWS_CHANNEL_ID)
+
+        self.remind_loop.start()
+        self.post_loop.start()
+
+    async def check_if_already_posted(self) -> bool:
+
+        # get previous deadline
+        prev_deadline = self.get_deadline(prev=True) + dt.timedelta(hours=1) # one hour grace period between one deadline and start of next day
+
+        # if any non-bot messages have been sent since last deadline, return true
+        async for message in self.news_channel.history(after=prev_deadline):
+            if not message.author.bot and str(BARREL_SUB_MENTION) in message.content:
+                return True
+        
+        # otherwise
+        return False
+    
+    def get_deadline(self, prev:bool) -> dt.datetime:
+        now = dt.datetime.now(tz=dt.timezone.utc)
+        nowtime = now.time().replace(tzinfo=dt.timezone.utc)
+        to_return = None
+        if prev:
+            if nowtime > deadline_time:
+                # same day
+                to_return = now.replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+            else:
+                # previous day
+                to_return = (now - dt.timedelta(days=1)).replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+
+            if (now - to_return).total_seconds() < 60: # if difference is small, get day before 
+                return to_return - dt.timedelta(days=1)
+            else:
+                return to_return
+        else:
+            if nowtime >= deadline_time:
+                # next day
+                to_return = (now + dt.timedelta(days=1)).replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+            else:
+                # same day
+                to_return = now.replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+
+            if (to_return - now).total_seconds() < 60: # if difference is small, get day after
+                return to_return + dt.timedelta(days=1)
+            else:
+                return to_return
+        
+    def get_reminder(self):
+
+        next_deadline = self.get_deadline(prev=False)
+
+        remindmsg = choice(reminders)
+
+        try:
+            remindmsg = remindmsg.format(int(next_deadline.timestamp()))
+        except:
+            pass
+
+        return remindmsg
+    
+    def get_bnnmsg(self, msgtype):
+        
+        days_since_reveal = (dt.date.today() - dt.date(year=2024, month=1, day=25)).days - 1
+        days_of_bnn = days_since_reveal - 266 - 6 #6 days missed?
+
+        bnnmsg = f"# TODAY\n## ON BNN\nWelcome to day {days_of_bnn} of bringing you your daily {BARREL_EMOJI} news! I'm your host, Barrelbot, "\
+                 f"here to bring you your randomly-generated, `{choice(adjectives).lower()}` news for today.\n\n"
+
+        if msgtype == 1:
+
+            bnnmsg += f"Today the {BARREL_EMOJI} is feeling some `{choice(emotions).lower()}`, so please take that into account when you `{choice(verbs).lower()}` your `{choice(nouns).lower()}` today. "\
+                      f"It may also affect the way that you choose to `{choice(verbs).lower()}`. \n\n"\
+                      f"New research shows that a `{choice(adjectives).lower()}` `{choice(nouns).lower()}` is `{choice(adjectives).lower()}` to some `{choice(nouns).lower()}s`! So be sure to `{choice(verbs).lower()}` as much as you can today. "\
+                      f"That way you can be sure `{choice(['this week'+chr(39)+'s episode of', 'your mom'+chr(39)+'s favorite', 'every single', 'Benadryl Cucumberpatch'+chr(39)+'s', 'the warm, toasty', 'the wretched', 'my'])}` "\
+                      f"`{choice(['eye patch', 'Reddit account', 'vtuber alter ego', 'butler', 'exploding beach ball', 'weapons-grade plutonium', 'oil refinery', 'sled pulled by rabid opossoms', '3-inch tungsten cube', 'antique chandelier', 'T6 Series 1000W AC Servo Motor Kit', 'LORELEI S9 Wired Headphones with Microphone for School，On-Ear Kids Headphones for Girls Boys，Folding Lightweight and 3.5mm Audio Jack Headset for Phone, Ipad，Tablet, PC, Chromebook (Pearl Pink)'])}` "\
+                      f"stays `{choice(adjectives).lower()}` and `{choice(adjectives).lower()}`!\n\n"
+            
+        elif msgtype == 2:
+
+            bnnmsg += f"Signs in the `{choice(['sky', 'tea leaves', 'WalMart parking lot', 'heavens', 'attic', 'depths of Tartarus'])}` show that every human is required to feel `{choice(emotions).lower()}` today! Otherwise the {BARREL_EMOJI} might not like your style of `{choice(nouns).lower()}`. "\
+                      f"Life is short, so tell your `{choice(relationalterms)}` you `{choice(verbs).lower()}` them. `{choice(interjections).capitalize()}`!\n\n"\
+                      f"In other news, the Intergalactic Badminton Tournament is going great! The `{choice(adjectives).lower()}` players are winning, and the `{choice(adjectives).lower()}` players are losing. "\
+                      f"Only `{randint(1, 1000)}` people have died so far today, and the fans are `{choice(['eating it up', 'vomiting profusely', 'singing silly songs with Larry', 'going wild', 'sending death threats to their enemies', 'cheering so loud the arena is caving in', 'blackout drunk'])}`!\n\n"
+            
+        elif msgtype == 3:
+
+            bnnmsg += f"We have some very special news for you today! Mr. `{choice(adjectives).capitalize()}` has decided he no longer wants his `{choice(nouns).lower()}`! Anybody who wants to `{choice(verbs).lower()}` it "\
+                      f"is welcome to come claim it. Offer valid for the next `{randint(0, 300)}` `{choice(['years', 'minutes', 'months', 'seconds', 'nanoseconds'])}`. "\
+                      f"Be warned, though, as it is rumored to hold the curse of `{choice(adjectives).lower()}` `{choice(nouns).lower()}s`!\n\n"\
+                      f"Reports of loose `{choice(nouns).lower()}s` are flooding in today. Keep your `{choice(nouns).lower()}` `{choice(['inside', 'outside', 'locked away', 'sealed in the dark realm', 'on your roof'])}` this evening to prevent any trouble, "\
+                      f"as they're said to be `{choice(adjectives).lower()}` in their hunt for `{choice(nouns).lower()}`.\n\n"
+            
+        elif msgtype == 4:
+
+            bnnmsg += f"Today is an excellent day to praise the Almighty {BARREL_EMOJI}! Great `{choice(nouns).lower()}s` have fallen upon our `{choice(nouns).lower()}s` and upon our `{choice(nouns).lower()}s`. "\
+                      f"Reports are saying that people who `{choice(verbs).lower()}` their `{choice(nouns).lower()}` to the {BARREL_EMOJI} begin to feel `{choice(emotions).lower()}`! "\
+                      f"However, common side effects include feeling `{choice(emotions).lower()}`, `{choice(emotions).lower()}`, and `{choice(emotions).lower()}`. "\
+                      f"Please consult your `{choice(relationalterms)}` before attempting. `{choice(adjectives).capitalize()}` `{choice(nouns).lower()}s` may prevent you from the {BARREL_EMOJI}'s grace.\n\n"
+
+        elif msgtype == 5:
+
+            place = choice(['Flavortown', 'Modesto, CA', 'South British Caltexico', 'Siberia', 'Wisconsahoma', 'Upper Minneganderlis', 'Funkytown', 'The Kingdom of ' + choice(adjectives).capitalize() + ' ' + choice(nouns).capitalize() + 's', 'The Soviet Union', 'The Grand Duchy of Flandrensis', 'The United Territories of the Sovereign Nation of The People\'s Republic of Slowjamastan', f'The {choice(adjectives).capitalize()} Empire'])
+            criminal = choice(nouns).lower()
+
+            bnnmsg += f"A `{choice(adjectives).lower()} {criminal}` in `{place}` was arrested this morning after it was caught trying to `{choice(verbs).lower()}` "\
+                      f"in front of its `{choice(relationalterms)}`. Such an action is clearly prohibited under section `{randint(1,99)}-{randint(1,15)}{choice(['a','b','c','x','q','f','hm','','a93f','f0','#EF2B7C','z','zz','zzz','maj','e','y','c','b','m'])}-{randint(100,9999)}` of `{place}'s` criminal law. "\
+                      f"As such the `{criminal}` will face charges of up to `{choice(['5 years in prison', '10 years of community service', '1 night in the _**I N F I N I T Y   R O O M**_', 'a 30¢ fine'])}` and all of their `{choice(nouns).lower()}s` will be sold and the money donated to `{choice(adjectives).capitalize()} {choice(nouns).capitalize()} {choice(nouns).capitalize()}` Enterprises, "\
+                      f"a for-profit charity benefitting the `{choice(adjectives).lower()}` ones in our community.\n\n"\
+                      f"Today is International `{choice(relationalterms).capitalize()}'s` Day. Show them you're thinking of them and `{choice(verbs).lower()}` a `{choice(nouns).lower()}` for them. Trust us, they'll love it! "\
+                      f"If you want to go the extra `{choice(['mile', 'kilometer', 'millimeter', 'yard', 'parsec', 'nautical mile', 'furlong', 'cubit'])}`, `{choice(verbs).lower()}` them a `{choice(nouns).lower()}` as well. They're sure to show `{choice(emotions).lower()}` at your gesture!\n\n"
+
+        bnnmsg += f"The weather today on earth will be `{choice(adjectives).lower()}`, with a high of `{rand_temp()}`°C and a low of `{rand_temp()}`°F. Watch out for "\
+                  f"`{choice(['polar bears', 'steel hail', 'severe sharknadoes', 'chemtrails', 'frozen cats', 'plagues caused by advanced bioweapons', 'astronaut suits falling from space', 'occasional stray muon beams', 'elves that escaped from Santa'+chr(39)+'s workshop', 'ice dragons', 'liquid ammonia rain', 'adorable cat smiles', 'francophones', 'neo-nazi zombies', 'sentient crab rain', 'SNAKES!', 'freezing rain', 'spontaneously-forming black holes', 'giant tumbleweeds', 'your mom', 'the heat death of the universe', 'impending doom', 'tentacles', 'cute anime catgirls', 'arranged marriages', 'pink fluffy unicorns dancing on rainbows', 'bronies', 'that one family member (yes, that one)', 'stray mitochondria (the powerhouse of the cell!)', 'Larry the Cucumber from VeggieTales'])}` "\
+                  f"`{choice(['along the east coast', 'along the west coast', 'near the entrance to Anubis'+chr(39)+' realm', 'around Olympus Mons', 'at the beaches in France', 'in any part of the world with bacteria', 'off the Arctic coast', 'on the Bridge to Asgard', 'along the outskirts of Detroit', 'where the sidewalk ends', 'where your great aunt Marge broke her coccyx', 'wherever you last ate chocolate ice cream', 'in your bathroom', 'in your mind', 'at your local grocery store!', 'hiding in your lasagna', 'in places where the sun don'+chr(39)+'t shine'])}`. "\
+                  f"The `{choice(nouns).capitalize()}` also predicts the weather is going to `{choice(verbs).lower()}` even more tonight than yesterday. `{choice(interjections).capitalize()}`!\n\n"\
+                  f"That's all for today! Barrelbot, signing off. \n{days_since_reveal} days since PS reveal \n<@&{BARREL_SUB_ROLE_ID}>"
+        
+        return bnnmsg
+
+
+def rand_temp():
+    rand = random()*3.5
+    return floor(10**rand)
+
 reminders = [
     BARREL_REP_MENTION + " don't forget to do daily " + BARREL_EMOJI + " news! If you haven't done it <t:{}:R> I'll have to do it myself.",
     BARREL_REP_MENTION + "! News! Soon! You have until <t:{}:t>!",
@@ -31,7 +231,7 @@ reminders = [
     BARREL_REP_MENTION + ": <t:{}:t>",
     BARREL_REP_MENTION + "\nG-guys can someone p-lease do the news for meeeeee? 🤓 I-it would really m-make my d-day...",
     "Hewwo my deawest " + BARREL_REP_MENTION + "! I would weally wove it if you did youw news wepowt :3 Nofing would make me happiew! Would you do it fow me??? :pleading_face:",
-    "Greetings loyal " + BARREL_EMOJI + " cultists. May the " + BARREL_EMOJI + " smile upon you. We are currently awaiting the blessed deliverance of news from our esteemed " + BARREL_REP_MENTION + ". Until then, please refrain from rioting or making fart noises with your armpits. Good day.",
+    "Greetings loyal " + BARREL_EMOJI + " cultists. May the " + BARREL_EMOJI + " smile upon you. We are currently awaiting the blessed deliverance of news from our esteemed " + BARREL_REP_MENTION + ". Until then, please refrain from rioting in the streets. Good day.",
     BARREL_REP_MENTION + "\n" + BARREL_EMOJI*20,
     BARREL_REP_MENTION + "\n" + BARREL_EMOJI*50,
     BARREL_REP_MENTION + " more like @Barrel news reporters! Am I right? No? Ok, I'll show myself out...",
@@ -317,183 +517,3 @@ relationalterms = [
 ]
 
 
-async def setup(bot):
-    await bot.add_cog(barrelnews(bot))
-
-
-class barrelnews(commands.Cog, name="Barrel News"):
-
-    """To help with barrel news reminders and posts"""
-
-    def __init__(self, bot:commands.Bot):
-        self.bot = bot
-
-        print(f"cog: {self.qualified_name} loaded")
-
-    @commands.command()
-    @commands.has_role(BARREL_REP_ROLE_ID)
-    async def test_timing(self, ctx: commands.Context):
-        prev_d = self.get_deadline(True)
-        next_d = self.get_deadline(False)
-        already = await self.check_if_already_posted()
-        days_since_reveal = (dt.date.today() - dt.date(year=2024, month=1, day=25)).days - 1
-        days_of_bnn = days_since_reveal - 266 - 6 #6 days missed?
-
-        outstr = f"Previous deadline: <t:{int(prev_d.timestamp())}>, or <t:{int(prev_d.timestamp())}:R>\n" +\
-                 f"Next deadline: <t:{int(next_d.timestamp())}>, or <t:{int(next_d.timestamp())}:R>\n" +\
-                 f"Already done for today: {already}\n" +\
-                 f"Days since PS reveal: {days_since_reveal}\n" +\
-                 f"Day of BNN: {days_of_bnn}"
-
-        await ctx.send(outstr)
-
-    @commands.command()
-    @commands.is_owner()
-    async def test_reminder(self, ctx: commands.Context):
-
-        remindmsg = self.get_reminder()
-
-        await ctx.send(remindmsg)
-
-    @commands.command()
-    @commands.is_owner()
-    async def test_bnnmsg(self, ctx: commands.Context):
-
-        for i in [1,2,3,4]:
-
-            bnnmsg = self.get_bnnmsg(i)
-
-            await ctx.send(bnnmsg)
-
-    @tasks.loop(time=remind_time)
-    async def remind_loop(self):
-        """Called every day at the time of reminder"""
-        # check if bnn already posted
-        if await self.check_if_already_posted():
-            return
-
-        remindmsg = self.get_reminder()
-
-        await self.news_channel.send(remindmsg)
-        
-    @tasks.loop(time=deadline_time)
-    async def post_loop(self):
-        """Called every day at the deadline. If the barrel reps haven't already sent BNN, barrelbot will"""
-        # check if bnn already posted
-        if await self.check_if_already_posted():
-            return
-
-        msgtype = randint(1, 4)
-
-        bnnmsg = self.get_bnnmsg(msgtype)
-
-        await self.news_channel.send(bnnmsg)
-
-    async def cog_load(self):
-
-        self.news_channel:discord.TextChannel = await self.bot.fetch_channel(BARREL_NEWS_CHANNEL_ID)
-
-        self.remind_loop.start()
-        self.post_loop.start()
-
-    async def check_if_already_posted(self) -> bool:
-
-        # get previous deadline
-        prev_deadline = self.get_deadline(prev=True) + dt.timedelta(hours=1) # one hour grace period between one deadline and start of next day
-
-        # if any non-bot messages have been sent since last deadline, return true
-        async for message in self.news_channel.history(after=prev_deadline):
-            if not message.author.bot:
-                return True
-        
-        # otherwise
-        return False
-    
-    def get_deadline(self, prev:bool) -> dt.datetime:
-        now = dt.datetime.now(tz=dt.timezone.utc)
-        nowtime = now.time().replace(tzinfo=dt.timezone.utc)
-        to_return = None
-        if prev:
-            if nowtime > deadline_time:
-                # same day
-                to_return = now.replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
-            else:
-                # previous day
-                to_return = (now - dt.timedelta(days=1)).replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
-
-            if (now - to_return).total_seconds() < 60: # if difference is small, get day before 
-                return to_return - dt.timedelta(days=1)
-            else:
-                return to_return
-        else:
-            if nowtime >= deadline_time:
-                # next day
-                to_return = (now + dt.timedelta(days=1)).replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
-            else:
-                # same day
-                to_return = now.replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
-
-            if (to_return - now).total_seconds() < 60: # if difference is small, get day after
-                return to_return + dt.timedelta(days=1)
-            else:
-                return to_return
-        
-    def get_reminder(self):
-
-        next_deadline = self.get_deadline(prev=False)
-
-        remindmsg = choice(reminders)
-
-        try:
-            remindmsg = remindmsg.format(int(next_deadline.timestamp()))
-        except:
-            pass
-
-        return remindmsg
-    
-    def get_bnnmsg(self, msgtype):
-        
-        days_since_reveal = (dt.date.today() - dt.date(year=2024, month=1, day=25)).days - 1
-        days_of_bnn = days_since_reveal - 266 - 6 #6 days missed?
-
-        bnnmsg = f"# TODAY\n## ON BNN\nWelcome to day {days_of_bnn} of bringing you your daily {BARREL_EMOJI} news! I'm your host, Barrelbot, "\
-                 f"here to bring you your randomly-generated, `{choice(adjectives).lower()}` news for today.\n\n"
-
-        if msgtype == 1:
-
-            bnnmsg += f"Today the {BARREL_EMOJI} is feeling some `{choice(emotions).lower()}`, so please take that into account when you `{choice(verbs).lower()}` your `{choice(nouns).lower()}` today. "\
-                      f"It may also affect the way that you choose to `{choice(verbs).lower()}`. \n\n"\
-                      f"New research shows that a `{choice(adjectives).lower()}` `{choice(nouns).lower()}` is `{choice(adjectives).lower()}` to some `{choice(nouns).lower()}s`! So be sure to `{choice(verbs).lower()}` as much as you can today. "\
-                      f"That way you can be sure `{choice(['this week'+chr(39)+'s episode of', 'your mom'+chr(39)+'s favorite', 'every single', 'Benadryl Cucumberpatch'+chr(39)+'s', 'the warm, toasty', 'the wretched', 'my'])}` "\
-                      f"`{choice(['eye patch', 'Reddit account', 'vtuber alter ego', 'butler', 'exploding beach ball', 'weapons-grade plutonium', 'oil refinery', 'sled pulled by rabid opossoms', '3-inch tungsten cube', 'antique chandelier', 'T6 Series 1000W AC Servo Motor Kit', 'LORELEI S9 Wired Headphones with Microphone for School，On-Ear Kids Headphones for Girls Boys，Folding Lightweight and 3.5mm Audio Jack Headset for Phone, Ipad，Tablet, PC, Chromebook (Pearl Pink)'])}` "\
-                      f"stays `{choice(adjectives).lower()}` and `{choice(adjectives).lower()}`!\n\n"
-            
-        elif msgtype == 2:
-
-            bnnmsg += f"Signs in the `{choice(['sky', 'tea leaves', 'WalMart parking lot', 'heavens', 'attic', 'depths of Tartarus'])}` show that every human is required to feel `{choice(emotions).lower()}` today! Otherwise the {BARREL_EMOJI} might not like your style of `{choice(nouns).lower()}`. "\
-                      f"Life is short, so tell your `{choice(relationalterms)}` you `{choice(verbs).lower()}` them. `{choice(interjections).capitalize()}`!\n\n"\
-                      f"In other news, the Intergalactic Badminton Tournament is going great! The `{choice(adjectives).lower()}` players are winning, and the `{choice(adjectives).lower()}` players are losing. "\
-                      f"Only `{randint(1, 1000)}` people have died so far today, and the fans are `{choice(['eating it up', 'vomiting profusely', 'singing silly songs with Larry', 'going wild', 'sending death threats to their enemies', 'cheering so loud the arena is caving in', 'blackout drunk'])}`!\n\n"
-            
-        elif msgtype == 3:
-
-            bnnmsg += f"We have some very special news for you today! Mr. `{choice(adjectives).capitalize()}` has decided he no longer wants his `{choice(nouns).lower()}`! Anybody who wants to `{choice(verbs).lower()}` it "\
-                      f"is welcome to come claim it. Offer valid for the next `{randint(0, 300)}` `{choice(['years', 'minutes', 'months', 'seconds', 'nanoseconds'])}`. "\
-                      f"Be warned, though, as it is rumored to hold the curse of `{choice(adjectives).lower()}` `{choice(nouns).lower()}s`!\n\n"\
-                      f"Reports of loose `{choice(nouns).lower()}s` are flooding in today. Keep your `{choice(nouns).lower()}` `{choice(['inside', 'outside', 'locked away', 'sealed in the dark realm', 'on your roof'])}` this evening to prevent any trouble, "\
-                      f"as they're said to be `{choice(adjectives).lower()}` in their hunt for `{choice(nouns).lower()}`.\n\n"
-            
-        elif msgtype == 4:
-
-            bnnmsg += f"Today is an excellent day to praise the Almighty {BARREL_EMOJI}! Great `{choice(nouns).lower()}s` have fallen upon our `{choice(nouns).lower()}s` and upon our `{choice(nouns).lower()}s`. "\
-                      f"Reports are saying that people who `{choice(verbs).lower()}` their `{choice(nouns).lower()}` to the {BARREL_EMOJI} begin to feel `{choice(emotions).lower()}`! "\
-                      f"However, common side effects include feeling `{choice(emotions).lower()}`, `{choice(emotions).lower()}`, and `{choice(emotions).lower()}`. "\
-                      f"Please consult your `{choice(relationalterms)}` before attempting. `{choice(adjectives).capitalize()}` `{choice(nouns).lower()}s` may prevent you from the {BARREL_EMOJI}'s grace.\n\n"
-
-        bnnmsg += f"The weather today on earth will be `{choice(adjectives).lower()}`, with a high of `{randint(0, 1000)}`°C and a low of `{randint(-1000, 1000)}`°F. Watch out for "\
-                  f"`{choice(['polar bears', 'steel hail', 'severe sharknadoes', 'chemtrails', 'frozen cats', 'plagues caused by advanced bioweapons', 'astronaut suits falling from space', 'occasional stray muon beams', 'elves that escaped from Santa'+chr(39)+'s workshop', 'ice dragons', 'liquid ammonia rain', 'adorable cat smiles', 'francophones', 'neo-nazi zombies', 'sentient crab rain', 'SNAKES!', 'freezing rain', 'spontaneously-forming black holes', 'giant tumbleweeds', 'your mom', 'the heat death of the universe', 'impending doom', 'tentacles', 'cute anime catgirls', 'arranged marriages', 'pink fluffy unicorns dancing on rainbows', 'bronies', 'that one family member (yes, that one)', 'stray mitochondria (the powerhouse of the cell!)', 'Larry the Cucumber from VeggieTales'])}` "\
-                  f"`{choice(['along the east coast', 'along the west coast', 'near the entrance to Anubis'+chr(39)+' realm', 'around Olympus Mons', 'at the beaches in France', 'in any part of the world with bacteria', 'off the Arctic coast', 'on the Bridge to Asgard', 'along the outskirts of Detroit', 'where the sidewalk ends', 'where your great aunt Marge broke her coccyx', 'wherever you last ate chocolate ice cream', 'in your bathroom', 'in your mind', 'at your local grocery store!', 'hiding in your lasagna', 'in places where the sun don'+chr(39)+'t shine'])}`. "\
-                  f"The `{choice(nouns).capitalize()}` also predicts the weather is going to `{choice(verbs).lower()}` even more tonight than yesterday. `{choice(interjections).capitalize()}`!\n\n"\
-                  f"That's all for today! Barrelbot, signing off. \n{days_since_reveal} days since PS reveal \n<@&{BARREL_SUB_ROLE_ID}>"
-        
-        return bnnmsg
