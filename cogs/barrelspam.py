@@ -521,7 +521,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         if self.lord_role not in next_lord.roles:
             await next_lord.add_roles(self.lord_role)
             
-        print(f"{next_lord.display_name} is now lord of barrel spam") # only prints on switch bc why not
+            print(f"{next_lord.display_name} is now lord of barrel spam") # only prints on switch bc why not
 
 
     @tasks.loop(hours=1)

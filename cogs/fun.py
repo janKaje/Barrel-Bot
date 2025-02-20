@@ -79,7 +79,7 @@ class fun(commands.Cog, name="Fun"):
             async with ctx.typing():
                 await asyncio.sleep(1.7)
                 await ctx.send("One cool thing I do is watch <#1297028406504067142> and keep track of everyone's "
-                               "scores.")
+                               "scores. I also keep track of who sends how many messages - you can see the results by asking me to show_analytics.")
             async with ctx.typing():
                 await asyncio.sleep(1.2)
                 await ctx.send("That's all for now! May the <:barrel:1296987889942397001> be with you :smile:")
