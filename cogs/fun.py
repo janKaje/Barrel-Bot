@@ -150,7 +150,7 @@ class fun(commands.Cog, name="Fun"):
         if authorid not in randomnumberscores.keys():
             # where it's the user's first random number
             randomnumberscores[authorid] = value
-            embed.title = "Congrats!";
+            embed.title = "Congrats!"
             embed.description = f"You got your first random number: {value}"
             if value > randomnumberscores["overall"][0]:
                 # in the very slim chance it's also a new overall high score
@@ -165,7 +165,7 @@ class fun(commands.Cog, name="Fun"):
             # if you beat your personal high score
             if value > randomnumberscores["overall"][0]:
                 # if you also beat the overall high score
-                embed.title = "Congrats!";
+                embed.title = "Congrats!"
                 embed.description = "You beat the high score!"
                 olduser = await self.bot.fetch_user(randomnumberscores["overall"][1])
                 embed.add_field(name="Old high score:",
@@ -174,7 +174,7 @@ class fun(commands.Cog, name="Fun"):
                 randomnumberscores["overall"] = [value, ctx.author.id]
             else:
                 # otherwise
-                embed.title = "Congrats!";
+                embed.title = "Congrats!"
                 embed.description = "You beat your personal best!"
                 embed.add_field(name="Old high score:", value=str(randomnumberscores[authorid]), inline=False)
                 embed.add_field(name='New high score:', value=str(value), inline=False)
