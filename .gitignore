@@ -6,3 +6,6 @@ cogs/__pycache__
 .env
 notes.txt
 data/analytics.pkl
+/.vscode
+token.json
+credentials.json

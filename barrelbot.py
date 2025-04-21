@@ -84,17 +84,45 @@ async def load_cog(cogname):
         print(f"was not able to load cog {cogname}:\n{e.with_traceback(None)}")
         pass
 
+# helper function
+def time_str(time):
+    """Takes a float of seconds and turns it into appropriate hours, minutes, and seconds."""
+    st = ""
+    if time // 3600 > 1:
+        st += str(time // 3600) + ' hours'
+    elif time // 3600 > 0:
+        st += str(time // 3600) + ' hour'
+
+
+    if time % 3600 // 60 > 0 or time // 3600 > 0:
+        if time // 3600 > 0:
+            st += ', ' + str(time % 3600 // 60) + ' minute'
+        else:
+            st += str(time // 60) + ' minute'
+        if time % 3600 // 60 > 1 or time // 3600 > 0:
+            st += "s"
+
+    if time % 60 > 0 or time % 3600 // 60 > 0:
+        if time % 3600 // 60 > 0 or time // 3600 > 0:
+            st += ', ' + str(time % 60) + ' second'
+        else:
+            st += str(time % 60) + ' second'
+        if time % 60 > 1 or time % 60 == 0:
+            st += "s"
+
+    return st
+
 # Bot events
 
 @bot.event
 async def on_ready():
     """Called when the bot starts and is ready."""
     # Load cogs
-    await load_cog("cogs.barrelspam")
     await load_cog("cogs.fun")
-    await load_cog("cogs.utilities")
-    await load_cog("cogs.barrelnews")
-    await load_cog("cogs.analytics")
+    # await load_cog("cogs.barrelspam")
+    # await load_cog("cogs.utilities")
+    # await load_cog("cogs.barrelnews")
+    # await load_cog("cogs.analytics")
 
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
 
@@ -128,7 +156,7 @@ async def on_command_error(ctx: commands.Context, error):
     elif isinstance(error, commands.ExtensionError):
         await ctx.send(f'The extension {str(error.name)} raised an exception.')
     elif isinstance(error, commands.CommandOnCooldown):
-        await ctx.send(f'That command is on cooldown. Try again in {math.ceil(error.retry_after)} second(s).')
+        await ctx.send(f'That command is on cooldown. Try again in {time_str(math.ceil(error.retry_after))}.')
     else:
         await ctx.send(f'An unknown error occurred:\n{error.with_traceback(None)}')
 

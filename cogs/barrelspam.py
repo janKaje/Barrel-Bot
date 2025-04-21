@@ -3,6 +3,7 @@ import math
 import os
 import re
 from datetime import datetime as dt
+import asyncio
 
 import discord
 from discord.ext import commands, tasks
@@ -498,7 +499,9 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         save_to_json(barrelspamteamdata, dir_path + "/data/barrelspamteamdata.json")
 
         await self.ind_data_msg.edit(content=json.dumps(barrelspamdata))
+        await asyncio.sleep(1)
         await self.team_data_msg.edit(content=json.dumps(barrelspamteamdata))
+        await asyncio.sleep(1)
         await self.temp_data_msg.edit(content=json.dumps(barrelspamtempdata))
 
         print("spam data saved")
