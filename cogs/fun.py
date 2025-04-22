@@ -255,6 +255,10 @@ class fun(commands.Cog, name="Fun"):
         await ctx.send(embed=embed)
 
     @commands.command()
+    async def cheese(self, ctx:commands.Context):
+        await ctx.send("🧀")
+
+    @commands.command()
     @commands.cooldown(1, 1800, commands.BucketType.user) # every 30 min
     async def work(self, ctx: commands.Context):
         f"""Every 30 minutes, you can work to earn {BARREL_COIN}."""

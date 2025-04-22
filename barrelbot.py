@@ -119,10 +119,10 @@ async def on_ready():
     """Called when the bot starts and is ready."""
     # Load cogs
     await load_cog("cogs.fun")
-    # await load_cog("cogs.barrelspam")
-    # await load_cog("cogs.utilities")
-    # await load_cog("cogs.barrelnews")
-    # await load_cog("cogs.analytics")
+    await load_cog("cogs.barrelspam")
+    await load_cog("cogs.utilities")
+    await load_cog("cogs.barrelnews")
+    await load_cog("cogs.analytics")
 
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
 
