@@ -83,6 +83,7 @@ class utilities(commands.Cog, name="Utilities"):
                                           inline=False)
 
             await addcommands(self.bot.get_cog('Utilities'))
+            await addcommands(self.bot.get_cog("Economy"))
             await addcommands(self.bot.get_cog('Fun'))
             await addcommands(self.bot.get_cog("Barrel Spam"))
             await addcommands(self.bot.get_cog("Barrel News"))
@@ -114,9 +115,28 @@ class utilities(commands.Cog, name="Utilities"):
 
         # for when a certain command or cog is specified
         else:
-            for i in self.bot.cogs:
-                if cmd.lower() == i.lower():
-                    embed = discord.Embed(title=i, color=discord.Color.blue(), description=self.bot.get_cog(i).__doc__)
+            for cog in self.bot.cogs:
+                if cmd.lower() == cog.lower():
+                    embed = discord.Embed(title=cog, color=discord.Color.blue(), description=self.bot.get_cog(cog).__doc__)
+                    cog_info = ''
+                    for i in self.bot.get_cog(cog).walk_commands():
+                        checks = True
+                        for j in i.checks:
+                            try:
+                                try:
+                                    await j(ctx)
+                                except commands.CheckFailure:
+                                    checks = False
+                            except:
+                                try:
+                                    j(ctx)
+                                except commands.CheckFailure:
+                                    checks = False
+                        if checks:
+                            cog_info += f'***{i.name}***  -  '
+                    if cog_info != '':
+                        embed.add_field(name=f'__Commands__', value=re.sub(r'  \-  \Z', '', cog_info),
+                                            inline=False)
                     await ctx.send(embed=embed)
                     return
             comd = ''

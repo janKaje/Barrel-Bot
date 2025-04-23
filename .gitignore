@@ -9,3 +9,4 @@ data/analytics.pkl
 /.vscode
 token.json
 credentials.json
+data/trades.json

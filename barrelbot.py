@@ -61,6 +61,7 @@ async def save_everything():
     funcog = bot.get_cog("Fun")
     spamcog = bot.get_cog("Barrel Spam")
     analyticscog = bot.get_cog("Analytics")
+    economycog = bot.get_cog("Economy")
 
     for command in funcog.get_commands():
         if command.name == "savefundata":
@@ -74,6 +75,11 @@ async def save_everything():
 
     for command in analyticscog.get_commands():
         if command.name == "saveanalyticsdata":
+            await command.__call__(defaultctx)
+            break
+
+    for command in economycog.get_commands():
+        if command.name == "saveeconomydata":
             await command.__call__(defaultctx)
             break
 
@@ -118,8 +124,9 @@ def time_str(time):
 async def on_ready():
     """Called when the bot starts and is ready."""
     # Load cogs
-    await load_cog("cogs.fun")
     await load_cog("cogs.barrelspam")
+    await load_cog("cogs.fun")
+    await load_cog("cogs.economy")
     await load_cog("cogs.utilities")
     await load_cog("cogs.barrelnews")
     await load_cog("cogs.analytics")
