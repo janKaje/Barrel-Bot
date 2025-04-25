@@ -241,7 +241,7 @@ class fun(commands.Cog, name="Fun"):
 
         print("fun scores saved")
 
-    @tasks.loop(hours=6)
+    @tasks.loop(hours=9)
     async def hourlyloop(self):
         await self.savealldata()
 

@@ -163,3 +163,9 @@ class utilities(commands.Cog, name="Utilities"):
                 alia = re.sub(r', \Z', '', alia)
                 helpmsg.set_footer(text=alia)
             await ctx.send(embed=helpmsg)
+
+    @commands.command()
+    async def feedback(self, ctx:commands.Context):
+        """Feedback form for bugs or feature requests"""
+        await ctx.send("https://docs.google.com/forms/d/e/1FAIpQLScoy5MqeEZAo9UxhbrTH_zI93DSeGsAc-Sf4gsp634VRosg6A/viewform?usp=header")
+        

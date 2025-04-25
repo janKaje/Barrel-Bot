@@ -1,0 +1,125 @@
+import os
+import json
+
+import discord
+
+from base.extra_exceptions import *
+from item import Item
+
+dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+class Player:
+
+    with open(dir_path + "/data/playerdata.json") as file:
+        _playerdata = json.load(file)
+        for key in _playerdata.keys():
+            for invi in range(len(_playerdata[key]["inv"])):
+                if isinstance(_playerdata[key]["inv"][invi], int):
+                    _playerdata[key]["inv"][invi] = Item(_playerdata[key]["inv"][invi])
+            for dci in range(len(_playerdata[key]["dc"])):
+                if isinstance(_playerdata[key]["dc"][dci], int):
+                    _playerdata[key]["dc"][dci] = Item(_playerdata[key]["dc"][dci])
+
+    def __init__(self, user:discord.User):
+        
+        self.user = user
+        self.id = user.id
+        self.idstr = str(user.id)
+        if self.idstr not in Player._playerdata.keys():
+            Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": []}
+
+    def give_coins(self, nocoins:int):
+        if (Player._playerdata[self.idstr]["bal"] + nocoins) < 0:
+            raise NotEnoughCoins()
+        Player._playerdata[self.idstr]["bal"] += nocoins
+        return
+    
+    def get_balance(self):
+        return Player._playerdata[self.idstr]["bal"]
+    
+    def has_in_inventory(self, item:Item|int) -> bool:
+        if isinstance(item, int):
+            item = Item(id=item)
+        return item in Player._playerdata[self.idstr]["inv"]
+    
+    def add_to_inventory(self, item:Item|int):
+        if isinstance(item, int):
+            item = Item(id=item)
+        Player._playerdata[self.idstr]["inv"].append(item)
+        return
+    
+    def remove_from_inventory(self, item:Item|int):
+        if isinstance(item, int):
+            item = Item(id=item)
+        if item not in Player._playerdata[self.idstr]["inv"]:
+            raise NotInInventory()
+        Player._playerdata[self.idstr]["inv"].remove(item)
+        return
+    
+    def amount_in_inventory(self, item:Item|int) -> int:
+        if isinstance(item, int):
+            item = Item(id=item)
+        return Player._playerdata[self.idstr]["inv"].count(item)
+    
+    def recent_in_inventory(self) -> Item:
+        return Player._playerdata[self.idstr]["inv"][-1]
+    
+    def get_inventory(self) -> list[Item]:
+        return Player._playerdata[self.idstr]["inv"]
+    
+    def move_to_display(self, item:Item|int):
+        if isinstance(item, int):
+            item = Item(id=item)
+        if item not in Player._playerdata[self.idstr]["inv"]:
+            raise NotInInventory()
+        Player._playerdata[self.idstr]["inv"].remove(item)
+        Player._playerdata[self.idstr]["dc"].append(item)
+        return
+    
+    def move_from_display(self, item:Item|int):
+        if isinstance(item, int):
+            item = Item(id=item)
+        if item not in Player._playerdata[self.idstr]["dc"]:
+            raise NotInDisplayCase()
+        Player._playerdata[self.idstr]["dc"].remove(item)
+        Player._playerdata[self.idstr]["inv"].append(item)
+        return
+    
+    def recent_in_display(self) -> Item:
+        return Player._playerdata[self.idstr]["dc"][-1]
+    
+    def get_display(self) -> list[Item]:
+        return Player._playerdata[self.idstr]["dc"]
+    
+    def get_item_from_invno(self, invno:int) -> Item:
+        invitems = list(set(Player._playerdata[self.idstr]["inv"]))
+        invitems.sort(key=lambda i: i.id)
+        try:
+            itemid = invitems[invno-1]
+        except IndexError:
+            raise NotInInventory()
+        return itemid
+    
+    def get_item_from_dcno(self, dcno:int) -> Item:
+        dcitems = list(set(Player._playerdata[self.idstr]["dc"]))
+        dcitems.sort(key=lambda i: i.id)
+        try:
+            itemid = dcitems[dcno-1]
+        except IndexError:
+            raise NotInDisplayCase()
+        return itemid
+    
+    def clear_inventory(self):
+        Player._playerdata[self.idstr]["inv"] = []
+
+    def get_json_data():
+        jsond = {}
+        for key in Player._playerdata.keys():
+            jsond[key] = {
+                "bal": Player._playerdata[key]["bal"],
+                "inv": [int(item) for item in Player._playerdata[key]["inv"]],
+                "dc": [int(item) for item in Player._playerdata[key]["dc"]]
+            }
+        return jsond
+    staticmethod(get_json_data)

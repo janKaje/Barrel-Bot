@@ -6,6 +6,8 @@ import sys
 import discord
 from discord.ext import commands
 
+from base.extra_exceptions import NotAbleToFish, NotAbleToRob
+
 try:
     import dotenv
     dotenv.load_dotenv()
@@ -140,7 +142,7 @@ async def on_ready():
 
 
 @bot.event
-async def on_command_error(ctx: commands.Context, error):
+async def on_command_error(ctx: commands.Context, error:Exception):
     """Called when a command produces an error."""
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send('You\'re missing a required argument: ' + str(error.param))
@@ -164,6 +166,10 @@ async def on_command_error(ctx: commands.Context, error):
         await ctx.send(f'The extension {str(error.name)} raised an exception.')
     elif isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f'That command is on cooldown. Try again in {time_str(math.ceil(error.retry_after))}.')
+    elif isinstance(error, NotAbleToRob):
+        await ctx.send(error)
+    elif isinstance(error, NotAbleToFish):
+        await ctx.send("You need to buy a fishing rod to fish.")
     else:
         await ctx.send(f'An unknown error occurred:\n{error.with_traceback(None)}')
 
@@ -199,7 +205,7 @@ async def reloadcog(ctx: commands.Context, cogname: str):
         await bot.reload_extension("cogs."+cogname)
         await ctx.send(f"Reloaded {cogname}")
     except Exception as e:
-        print(f"was not able to reload cog {cogname}:\n{e.with_traceback(None)}")
+        print(f"was not able to reload cog {cogname}:\n{e.Player.get_json_data()(None)}")
         pass
 
 @bot.command()

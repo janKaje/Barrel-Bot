@@ -527,7 +527,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             print(f"{next_lord.display_name} is now lord of barrel spam") # only prints on switch bc why not
 
 
-    @tasks.loop(hours=6)
+    @tasks.loop(hours=7)
     async def hourlyloop(self):
         """Runs every hour - mostly to save data and update lord role"""
         await self.savealldata()
