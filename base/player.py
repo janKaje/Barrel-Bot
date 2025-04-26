@@ -20,6 +20,8 @@ class Player:
             for dci in range(len(_playerdata[key]["dc"])):
                 if isinstance(_playerdata[key]["dc"][dci], int):
                     _playerdata[key]["dc"][dci] = Item(_playerdata[key]["dc"][dci])
+            if "bank" not in _playerdata[key].keys():
+                _playerdata[key]["bank"] = 0
 
     def __init__(self, user:discord.User):
         
@@ -27,7 +29,9 @@ class Player:
         self.id = user.id
         self.idstr = str(user.id)
         if self.idstr not in Player._playerdata.keys():
-            Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": []}
+            Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": [], "bank": 0}
+        if "bank" not in Player._playerdata[self.idstr]:
+            Player._playerdata[self.idstr]["bank"] = 0
 
     def give_coins(self, nocoins:int):
         if (Player._playerdata[self.idstr]["bal"] + nocoins) < 0:
@@ -119,7 +123,34 @@ class Player:
             jsond[key] = {
                 "bal": Player._playerdata[key]["bal"],
                 "inv": [int(item) for item in Player._playerdata[key]["inv"]],
-                "dc": [int(item) for item in Player._playerdata[key]["dc"]]
+                "dc": [int(item) for item in Player._playerdata[key]["dc"]],
+                "bank": Player._playerdata[key]["bank"]
             }
         return jsond
     staticmethod(get_json_data)
+
+    def deposit(self, nocoins):
+        self.give_coins(-nocoins)
+        Player._playerdata[self.idstr]["bank"] += nocoins
+
+    def withdraw(self, nocoins):
+        if nocoins > Player._playerdata[self.idstr]["bank"]:
+            raise NotEnoughCoins
+        self.give_coins(nocoins)
+        Player._playerdata[self.idstr]["bank"] -= nocoins
+        
+    def get_bank_balance(self):
+        return Player._playerdata[self.idstr]["bank"]
+    
+    def get_all_bank_data():
+        return [[key, val["bank"]] for key, val in Player._playerdata.items()]
+    staticmethod(get_all_bank_data)
+
+    def reduce_bank_holdings_by_percent(percent:float):
+        reductions = []
+        for key in Player._playerdata.keys():
+            amount_reduced = int(round(percent * Player._playerdata[key]["bank"]))
+            reductions.append(amount_reduced)
+            Player._playerdata[key]["bank"] -= amount_reduced
+        return reductions
+    staticmethod(reduce_bank_holdings_by_percent)

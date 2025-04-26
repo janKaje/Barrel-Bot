@@ -144,12 +144,16 @@ async def on_ready():
 @bot.event
 async def on_command_error(ctx: commands.Context, error:Exception):
     """Called when a command produces an error."""
+    if isinstance(error, commands.CommandNotFound):
+        return
+    if ctx.command.name == "sell":
+        if isinstance(error, (commands.BadArgument, commands.MissingRequiredArgument, commands.TooManyArguments)):
+            if len(re.search(r"(?<=sell).*", ctx.message.content).group(0)) >= 1e3 or len(ctx.message.attachments) != 0:
+                return
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send('You\'re missing a required argument: ' + str(error.param))
     elif isinstance(error, commands.TooManyArguments):
         await ctx.send('You input too many arguments.')
-    elif isinstance(error, commands.CommandNotFound):
-        pass
     elif isinstance(error, commands.NotOwner):
         await ctx.send('You have to be the owner to excute this command.')
     elif isinstance(error, commands.MissingPermissions):
@@ -171,7 +175,7 @@ async def on_command_error(ctx: commands.Context, error:Exception):
     elif isinstance(error, NotAbleToFish):
         await ctx.send("You need to buy a fishing rod to fish.")
     else:
-        await ctx.send(f'An unknown error occurred:\n{error.with_traceback(None)}')
+        await ctx.send(f'An unknown error occurred:\n{type(error)}\n{error.with_traceback(None)}')
 
 
 @bot.event

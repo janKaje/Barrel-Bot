@@ -23,3 +23,6 @@ class TradeNotFound(Exception):
 
 class ItemNotFound(Exception):
     pass
+
+class PlayerNotFound(CheckFailure):
+    pass

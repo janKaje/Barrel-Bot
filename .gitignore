@@ -10,3 +10,5 @@ data/analytics.pkl
 token.json
 credentials.json
 data/trades.json
+
+cogs/adventure.py

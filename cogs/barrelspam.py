@@ -498,11 +498,12 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         save_to_json(barrelspamdata, dir_path + "/data/barrelspamdata.json")
         save_to_json(barrelspamteamdata, dir_path + "/data/barrelspamteamdata.json")
 
-        await self.ind_data_msg.edit(content=json.dumps(barrelspamdata))
-        await asyncio.sleep(1)
-        await self.team_data_msg.edit(content=json.dumps(barrelspamteamdata))
-        await asyncio.sleep(1)
-        await self.temp_data_msg.edit(content=json.dumps(barrelspamtempdata))
+        if not os.environ["MACHINE"] == "homelaptop":
+            await self.ind_data_msg.edit(content=json.dumps(barrelspamdata))
+            await asyncio.sleep(1)
+            await self.team_data_msg.edit(content=json.dumps(barrelspamteamdata))
+            await asyncio.sleep(1)
+            await self.temp_data_msg.edit(content=json.dumps(barrelspamtempdata))
 
         print("spam data saved")
 

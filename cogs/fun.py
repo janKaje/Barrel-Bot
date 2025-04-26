@@ -237,7 +237,8 @@ class fun(commands.Cog, name="Fun"):
         """Saves data to file."""
         save_to_json(randomnumberscores, dir_path + "/data/randomnumberscores.json")
 
-        await self.datamsg.edit(content=json.dumps(randomnumberscores))
+        if not os.environ["MACHINE"] == "homelaptop":
+            await self.datamsg.edit(content=json.dumps(randomnumberscores))
 
         print("fun scores saved")
 

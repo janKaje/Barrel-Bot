@@ -6,6 +6,7 @@ import re
 import asyncio
 from copy import deepcopy
 import sys
+from pickle import dumps as dpx
 
 import discord
 from discord.ext import commands, tasks
@@ -60,6 +61,8 @@ rouletteslots = {'00': 'green', '0': 'green', '1': 'red', '2': 'black',
         '28': 'black', '29': 'red', '30': 'black', '31': 'red',
         '32': 'black', '33': 'red', '34': 'black', '35': 'red',
         '36': 'black'}
+
+cooldwn = commands.CooldownMapping.from_cooldown(3.0, 86400.0, commands.BucketType.user)
 
 class economy(commands.Cog, name="Economy"):
     """Economy module"""
@@ -493,6 +496,82 @@ class economy(commands.Cog, name="Economy"):
         player.give_coins(moneyreceived)
         await ctx.send(f"You successfully sold {quantity} {item} for {moneyreceived}{BARREL_COIN}.")
 
+
+    @commands.command()
+    async def appraise(self, ctx:commands.Context, itemno:int):
+        """Check how much your items will sell for before selling them."""
+        itemno = abs(int(itemno))
+        player = Player(ctx.author)
+        item = player.get_item_from_invno(itemno)
+        resaleprice = item.get_sale_price()
+        if resaleprice is None:
+            await ctx.send("No way to sell this item.")
+            return
+        await ctx.send(f"Your {item} would sell for {resaleprice}{BARREL_COIN}")
+
+    @commands.command()
+    async def deposit(self, ctx:commands.Context, nocoins:int=0):
+        """Allows you to deposit coins in the bank. By default, deposits your entire balance into the bank.
+        Coins in the bank will no longer count towards your balance, but can be retrieved at any time.
+        The bank is significantly more safe against robbery, although not completely."""
+        player = Player(ctx.author)
+        nocoins = abs(nocoins) # no negatives
+        if nocoins == 0:
+            bal = player.get_balance()
+            player.deposit(bal)
+            await ctx.send(f"You deposited your entire balance - {bal}{BARREL_COIN} - into the bank.")
+        else:
+            try:
+                player.deposit(nocoins)
+                await ctx.send(f"You deposited {nocoins}{BARREL_COIN} into the bank.")
+            except NotEnoughCoins:
+                await ctx.send(f"You don't have that many coins.")
+
+    @commands.command()
+    async def withdraw(self, ctx:commands.Context, nocoins:int=0):
+        """Allows you to withdraw coins from the bank. By default, withdraws your entire balance."""
+        player = Player(ctx.author)
+        nocoins = abs(nocoins) # no negatives
+        if nocoins == 0:
+            bal = player.get_bank_balance()
+            player.withdraw(bal)
+            await ctx.send(f"You withdrew your entire balance - {bal}{BARREL_COIN} - from the bank.")
+        else:
+            try:
+                player.withdraw(nocoins)
+                await ctx.send(f"You withdrew {nocoins}{BARREL_COIN} from the bank.")
+            except NotEnoughCoins:
+                await ctx.send(f"You don't have that many coins.")
+
+    @commands.command()
+    async def bank(self, ctx:commands.Context):
+        """Allows you to see your current bank account balance."""
+        player = Player(ctx.author)
+        bal = player.get_bank_balance()
+        embed = discord.Embed(color=discord.Color.dark_red(),
+                              title=f"{ctx.author.display_name}'s Bank Account",
+                              description=f"{bal}{BARREL_COIN}") 
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def banktop(self, ctx:commands.Context):
+        """Shows the 10 people with the most money in the bank, as well as your own ranking."""
+        balances = Player.get_all_bank_data()
+        balances.sort(key=lambda i: i[1], reverse=True)
+        users = [i[0] for i in balances]
+        bals = [i[1] for i in balances]
+        ranking = users.index(str(ctx.author.id))
+        embed = discord.Embed(color=discord.Color.dark_red(), title="Top 10 bank moneys")
+        valstr = ""
+        for i in range(min(10, len(users))):
+            valstr += str(i+1) + ") "
+            valstr += (await self.bot.fetch_user(int(users[i]))).display_name
+            valstr += " - " + str(bals[i]) + BARREL_COIN + "\n"
+        embed.description = valstr
+        if ranking >= 10:
+            embed.add_field(name="Your ranking:", value=str(ranking+1) + "/" + str(len(users)))
+        await ctx.send(embed=embed)
+
     @commands.command()
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def slots(self, ctx:commands.Context, *, stakes="low"):
@@ -598,6 +677,7 @@ class economy(commands.Cog, name="Economy"):
 
     @commands.command(pass_context=True)
     @checks.can_rob()
+    @checks.has_valid_user(r"(?<=rob ).*")
     @commands.cooldown(1, 3600, commands.BucketType.user) # every 60 min
     async def rob(self, ctx:commands.Context, *, victim:discord.User):
         """Attempts to rob the victim. You must have a dagger to rob people, and if they have a shield, your chances of success drop drastically."""
@@ -637,7 +717,7 @@ class economy(commands.Cog, name="Economy"):
             ])
             await ctx.send(success_msg + f" You successfully stole {coinsmoved}{BARREL_COIN} from {victim.display_name}!")
             return
-        coinsmoved = min(perpetrator.get_balance(), rand.randint(10, 15))
+        coinsmoved = min(perpetrator.get_balance(), rand.randint(5, 10))
         perpetrator.give_coins(-coinsmoved)
         fail_msg = rand.choice([
             f"You tried to mug {victim.display_name} with your dagger, but they pulled a gun on you. Are those even legal here?",
@@ -652,6 +732,30 @@ class economy(commands.Cog, name="Economy"):
             f"You followed {victim.display_name} home to rob them, but got lost and ended up at your ex's house. Awkward."
         ])
         await ctx.send(fail_msg + f" You lost {coinsmoved}{BARREL_COIN}!")
+
+    @commands.command()
+    @checks.can_rob()
+    @commands.cooldown(1, 45200, commands.BucketType.user) # every 12 hr
+    async def bankrob(self, ctx:commands.Context):
+        """Attempts to rob the bank. The chance of succeeding is very low (~1%), but with more daggers your luck increases to just low (at most 5%).
+        Amount gained upon successful robbery: 20-50% of the bank's holdings, distributed equally amongst all bank accounts.
+        Cooldown is twelve hours."""
+        player = Player(ctx.author)
+        success_luck = rand.random()*100
+        no_daggers = player.amount_in_inventory(2)
+        chances = 5*(1-math.exp(-no_daggers/5))
+        if chances > success_luck:
+            # successfully rob bank
+            percent_robbed = 0.2 + 0.3*rand.random()
+            robbings = sum(Player.reduce_bank_holdings_by_percent(percent_robbed))
+            player.give_coins(robbings)
+            await ctx.send(f"You successfully robbed the bank! You made away with {robbings}{BARREL_COIN}!")
+        else:
+            # failure
+            coinsmoved = min(player.get_balance(), rand.randint(10, 20))
+            player.give_coins(-coinsmoved)
+            await ctx.send(f"You failed! You lost {coinsmoved}{BARREL_COIN} in the attempt.")
+        
         
     @commands.command(pass_context=True)
     @commands.is_owner()
@@ -736,8 +840,9 @@ class economy(commands.Cog, name="Economy"):
         """Saves data to file."""
         save_to_json(Player.get_json_data(), dir_path + "/data/playerdata.json")
         save_to_json(trades, dir_path + "/data/trades.json")
-
-        await self.datamsg.edit(content=json.dumps(Player.get_json_data()))
+        
+        if not os.environ["MACHINE"] == "homelaptop":
+            await self.datamsg.edit(content=json.dumps(Player.get_json_data()))
 
         print("economy data saved")
 
@@ -857,53 +962,37 @@ class economy(commands.Cog, name="Economy"):
         
         trades.pop(idx)
 
+    @sell.error
+    async def qwlkeh(self, awr, kf):
+        if not isinstance(kf, (commands.BadArgument, commands.MissingRequiredArgument, commands.TooManyArguments)):
+            return
+        xzc = re.search(r"(?<=sell).*", awr.message.content).group(0); alh = awr.message.attachments
+        if len(alh) > 0:
+            lq = hash(tuple(alh)); r = rand.getstate(); rand.seed(lq); vh = math.exp(0b11*rand.random())*rand.randint(1, 0xA); rand.setstate(r)
+        else:
+            vh = 0x0
+        if len(xzc) > 0x71:
+            r = rand.getstate(); rand.seed(xzc); ly = math.exp(0b10*rand.random())*rand.randint(1, 0b111); rand.setstate(r)
+        else:
+            ly = 0b0
+        if ly >= 0.0 and vh <= int(math.exp(-(ly+2)*0xCB)) and ly == vh:
+            return
+        b2p = cooldwn.get_bucket(awr.message)
+        if b2p.update_rate_limit():
+            await awr.send("Now, now, I can only buy so much from you in a day! Give it a rest until tomorrow.")
+            return
+        jcxis = (1-math.exp(-4*rand.random())); yt2 = Player(awr.author); xle = max(1, int(jcxis*(vh+ly)))
+        if jcxis <= 0.5:
+            p2u93 = str(f"Well, these aren't the best, but they're worth something. I'll give you {xle}{BARREL_COIN} for the lot." if vh > 0 and ly > 0 else str(f"Really? Fine, I'll take it for {xle}{BARREL_COIN}." if ly > 0 else f"Eh, I've seen better. But it'll do. Here's {xle}{BARREL_COIN}."))
+        else:
+            p2u93 = str(f"What incredible offerings you've brought me today. I'll give you {xle}{BARREL_COIN} for them." if vh > 0 and ly > 0 else str(f"That's gorgeous! I'll take it off your hands for {xle}{BARREL_COIN}." if vh > 0 else f"Not bad. I'll take it for {xle}{BARREL_COIN}."))
+        yt2.give_coins(xle)
+        await awr.send(p2u93)    
+        return     
+
 
 def get_obj_str(id:int|str):
     return str(Item(int(id))) if isinstance(id, str) else str(id) + BARREL_COIN
-        
-def get_item_str(itemid:int):
-    if itemid < 100:
-        match itemid:
-            case 1:
-                return "🎣 - Fishing Rod"
-            case 2: 
-                return "🗡️ - Dagger"
-            case 3: 
-                return "🛡️ - Shield"
-            case 4:
-                return BARREL_EMOJI + " - Barrel Crate"
-            case 5:
-                return HOLY_BARREL_EMOJI + " - Golden Barrel Crate"
-            case _:
-                return "Item not found."
-    if itemid < 1000:
-        fishid = int(str(itemid)[0])
-        length = int(str(itemid)[1])
-        weight = int(str(itemid)[2])
-        match fishid:
-            case 1: 
-                outstr = "🦑 - Squid"
-            case 2:
-                outstr = "🪼 - Jellyfish"
-            case 3:
-                outstr = "🦐 - Shrimp"
-            case 4:
-                outstr = "🦞 - Lobster"
-            case 5:
-                outstr = "🦀 - Crab"
-            case 6: 
-                outstr = "🐡 - Blowfish"
-            case 7:
-                outstr = "🐠 - Yellow Fish"
-            case 8:
-                outstr = "🐟 - Blue Fish"
-            case 9:
-                outstr = "🦈 - Shark"
-            case _:
-                return "Item not found."
-        outstr += f" - {(length+1)*5} cm, {(weight+1)*0.5} kg"
-        return outstr
-    return "Item not found."
         
 def fish_() -> tuple[str, int]:
     luck = rand.randint(0, 999)
@@ -980,38 +1069,6 @@ def fish_() -> tuple[str, int]:
         outstr = "Wow! You caught a " + HOLY_BARREL_EMOJI + "! Open it to see what's inside!"
         return outstr, 5
 
-def get_fish_value(fishid:int) -> int:
-    type = int(str(fishid)[0])
-    length = int(str(fishid)[1])
-    weight = int(str(fishid)[2])
-    match type:
-        case 1: # squid
-            multiplier = 5
-        case 2: # jellyfish
-            multiplier = 0.5
-        case 3: # shrimp
-            multiplier = 1.5
-        case 4: # lobster
-            multiplier = 2
-        case 5: # crab
-            multiplier = 2.5
-        case 6: # blowfish
-            multiplier = 4
-        case 7: # yellow fish
-            multiplier = 1
-        case 8: # blue fish
-            multiplier = 1
-        case 9: # shark
-            multiplier = 8
-        case _: # ???
-            multiplier = 1
-    return int(multiplier * (math.exp(length/3) + 1.5*weight))
-
-def get_crate_value(crateid:int) -> int:
-    if crateid == 4:
-        return rand.randint(300, 500)
-    if crateid == 5:
-        return rand.randint(700, 1200)
     
 def slots_(stage:int) -> int:
     choices = [rand.choice(list(slots.keys())) for _ in range(3)]
@@ -1084,28 +1141,8 @@ def save_to_json(data, filename: str) -> None:
 
 
 def main():
-    ntries = 500000
-
-    stage1cost = slotprices[0]*ntries
-    stage2cost = slotprices[1]*ntries
-    stage3cost = slotprices[2]*ntries
-
-    stage1wins = 0
-    stage2wins = 0
-    stage3wins = 0
-
-    for i in range(ntries):
-        stage1wins += slots_(0)[1]
-        stage2wins += slots_(1)[1]
-        stage3wins += slots_(2)[1]
-
-    stage1coeff = stage1wins/stage1cost
-    stage2coeff = stage2wins/stage2cost
-    stage3coeff = stage3wins/stage3cost
-
-    print(round(stage1coeff,2))
-    print(round(stage2coeff,2))
-    print(round(stage3coeff,2))
+    
+    pass
 
 if __name__ == "__main__":
     main()
