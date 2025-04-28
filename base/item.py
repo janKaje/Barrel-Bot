@@ -44,6 +44,7 @@ class Item(object):
         3: ["🛡️ - Shield", "shield", "🛡️"],
         4: [BARREL_EMOJI + " - Barrel Crate", "barrel", "barrel crate", BARREL_EMOJI],
         5: [HOLY_BARREL_EMOJI + " - Golden Barrel Crate", "golden barrel", "golden barrel crate", "holy barrel", HOLY_BARREL_EMOJI],
+        6: ["🏠 - House", "house", "🏠"],
         100: ["🦑 - Squid", "squid", "🦑"],
         200: ["🪼 - Jellyfish", "jellyfish", "🪼"],
         300: ["🦐 - Shrimp", "shrimp", "🦐"],
@@ -58,19 +59,22 @@ class Item(object):
     _shop_prices = {
         1: 100,
         2: 300,
-        3: 300
+        3: 300,
+        6: 3000
     }
 
     _shop_messages = {
         1: "You bought a 🎣! If you didn't have one before, now you can do `bb fish`.",
         2: "You bought a 🗡️! If you didn't have one before, you can now try to rob people. Be warned, though: the life of crime isn't kind.",
-        3: "You bought a 🛡️! If you didn't have one before, you're now mostly protected against people trying to rob you."
+        3: "You bought a 🛡️! If you didn't have one before, you're now mostly protected against people trying to rob you.",
+        6: "You bought a 🏠! Being a landlord is so much fun!"
     }
 
     _shop_descriptions = {
         1: "Allows you to use the command `fish`. Collect fish to keep as trophies or sell for more " + BARREL_COIN,
         2: "Allows you to try to rob other people.",
-        3: "Does a good job of blocking you from getting robbed." # finish later
+        3: "Does a good job of blocking you from getting robbed.",
+        6: "Become a landlord and extort your tenants."
     }
 
     def __init__(self, id:int):

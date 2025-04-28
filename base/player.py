@@ -154,3 +154,26 @@ class Player:
             Player._playerdata[key]["bank"] -= amount_reduced
         return reductions
     staticmethod(reduce_bank_holdings_by_percent)
+
+    def get_whole_balance(self):
+        return Player._playerdata[self.idstr]["bank"] + Player._playerdata[self.idstr]["bal"]
+    
+    def take_coins(self, nocoins:int, includeBank=False):
+        bank = self.get_bank_balance(); bal = self.get_balance()
+        if nocoins > bank+bal or (nocoins > bal and includeBank==False):
+            raise NotEnoughCoins()
+        if includeBank==True and nocoins > bal:
+            frombank = nocoins-bal
+            Player._playerdata[self.idstr]["bank"] -= frombank
+            self.give_coins(-bal)
+            return bal, frombank
+        self.give_coins(-nocoins)
+        return nocoins, 0
+    
+    def get_shop_price(self, item:Item|int):
+        if isinstance(item, int):
+            item = Item(item)
+        if item.id == 6:
+            nohouses = self.amount_in_inventory(item)
+            return int(item.get_shop_price()*(1+0.2*nohouses**2))
+        return item.get_shop_price()

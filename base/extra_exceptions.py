@@ -1,9 +1,6 @@
 from discord.ext.commands import CheckFailure
 
-class NotAbleToRob(CheckFailure):
-    pass
-
-class NotAbleToFish(CheckFailure):
+class NotAbleTo(CheckFailure):
     pass
 
 class NotEnoughCoins(Exception):

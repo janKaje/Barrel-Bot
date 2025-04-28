@@ -6,7 +6,7 @@ import sys
 import discord
 from discord.ext import commands
 
-from base.extra_exceptions import NotAbleToFish, NotAbleToRob
+from base.extra_exceptions import NotAbleTo
 
 try:
     import dotenv
@@ -161,19 +161,17 @@ async def on_command_error(ctx: commands.Context, error:Exception):
     elif isinstance(error, commands.BotMissingPermissions):
         try:
             await ctx.send(
-                'The bot is missing the required permissions to invoke this command: ' + str(error.missing_perms))
+                'The bot is missing the required permissions to invoke this command: ' + str(error.missing_permissions))
         except commands.CommandInvokeError:
             await ctx.author.send(
                 "An error occurred and I wasn't able to handle it normally. I can't send messages to the channel you entered that command in. Other permissions I'm missing are " + str(
-                    error.missing_perms))
+                    error.missing_permissions))
     elif isinstance(error, commands.ExtensionError):
         await ctx.send(f'The extension {str(error.name)} raised an exception.')
     elif isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f'That command is on cooldown. Try again in {time_str(math.ceil(error.retry_after))}.')
-    elif isinstance(error, NotAbleToRob):
+    elif isinstance(error, NotAbleTo):
         await ctx.send(error)
-    elif isinstance(error, NotAbleToFish):
-        await ctx.send("You need to buy a fishing rod to fish.")
     else:
         await ctx.send(f'An unknown error occurred:\n{type(error)}\n{error.with_traceback(None)}')
 

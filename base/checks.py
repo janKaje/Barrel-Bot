@@ -13,14 +13,14 @@ class checks:
     def can_fish():
         async def predicate(ctx:Context):
             if not Player(ctx.author).has_in_inventory(1):
-                raise NotAbleToFish
+                raise NotAbleTo("You need to buy a fishing rod")
             return True
         return check(predicate)
     
     def can_rob():
         async def predicate(ctx:Context):
             if not Player(ctx.author).has_in_inventory(2):
-                raise NotAbleToRob("You need to buy a dagger to do crime")
+                raise NotAbleTo("You need to buy a dagger to do crime")
             return True
         return check(predicate)
     
@@ -30,6 +30,13 @@ class checks:
                 await usrconv.convert(ctx, re.search(regex, ctx.message.content).group(0))
             except:
                 raise PlayerNotFound("Unknown user")
+            return True
+        return check(predicate)
+    
+    def can_collect_rent():
+        async def predicate(ctx:Context):
+            if not Player(ctx.author).has_in_inventory(6):
+                raise NotAbleTo("You need to buy a house to collect rent")
             return True
         return check(predicate)
     
