@@ -225,9 +225,6 @@ class fun(commands.Cog, name="Fun"):
                 pass
 
     async def cog_load(self):
-        
-        # load for data saving
-        await self.saveprep()
 
         # print loaded
         print(f"cog: {self.qualified_name} loaded")
@@ -235,18 +232,9 @@ class fun(commands.Cog, name="Fun"):
         # start hourly loop
         self.hourlyloop.start()
 
-    async def saveprep(self):
-        
-        # load for data saving
-        self.datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
-        self.datamsg = await self.datachannel.fetch_message(DATA_MSG_ID)
-
     async def savealldata(self):
         """Saves data to file."""
         save_to_json(randomnumberscores, dir_path + "/data/randomnumberscores.json")
-
-        if not os.environ["MACHINE"] == "homelaptop":
-            await self.datamsg.edit(content=json.dumps(randomnumberscores))
 
         print("fun scores saved")
 

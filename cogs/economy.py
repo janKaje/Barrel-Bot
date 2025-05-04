@@ -620,13 +620,13 @@ class economy(commands.Cog, name="Economy"):
         except NotEnoughCoins:
             await self.bot_send(ctx, f"You don't have enough coins to play {stakesmsg}-stakes slots! You need {slotprices[stakes]}")
             return
-        msg = await self.bot_send(ctx, f"Rolling a game of {stakesmsg}-stakes slots...\n\t🔹🔹🔹")
+        msg = await ctx.send(f"Rolling a game of {stakesmsg}-stakes slots...\n\t🔹🔹🔹")
         outcome, winnings = slots_(stakes)
         async with ctx.typing():
             await asyncio.sleep(2)
             await msg.edit(content=f"Rolling a game of {stakesmsg}-stakes slots...\n\t{outcome[0]}🔹🔹")
             await asyncio.sleep(2)
-            await msg.edit(content=f"Rolling a game of {stakesmsg}-stakes slots...\n\t{outcome[0:2]}🔹")
+            await msg.edit(content=f"Rolling a game of {stakesmsg}-stakes slots...\n\t{outcome[0]}{outcome[1]}🔹")
             await asyncio.sleep(2)
         if winnings == 0:
             await msg.edit(content=f"Rolling a game of {stakesmsg}-stakes slots...\n\t{outcome}\nBetter luck next time!")
@@ -854,9 +854,6 @@ class economy(commands.Cog, name="Economy"):
 
 
     async def cog_load(self):
-        
-        # load for data saving
-        await self.saveprep()
 
         # print loaded
         print(f"cog: {self.qualified_name} loaded")
@@ -864,19 +861,10 @@ class economy(commands.Cog, name="Economy"):
         # start hourly loop
         self.hourlyloop.start()
 
-    async def saveprep(self):
-        
-        # load for data saving
-        self.datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
-        self.datamsg = await self.datachannel.fetch_message(PLAYER_DATA_MSG)
-
     async def savealldata(self):
         """Saves data to file."""
         save_to_json(Player.get_json_data(), dir_path + "/data/playerdata.json")
         save_to_json(trades, dir_path + "/data/trades.json")
-        
-        if not os.environ["MACHINE"] == "homelaptop":
-            await self.datamsg.edit(content=json.dumps(Player.get_json_data()))
 
         print("economy data saved")
 

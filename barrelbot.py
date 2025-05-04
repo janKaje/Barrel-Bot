@@ -245,8 +245,11 @@ async def bot_send(ctx:commands.Context, content:str=None, embed:discord.Embed=N
 async def sendnextmsg():
     global messagequeue
     message:UnsentMessage = await messagequeue.get()
-    await message.send()
-
+    try:
+        await message.send()
+    except Exception as e:
+        print(e)
+        await message.ctx.send(e)
 
 # Run the bot
 

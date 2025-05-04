@@ -226,8 +226,6 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         # print next spam number
         print(f"Next spam number: {next_barrelspam}")
 
-        await self.saveprep()
-        
         self.cult_guild = (await self.bot.fetch_channel(BARRELCULTSPAMCHANNELID)).guild
         self.lord_role = self.cult_guild.get_role(LORD_ROLE_ID)
 
@@ -236,13 +234,6 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
 
         # start hourly loop
         self.hourlyloop.start()
-
-    async def saveprep(self):
-
-        self.datachannel = await self.bot.fetch_channel(DATA_CHANNEL_ID)
-        self.ind_data_msg = await self.datachannel.fetch_message(IND_DATA_MSG_ID)
-        self.team_data_msg = await self.datachannel.fetch_message(TEAM_DATA_MSG_ID)
-        self.temp_data_msg = await self.datachannel.fetch_message(TEMP_DATA_MSG_ID)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -501,13 +492,6 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
     async def savealldata(self):
         save_to_json(barrelspamdata, dir_path + "/data/barrelspamdata.json")
         save_to_json(barrelspamteamdata, dir_path + "/data/barrelspamteamdata.json")
-
-        if not os.environ["MACHINE"] == "homelaptop":
-            await self.ind_data_msg.edit(content=json.dumps(barrelspamdata))
-            await asyncio.sleep(1)
-            await self.team_data_msg.edit(content=json.dumps(barrelspamteamdata))
-            await asyncio.sleep(1)
-            await self.temp_data_msg.edit(content=json.dumps(barrelspamtempdata))
 
         print("spam data saved")
 
