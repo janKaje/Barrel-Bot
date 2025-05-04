@@ -67,6 +67,10 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             9: "9️⃣",
             10: "🔟"
         }
+        self.bot_send = None
+
+    def set_bot_send(self, bot_send):
+        self.bot_send = bot_send
 
     @commands.command()
     async def join(self, ctx: commands.Context, *, teamname):
@@ -79,31 +83,31 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             # iterate through roles to clean up
             for role in ctx.author.roles:
                 if role.id == DECIMALROLEID:
-                    await ctx.send("You're already in Team Decimal!")
+                    await self.bot_send(ctx, "You're already in Team Decimal!")
                     return
                 if role.id == BINARYROLEID:
                     # if they're in team binary, remove them from the team
                     await ctx.author.remove_roles(ctx.guild.get_role(BINARYROLEID))
             # finally, add role and confirm
             await ctx.author.add_roles(ctx.guild.get_role(DECIMALROLEID))
-            await ctx.send("Added to Team Decimal!")
+            await self.bot_send(ctx, "Added to Team Decimal!")
 
         # if they ask to join team binary
         elif re.match("(team )?binary", teamname, flags=re.I):
             # iterate through roles to clean up
             for role in ctx.author.roles:
                 if role.id == BINARYROLEID:
-                    await ctx.send("You're already in Team Binary!")
+                    await self.bot_send(ctx, "You're already in Team Binary!")
                     return
                 if role.id == DECIMALROLEID:
                     # if they're in team decimal, remove them from the team
                     await ctx.author.remove_roles(ctx.guild.get_role(DECIMALROLEID))
             # finally, add role and confirm
             await ctx.author.add_roles(ctx.guild.get_role(BINARYROLEID))
-            await ctx.send("Added to Team Binary!")
+            await self.bot_send(ctx, "Added to Team Binary!")
         else:
             # invalid entry
-            await ctx.send(
+            await self.bot_send(ctx, 
                 "Didn't quite get that. You can ask to join Team Decimal or Team Binary with \"barrelbot, join team "
                 "decimal\" or \"barrelbot, join team binary\"")
             
@@ -135,7 +139,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         embed.add_field(name="Individual Scores", value=valstr, inline=False)
 
         # send
-        await ctx.send(embed=embed)
+        await self.bot_send(ctx, embed=embed)
 
     @commands.command()
     async def rank(self, ctx: commands.Context):
@@ -154,27 +158,27 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
                 break
 
         # send
-        await ctx.send(embed=embed)
+        await self.bot_send(ctx, embed=embed)
 
     @commands.command()
     @commands.is_owner()
     async def savespamdata(self, ctx: commands.Context):
         await self.savealldata()
-        await ctx.send("Done!")
+        await self.bot_send(ctx, "Done!")
 
     @commands.command()
     @commands.is_owner()
     async def getspamdata(self, ctx: commands.Context):
-        await ctx.send(json.dumps(barrelspamdata))
-        await ctx.send(json.dumps(barrelspamteamdata))
-        await ctx.send(json.dumps(barrelspamtempdata))
-        await ctx.send(next_barrelspam)
+        await self.bot_send(ctx, json.dumps(barrelspamdata))
+        await self.bot_send(ctx, json.dumps(barrelspamteamdata))
+        await self.bot_send(ctx, json.dumps(barrelspamtempdata))
+        await self.bot_send(ctx, next_barrelspam)
 
     @commands.command()
     @commands.is_owner()
     async def lordify(self, ctx: commands.Context):
         await self.update_whos_lord()
-        await ctx.send(f"Complete. Now {self.lord_role.members[0].display_name} is Lord of <#1297028406504067142>")
+        await self.bot_send(ctx, f"Complete. Now {self.lord_role.members[0].display_name} is Lord of <#1297028406504067142>")
 
     async def cog_load(self):
         """Called when the bot starts and is ready."""

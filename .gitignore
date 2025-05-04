@@ -12,3 +12,5 @@ credentials.json
 data/trades.json
 
 cogs/adventure.py
+cogs/pets.py
+base/pet.py

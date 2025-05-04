@@ -32,7 +32,10 @@ class Analytics(commands.Cog, name="Analytics"):
 
     def __init__(self, bot:commands.Bot):
         self.bot = bot
-        print(f"cog: {self.qualified_name} loaded")
+        self.bot_send = None
+
+    def set_bot_send(self, bot_send):
+        self.bot_send = bot_send
 
     @commands.command()
     @commands.cooldown(1, 5, commands.BucketType.user)
@@ -52,14 +55,14 @@ class Analytics(commands.Cog, name="Analytics"):
             elif graphtype == 'adjusted':
                 data_stream = await self.get_adj_stackplot(style)
             else:
-                await ctx.send("I don't know that type. Try again or get more info with `bb help show_analytics`")
+                await self.bot_send(ctx, "I don't know that type. Try again or get more info with `bb help show_analytics`")
                 return
         
         chart = discord.File(data_stream, filename="analytics_chart.png")
         emb = discord.Embed()
         emb.set_image(url="attachment://analytics_chart.png")
 
-        await ctx.send(embed=emb, file=chart)
+        await self.bot_send(ctx, embed=emb, file=chart)
 
     async def cog_load(self):
         global analytics
@@ -138,22 +141,63 @@ class Analytics(commands.Cog, name="Analytics"):
     @commands.is_owner()
     async def saveanalyticsdata(self, ctx:commands.Context):
         save_to_pickle(analytics, dir_path+"/data/analytics.pkl")
-        await ctx.send("Done!")
+        await self.bot_send(ctx, "Done!")
 
     @commands.command()
     @commands.is_owner()
     async def getanalyticsdata(self, ctx: commands.Context, key:str):
         if key == "prev_update":
             tosend = dict([[self.bot.get_channel(id).name, dtobj.isoformat(sep=' ', timespec='seconds')] for id, dtobj in analytics['prev_update'].items()])
-            await ctx.send(dumps(tosend, indent=1))
+            await self.bot_send(ctx, dumps(tosend, indent=1))
             return
         try:
             key = int(key)
             analytics[key]
         except:
-            await ctx.send("Don't know that one...")
+            await self.bot_send(ctx, "Don't know that one...")
             return
-        await ctx.send(dumps(analytics[key]))
+        await self.bot_send(ctx, dumps(analytics[key]))
+
+    @commands.command()
+    @commands.is_owner()
+    async def redo_analytics(self, ctx:commands.Context):
+        return
+        
+        global analytics
+        analytics = {"prev_update": {}}
+        await self.bot.wait_until_ready()
+        self.barrelcultguild = await self.bot.fetch_guild(BARREL_CULT_GUILD_ID)
+        self.memberinst = None
+        async for member in self.barrelcultguild.fetch_members():
+            if member.id == self.bot.user.id:
+                self.memberinst = member
+        timer = time()
+        msgcount = 0
+        channelcount = 0
+        print(f"{dt.datetime.now().isoformat(sep=' ', timespec='seconds')} INFO\t Starting analytics...")
+        # go back through all messages not done
+        if len(analytics.keys()) == 1:
+            print(f"First time analytics!")
+        for channel in self.bot.get_all_channels():
+
+            #make sure is a valid channel for analytics
+            if not self.is_analytics_channel(channel):
+                continue
+
+            channelcount += 1
+            analytics["prev_update"][channel.id] = dt.datetime.fromtimestamp(1729295514) # earliest message
+
+            thischmsgcount = 0
+            # iterate through previous messages in channel
+            async for message in channel.history(after=analytics["prev_update"][channel.id], limit=None):
+                if message.author.bot:
+                    continue
+                msgcount += await self.parse_message(message)
+                thischmsgcount += 1
+                if thischmsgcount % 100 == 0:
+                    print(f"{dt.datetime.now().isoformat(sep=' ', timespec='seconds')} INFO\t {thischmsgcount} messages analyzed in {channel.name}")
+
+        print(f"{dt.datetime.now().isoformat(sep=' ', timespec='seconds')} INFO\t Analytics complete! Analyzed {msgcount} messages in {channelcount} channels. Time elapsed: {round(time()-timer, 5)} seconds")
 
     @tasks.loop(hours=6)
     async def sixhourlyloop(self):
@@ -241,7 +285,8 @@ class Analytics(commands.Cog, name="Analytics"):
         return isinstance(channel, discord.TextChannel)\
             and channel.guild.id == BARREL_CULT_GUILD_ID\
             and channel.permissions_for(self.memberinst).read_message_history\
-            and channel.id != 1297596333976453291
+            and channel.id != 1297596333976453291\
+            and channel.id != 1364450362421022750
 
 def save_to_pickle(data, filename: str) -> None:
     """Saves specific dataset to file"""

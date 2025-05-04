@@ -16,18 +16,21 @@ class utilities(commands.Cog, name="Utilities"):
 
     def __init__(self, bot:commands.Bot):
         self.bot = bot
-        print(f"cog: {self.qualified_name} loaded")
+        self.bot_send = None
+
+    def set_bot_send(self, bot_send):
+        self.bot_send = bot_send
 
     @commands.command()
     async def github(self, ctx: commands.Context):
         """Provides a link to my github page."""
-        await ctx.send("https://github.com/janKaje/Barrel-Bot")
+        await self.bot_send(ctx, "https://github.com/janKaje/Barrel-Bot")
 
     @commands.command()
     @commands.is_owner()
     async def debuginfo(self, ctx: commands.Context):
         print(os.environ)
-        await ctx.send("All environment variables printed in console.")
+        await self.bot_send(ctx, "All environment variables printed in console.")
 
     # Custom Help command
     @commands.command()
@@ -111,7 +114,7 @@ class utilities(commands.Cog, name="Utilities"):
                 if info != '':
                     command_msg.add_field(name='__Owner Only__', value=re.sub(r'  \-  \Z', '', info), inline=False)
 
-            await ctx.send(embed=command_msg)
+            await self.bot_send(ctx, embed=command_msg)
 
         # for when a certain command or cog is specified
         else:
@@ -137,7 +140,7 @@ class utilities(commands.Cog, name="Utilities"):
                     if cog_info != '':
                         embed.add_field(name=f'__Commands__', value=re.sub(r'  \-  \Z', '', cog_info),
                                             inline=False)
-                    await ctx.send(embed=embed)
+                    await self.bot_send(ctx, embed=embed)
                     return
             comd = ''
             alia = 'Aliases: '
@@ -155,17 +158,17 @@ class utilities(commands.Cog, name="Utilities"):
                     break
             # if the command wasn't found
             if comd == '':
-                await ctx.send('That command was not found.')
+                await self.bot_send(ctx, 'That command was not found.')
                 return
             helpmsg = discord.Embed(title=title, color=discord.Color.blue(), description=comd)  # creates embed
             # if the command has aliases, add them to the footer
             if not alia == 'Aliases: ':
                 alia = re.sub(r', \Z', '', alia)
                 helpmsg.set_footer(text=alia)
-            await ctx.send(embed=helpmsg)
+            await self.bot_send(ctx, embed=helpmsg)
 
     @commands.command()
     async def feedback(self, ctx:commands.Context):
         """Feedback form for bugs or feature requests"""
-        await ctx.send("https://docs.google.com/forms/d/e/1FAIpQLScoy5MqeEZAo9UxhbrTH_zI93DSeGsAc-Sf4gsp634VRosg6A/viewform?usp=header")
+        await self.bot_send(ctx, "https://docs.google.com/forms/d/e/1FAIpQLScoy5MqeEZAo9UxhbrTH_zI93DSeGsAc-Sf4gsp634VRosg6A/viewform?usp=header")
         

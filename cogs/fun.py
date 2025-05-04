@@ -4,6 +4,7 @@ import os
 import random as rand
 import re
 import asyncio
+import sys
 from copy import deepcopy
 
 import discord
@@ -12,6 +13,10 @@ from numpy.random import default_rng
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+sys.path.append(os.path.join(dir_path, "base"))
+
+from messagetosend import UnsentMessage
+print(__name__)
 
 async def setup(bot):
     await bot.add_cog(fun(bot))
@@ -31,32 +36,35 @@ DATA_MSG_ID = 1310847777302908929
 
 BARREL_EMOJI = "<:barrel:1296987889942397001>"
 
-
 class fun(commands.Cog, name="Fun"):
     """Random fun things"""
 
     def __init__(self, bot:commands.Bot):
         self.bot = bot
+        self.bot_send = None
+
+    def set_bot_send(self, bot_send):
+        self.bot_send = bot_send
 
     @commands.command()
     @commands.is_owner()
     async def savefundata(self, ctx: commands.Context):
         await self.savealldata()
-        await ctx.send("Done!")
+        await self.bot_send(ctx, "Done!")
 
     @commands.command()
     @commands.is_owner()
     async def getfundata(self, ctx: commands.Context):
-        await ctx.send(json.dumps(randomnumberscores))
+        await self.bot_send(ctx, json.dumps(randomnumberscores))
 
     @commands.command()
     async def ping(self, ctx: commands.Context):
         """Pong!"""
-        to_send = f'Pong! {round(self.bot.latency * 1000)}ms'
+        to_send = f'Pong! Latency: {round(self.bot.latency * 1000)}ms'
         isowner = await self.bot.is_owner(ctx.author)
         if isowner and os.environ["MACHINE"] == "homelaptop":
             to_send += "\nI'm running in development mode. How's the coding?"
-        await ctx.send(to_send)
+        await self.bot_send(ctx, to_send)
 
     @commands.command()
     async def introduce(self, ctx: commands.Context, *, arg):
@@ -66,30 +74,30 @@ class fun(commands.Cog, name="Fun"):
         if re.match("yourself", arg) is not None:
             async with ctx.typing():
                 await asyncio.sleep(1)
-                await ctx.send("Hi! I'm BarrelBot. Nice to meet you!")
+                await self.bot_send(ctx, "Hi! I'm BarrelBot. Nice to meet you!")
             async with ctx.typing():
                 await asyncio.sleep(1.2)
-                await ctx.send("I can do lots of things for you. If you want to see everything you can ask me, "
+                await self.bot_send(ctx, "I can do lots of things for you. If you want to see everything you can ask me, "
                                "type \"Hey BarrelBot, help\".")
             async with ctx.typing():
                 await asyncio.sleep(1.8)
-                await ctx.send("I'll understand you if you say hey, hi, or hello before my name! And feel free to use "
+                await self.bot_send(ctx, "I'll understand you if you say hey, hi, or hello before my name! And feel free to use "
                                "capital letters or not. It doesn't really matter to me :slight_smile:")
             async with ctx.typing():
                 await asyncio.sleep(2.1)
-                await ctx.send("I'm here to help the <:barrel:1296987889942397001> cult in their spiritual journey "
+                await self.bot_send(ctx, "I'm here to help the <:barrel:1296987889942397001> cult in their spiritual journey "
                                "towards the Almighty <:barrel:1296987889942397001>, " + \
                                "so I try to help out around here where I can.")
             async with ctx.typing():
                 await asyncio.sleep(1.7)
-                await ctx.send("One cool thing I do is watch <#1297028406504067142> and keep track of everyone's "
+                await self.bot_send(ctx, "One cool thing I do is watch <#1297028406504067142> and keep track of everyone's "
                                "scores. I also keep track of who sends how many messages - you can see the results by asking me to show_analytics.")
             async with ctx.typing():
                 await asyncio.sleep(1.2)
-                await ctx.send("That's all for now! May the <:barrel:1296987889942397001> be with you :smile:")
+                await self.bot_send(ctx, "That's all for now! May the <:barrel:1296987889942397001> be with you :smile:")
             return
         else:
-            await ctx.send(f"I don't know enough about {arg} to introduce him/her/them/it properly. You'll have to "
+            await self.bot_send(ctx, f"I don't know enough about {arg} to introduce him/her/them/it properly. You'll have to "
                            f"ask someone who knows more, sorry!")
 
     @commands.command()
@@ -100,12 +108,12 @@ class fun(commands.Cog, name="Fun"):
 
         # if in custom ratings, send that
         if item.lower() in customratings.keys():
-            await ctx.send(f"I'd give {item} a {customratings[item.lower()]}/10")
+            await self.bot_send(ctx, f"I'd give {item} a {customratings[item.lower()]}/10")
             return
 
         # if is a mention, return 10 with a :3 face
         if re.match(r"<@\d+>", item) is not None:
-            await ctx.send(f"I'd give {item} a 10/10 :3")
+            await self.bot_send(ctx, f"I'd give {item} a 10/10 :3")
             return
 
         # otherwise, seed the rng with the item string and get a random number from 0-10
@@ -113,7 +121,7 @@ class fun(commands.Cog, name="Fun"):
         rand.seed(item)
         rate_value = rand.randint(0, 10)
         rand.setstate(r)
-        await ctx.send(f"I'd give {item} a {rate_value}/10")
+        await self.bot_send(ctx, f"I'd give {item} a {rate_value}/10")
 
     @commands.command()
     async def eightball(self, ctx: commands.Context):
@@ -138,7 +146,7 @@ class fun(commands.Cog, name="Fun"):
                      "My sources say no.",
                      "Outlook not so good.",
                      "Very doubtful."]
-        await ctx.send(rand.choice(responses))
+        await self.bot_send(ctx, rand.choice(responses))
 
     @commands.command()
     @commands.cooldown(1, 3, commands.BucketType.user)
@@ -195,11 +203,11 @@ class fun(commands.Cog, name="Fun"):
 
         # send the embed
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
-        await ctx.send(embed=embed)
+        await self.bot_send(ctx, embed=embed)
 
     @commands.command()
     async def cheese(self, ctx:commands.Context):
-        await ctx.send("🧀")
+        await self.bot_send(ctx, "🧀")
         
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):

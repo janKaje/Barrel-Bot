@@ -26,9 +26,7 @@ HOLY_BARREL_EMOJI = "<:holybarrel:1303080132642209826>"
 #   Blue fish: 800
 #   Shark: 900
 # Pets:
-#   10000s?
-# Tech:
-#   10000s (find good storage method)
+#   10000s
 
 class Item(object):
 

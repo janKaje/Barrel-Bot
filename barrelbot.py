@@ -2,11 +2,13 @@ import math
 import os
 import re
 import sys
+import asyncio
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
-from base.extra_exceptions import NotAbleTo
+from base.extra_exceptions import NotAbleTo, PlayerNotFound
+from base.messagetosend import UnsentMessage
 
 try:
     import dotenv
@@ -50,6 +52,7 @@ bot.remove_command('help')
 # Create global variables
 dir_path = os.path.dirname(os.path.abspath(__file__))
 defaultctx = None
+messagequeue = asyncio.Queue()
 
 # get token
 TOKEN = os.environ["TOKEN"]
@@ -85,12 +88,16 @@ async def save_everything():
             await command.__call__(defaultctx)
             break
 
-async def load_cog(cogname):
+async def load_cog(cogname, cogn2):
     try:
         await bot.load_extension(cogname)
     except Exception as e:
         print(f"was not able to load cog {cogname}:\n{e.with_traceback(None)}")
-        pass
+    try:
+        cog = bot.get_cog(cogn2)
+        cog.set_bot_send(bot_send)
+    except Exception as e:
+        print(f"Error in adding bot_send: {e.with_traceback(None)}")
 
 # helper function
 def time_str(time):
@@ -126,14 +133,16 @@ def time_str(time):
 async def on_ready():
     """Called when the bot starts and is ready."""
     # Load cogs
-    await load_cog("cogs.barrelspam")
-    await load_cog("cogs.fun")
-    await load_cog("cogs.economy")
-    await load_cog("cogs.utilities")
-    await load_cog("cogs.barrelnews")
-    await load_cog("cogs.analytics")
+    await load_cog("cogs.barrelspam", "Barrel Spam")
+    await load_cog("cogs.fun", "Fun")
+    await load_cog("cogs.economy", "Economy")
+    await load_cog("cogs.utilities", "Utilities")
+    await load_cog("cogs.barrelnews", "Barrel News")
+    await load_cog("cogs.analytics", "Analytics")
 
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
+
+    sendnextmsg.start()
 
     global defaultctx
     defaultctx = await bot.get_context(await (await bot.fetch_channel(735631686313967646)).fetch_message(1315938006259073087))
@@ -148,32 +157,38 @@ async def on_command_error(ctx: commands.Context, error:Exception):
         return
     if ctx.command.name == "sell":
         if isinstance(error, (commands.BadArgument, commands.MissingRequiredArgument, commands.TooManyArguments)):
-            if len(re.search(r"(?<=sell).*", ctx.message.content).group(0)) >= 1e3 or len(ctx.message.attachments) != 0:
+            if len(re.search(r"(?<=sell).*", ctx.message.content).group(0)) >= 0x71 or len(ctx.message.attachments) != 0:
                 return
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send('You\'re missing a required argument: ' + str(error.param))
+        await bot_send(ctx, 'You\'re missing a required argument: ' + str(error.param))
     elif isinstance(error, commands.TooManyArguments):
-        await ctx.send('You input too many arguments.')
+        await bot_send(ctx, 'You input too many arguments.')
     elif isinstance(error, commands.NotOwner):
-        await ctx.send('You have to be the owner to excute this command.')
+        await bot_send(ctx, 'You have to be the owner to excute this command.')
     elif isinstance(error, commands.MissingPermissions):
-        await ctx.send("You don't have the right permissions to execute that command.")
+        await bot_send(ctx, "You don't have the right permissions to execute that command.")
     elif isinstance(error, commands.BotMissingPermissions):
         try:
-            await ctx.send(
+            await bot_send(ctx, 
                 'The bot is missing the required permissions to invoke this command: ' + str(error.missing_permissions))
         except commands.CommandInvokeError:
             await ctx.author.send(
                 "An error occurred and I wasn't able to handle it normally. I can't send messages to the channel you entered that command in. Other permissions I'm missing are " + str(
                     error.missing_permissions))
     elif isinstance(error, commands.ExtensionError):
-        await ctx.send(f'The extension {str(error.name)} raised an exception.')
+        await bot_send(ctx, f'The extension {str(error.name)} raised an exception.')
     elif isinstance(error, commands.CommandOnCooldown):
-        await ctx.send(f'That command is on cooldown. Try again in {time_str(math.ceil(error.retry_after))}.')
+        await bot_send(ctx, f'That command is on cooldown. Try again in {time_str(math.ceil(error.retry_after))}.')
     elif isinstance(error, NotAbleTo):
-        await ctx.send(error)
+        await bot_send(ctx, str(error))
+    elif isinstance(error, commands.BadArgument):
+        await bot_send(ctx, str(error))
+    elif isinstance(error, commands.CommandInvokeError):
+        await bot_send(ctx, str(error))
+    elif isinstance(error, PlayerNotFound):
+        await bot_send(ctx, "Unknown user.")
     else:
-        await ctx.send(f'An unknown error occurred:\n{type(error)}\n{error.with_traceback(None)}')
+        await bot_send(ctx, f'An unknown error occurred:\n{type(error)}\n{error.with_traceback(None)}')
 
 
 @bot.event
@@ -197,7 +212,7 @@ async def olape(ctx: commands.Context):
 @commands.is_owner()
 async def saveeverything(ctx: commands.Context):
     await save_everything()
-    await ctx.send("success")
+    await bot_send(ctx, "success")
 
 
 @bot.command()
@@ -205,7 +220,7 @@ async def saveeverything(ctx: commands.Context):
 async def reloadcog(ctx: commands.Context, cogname: str):
     try:
         await bot.reload_extension("cogs."+cogname)
-        await ctx.send(f"Reloaded {cogname}")
+        await bot_send(ctx, f"Reloaded {cogname}")
     except Exception as e:
         print(f"was not able to reload cog {cogname}:\n{e.Player.get_json_data()(None)}")
         pass
@@ -218,8 +233,27 @@ async def run_raw_code(ctx: commands.Context, *, code:str):
     try:
         eval(code)
     except Exception as e:
-        await ctx.send(f"Something went wrong:\n{e.with_traceback(None)}")
+        await bot_send(ctx, f"Something went wrong:\n{e.with_traceback(None)}")
+
+
+# Global safe-message send function
+async def bot_send(ctx:commands.Context, content:str=None, embed:discord.Embed=None, file:discord.File=None):
+    global messagequeue
+    await messagequeue.put(UnsentMessage(ctx, content, embed, file))
+
+@tasks.loop(seconds=0.25)
+async def sendnextmsg():
+    global messagequeue
+    message:UnsentMessage = await messagequeue.get()
+    await message.send()
 
 
 # Run the bot
-bot.run(TOKEN)
+
+def main():
+
+    bot.run(TOKEN)
+
+
+if __name__ == "__main__":
+    main()

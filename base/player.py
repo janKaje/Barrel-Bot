@@ -35,7 +35,7 @@ class Player:
 
     def give_coins(self, nocoins:int):
         if (Player._playerdata[self.idstr]["bal"] + nocoins) < 0:
-            raise NotEnoughCoins()
+            raise NotEnoughCoins("Not enough coins")
         Player._playerdata[self.idstr]["bal"] += nocoins
         return
     

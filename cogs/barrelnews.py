@@ -34,8 +34,10 @@ class barrelnews(commands.Cog, name="Barrel News"):
 
     def __init__(self, bot:commands.Bot):
         self.bot = bot
+        self.bot_send = None
 
-        print(f"cog: {self.qualified_name} loaded")
+    def set_bot_send(self, bot_send):
+        self.bot_send = bot_send
 
     @commands.command()
     @commands.has_role(BARREL_REP_ROLE_ID)
@@ -52,7 +54,7 @@ class barrelnews(commands.Cog, name="Barrel News"):
                  f"Days since PS reveal: {days_since_reveal}\n" +\
                  f"Day of BNN: {days_of_bnn}"
 
-        await ctx.send(outstr)
+        await self.bot_send(ctx, outstr)
 
     @commands.command()
     @commands.is_owner()
@@ -60,17 +62,17 @@ class barrelnews(commands.Cog, name="Barrel News"):
 
         remindmsg = self.get_reminder()
 
-        await ctx.send(remindmsg)
+        await self.bot_send(ctx, remindmsg)
 
     @commands.command()
     @commands.is_owner()
     async def test_bnnmsg(self, ctx: commands.Context, msgtype: str):
 
         try:
-            await ctx.send(self.get_bnnmsg(int(msgtype)))
+            await self.bot_send(ctx, self.get_bnnmsg(int(msgtype)))
         except:
             msgtype = randint(1, 5)
-            await ctx.send(self.get_bnnmsg(msgtype))
+            await self.bot_send(ctx, self.get_bnnmsg(msgtype))
 
 
     @tasks.loop(time=remind_time)
