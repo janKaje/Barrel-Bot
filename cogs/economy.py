@@ -1018,7 +1018,7 @@ class economy(commands.Cog, name="Economy"):
     async def getcooldowns(self, ctx:commands.Context):
         """See your cooldowns so you don't have to take a guess anymore !"""
         # getting the cooldowns
-        workcd = self.work.get_cooldown_retry_after(ctx, ctx.author)
+        workcd = self.work.get_cooldown_retry_after(ctx, ctx.author) # possible breaking point
         fishcd = self.fish.get_cooldown_retry_after(ctx, ctx.author)
         rentcd = self.collectrent.get_cooldown_retry_after(ctx, ctx.author)
 
