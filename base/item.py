@@ -13,6 +13,7 @@ HOLY_BARREL_EMOJI = "<:holybarrel:1303080132642209826>"
 # Shield: 3
 # Barrel Crate: 4
 # Golden Barrel Crate: 5
+# House: 6
 # ...
 # Prizes and unique items: 20-99
 # Fish: (second two numbers are stats: length and weight)
@@ -72,7 +73,7 @@ class Item(object):
         1: "Allows you to use the command `fish`. Collect fish to keep as trophies or sell for more " + BARREL_COIN,
         2: "Allows you to try to rob other people.",
         3: "Does a good job of blocking you from getting robbed.",
-        6: "Become a landlord and extort your tenants."
+        6: "Become a landlord and extort your tenants. Buying a house resets your rent timer."
     }
 
     def __init__(self, id:int):

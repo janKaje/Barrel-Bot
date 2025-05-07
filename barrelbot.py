@@ -14,6 +14,8 @@ try:
     import dotenv
     dotenv.load_dotenv()
 except ImportError:
+    # If the remote host allows for manual addition of environment variables,
+    # don't bother adding dotenv to requirements
     pass
 
 

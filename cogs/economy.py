@@ -19,7 +19,7 @@ from checks import checks
 from extra_exceptions import *
 from item import Item
 from player import Player
-
+from barrelbot import time_str
 
 async def setup(bot):
     await bot.add_cog(economy(bot))
@@ -165,6 +165,8 @@ class economy(commands.Cog, name="Economy"):
             player.give_coins(-player.get_shop_price(item))
             player.add_to_inventory(item)
             await self.bot_send(ctx, item.get_shop_message() + " You now have `" + str(player.amount_in_inventory(item)) + "` of this item.")
+            if item.id == 6:
+                await player.reset_lcr()
         except NotEnoughCoins:
             await self.bot_send(ctx, f"You don't have enough {BARREL_COIN}")
         return
@@ -782,14 +784,18 @@ class economy(commands.Cog, name="Economy"):
 
     @commands.command()
     @checks.can_collect_rent()
-    @commands.cooldown(1, 7200, commands.BucketType.user)
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def collectrent(self, ctx:commands.Context):
-        """Collects rent for your houses. Rent is 100, cooldown is 2 hours.""" # I might have to put checks on this but we'll see
+        """Collects rent for your houses. Rent is 400 coins per house per day."""
         player = Player(ctx.author)
-        nohouses = player.amount_in_inventory(6)
-        rent = 100*nohouses
-        player.give_coins(rent)
-        await self.bot_send(ctx, f"You collected {rent}{BARREL_COIN} in rent from your {nohouses} house{str('' if nohouses == 1 else 's')}.")
+        if player.amount_in_inventory(6) < 1:
+            await self.bot_send(f"You don't have any property to collect rent on.")
+            return
+        nocoins, tpassed = player.collect_rent()
+        if nocoins == 0:
+            await self.bot_send(f"You don't have any rent to collect yet.")
+        else:
+            await self.bot_send(f"You collected {time_str(tpassed.seconds)} of rent -- {nocoins}{BARREL_COIN} -- from your {player.amount_in_inventory(6)} houses.")
         
     @commands.command(pass_context=True)
     @commands.is_owner()
@@ -1100,7 +1106,7 @@ def slots_(stage:int) -> int:
         return "".join(choices), slots[choices[0]][stage]
     return "".join(choices), 0
 
-def roulette_(bet, bet_type, bet_val=[]) -> tuple[int, int]:
+def roulette_(bet, bet_type, bet_val:list[str]=[]) -> tuple[int, int]:
     result = rand.choice(list(rouletteslots.keys()))
     payout = -bet
 

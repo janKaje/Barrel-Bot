@@ -1,5 +1,9 @@
 import os
 import json
+from datetime import datetime as dt
+from datetime import timezone as tz
+from datetime import timedelta as td
+from math import floor
 
 import discord
 
@@ -8,6 +12,7 @@ from item import Item
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+DAILY_RENT = 400  # coins/house/day
 
 class Player:
 
@@ -20,8 +25,8 @@ class Player:
             for dci in range(len(_playerdata[key]["dc"])):
                 if isinstance(_playerdata[key]["dc"][dci], int):
                     _playerdata[key]["dc"][dci] = Item(_playerdata[key]["dc"][dci])
-            if "bank" not in _playerdata[key].keys():
-                _playerdata[key]["bank"] = 0
+            if "lcr" not in _playerdata[key].keys():
+                _playerdata[key]["lcr"] = dt.now(tz=tz.utc)
 
     def __init__(self, user:discord.User):
         
@@ -177,3 +182,20 @@ class Player:
             nohouses = self.amount_in_inventory(item)
             return int(item.get_shop_price()*(1+0.2*nohouses**2))
         return item.get_shop_price()
+    
+    def collect_rent(self):
+        nohouses = self.amount_in_inventory(6)
+        lcr = dt.fromtimestamp(Player._playerdata[self.idstr]["lcr"], tz=tz.utc)
+        now = dt.now(tz=tz.utc)
+        tpassed = now-lcr
+        tincrement = td(days=1/DAILY_RENT/nohouses)
+        increments_passed = int(floor(tpassed/tincrement))
+        new_lcr = lcr + increments_passed*tincrement
+        rent_to_collect = min(DAILY_RENT*nohouses, increments_passed) # max collection time 24 hr
+        self.give_coins(rent_to_collect)
+        Player._playerdata[self.idstr]["lcr"] = new_lcr.timestamp()
+        return rent_to_collect, new_lcr-lcr
+    
+    def reset_lcr(self):
+        Player._playerdata[self.idstr]["lcr"] = dt.now(tz=tz.utc).timestamp()
+        

@@ -1,15 +1,12 @@
 token.txt
 test.py
-data/barrelspamtempdata.json
 __pycache__
 cogs/__pycache__
 .env
 notes.txt
-data/analytics.pkl
 /.vscode
 token.json
 credentials.json
-data/trades.json
 
 cogs/adventure.py
 cogs/pets.py
