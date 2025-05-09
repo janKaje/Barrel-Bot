@@ -87,6 +87,7 @@ class economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, json.dumps(trades))
 
     @commands.command()
+    @checks.in_bb_channel()
     @commands.cooldown(1, 1800, commands.BucketType.user) # every 30 min
     async def work(self, ctx: commands.Context):
         f"""Every 30 minutes, you can work to earn {BARREL_COIN}."""
@@ -127,6 +128,7 @@ class economy(commands.Cog, name="Economy"):
                            str(coinsadd) + BARREL_COIN + ".")
             
     @commands.command()
+    @checks.in_bb_channel()
     async def shop(self, ctx: commands.Context, *, item:str=None):
         """See what's for sale. Use `bb shop <item>` to see the details of a particular item."""
         player = Player(ctx.author)
@@ -153,6 +155,7 @@ class economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, embed=embed)
 
     @commands.command()
+    @checks.in_bb_channel()
     async def buy(self, ctx:commands.Context, *, item:str):
         """Buy an item from the shop."""
         try:
@@ -166,12 +169,13 @@ class economy(commands.Cog, name="Economy"):
             player.add_to_inventory(item)
             await self.bot_send(ctx, item.get_shop_message() + " You now have `" + str(player.amount_in_inventory(item)) + "` of this item.")
             if item.id == 6:
-                await player.reset_lcr()
+                player.reset_lcr()
         except NotEnoughCoins:
             await self.bot_send(ctx, f"You don't have enough {BARREL_COIN}")
         return
 
     @commands.command()
+    @checks.in_bb_channel()
     @checks.can_fish()
     @commands.cooldown(1, 600, commands.BucketType.user) # every 10 min
     async def fish(self, ctx:commands.Context):
@@ -222,6 +226,7 @@ class economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, embed=embed)
 
     @commands.command()
+    @checks.in_bb_channel()
     async def sellall(self, ctx:commands.Context):
         """Sells all of your fish."""
         player = Player(ctx.author)
@@ -309,6 +314,7 @@ class economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, embed=embed)
 
     @commands.command()
+    @checks.in_bb_channel()
     async def display(self, ctx:commands.Context, item:str="recent"):
         """Moves an item to the display case. By default, moves your most recent acquisition to display. 
         You can specify a different item by its numerical place in your inventory (not zero-indexed)."""
@@ -335,6 +341,7 @@ class economy(commands.Cog, name="Economy"):
             raise e
 
     @commands.command()
+    @checks.in_bb_channel()
     async def takefromdisplay(self, ctx:commands.Context, item="recent"):
         """Moves an item from the display case to your inventory. By default, moves your most recent addition. 
         You can specify a different item by its numerical place in your display case (not zero-indexed)."""
@@ -504,6 +511,7 @@ class economy(commands.Cog, name="Economy"):
                 return
 
     @commands.command()
+    @checks.in_bb_channel()
     async def sell(self, ctx:commands.Context, itemno:int, quantity:int=1):
         """Lets you sell items in your inventory. Items bought from the shop sell for up to 75% of the original price. Input the slot in your inventory that the item is in, and optionally a quantity (default 1)"""
         itemno = abs(int(itemno)); quantity = abs(int(quantity))
@@ -524,6 +532,7 @@ class economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, f"You successfully sold {quantity} {item} for {moneyreceived}{BARREL_COIN}.")
 
     @commands.command()
+    @checks.in_bb_channel()
     async def appraise(self, ctx:commands.Context, itemno:int):
         """Check how much your items will sell for before selling them."""
         itemno = abs(int(itemno))
@@ -570,6 +579,7 @@ class economy(commands.Cog, name="Economy"):
                 await self.bot_send(ctx, f"You don't have that many coins.")
 
     @commands.command()
+    @checks.in_bb_channel()
     async def bank(self, ctx:commands.Context):
         """Allows you to see your current bank account balance."""
         player = Player(ctx.author)
@@ -580,25 +590,7 @@ class economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, embed=embed)
 
     @commands.command()
-    async def banktop(self, ctx:commands.Context):
-        """Shows the 10 people with the most money in the bank, as well as your own ranking."""
-        balances = Player.get_all_bank_data()
-        balances.sort(key=lambda i: i[1], reverse=True)
-        users = [i[0] for i in balances]
-        bals = [i[1] for i in balances]
-        ranking = users.index(str(ctx.author.id))
-        embed = discord.Embed(color=discord.Color.dark_red(), title="Top 10 bank moneys")
-        valstr = ""
-        for i in range(min(10, len(users))):
-            valstr += str(i+1) + ") "
-            valstr += (await self.bot.fetch_user(int(users[i]))).display_name
-            valstr += " - " + str(bals[i]) + BARREL_COIN + "\n"
-        embed.description = valstr
-        if ranking >= 10:
-            embed.add_field(name="Your ranking:", value=str(ranking+1) + "/" + str(len(users)))
-        await self.bot_send(ctx, embed=embed)
-
-    @commands.command()
+    @checks.in_bb_channel()
     @commands.cooldown(20, 86400, commands.BucketType.user)
     async def slots(self, ctx:commands.Context, *, stakes="low"):
         """Lets you play slots.
@@ -638,6 +630,7 @@ class economy(commands.Cog, name="Economy"):
         return
 
     @commands.command()
+    @checks.in_bb_channel()
     @commands.cooldown(20, 86400, commands.BucketType.user)
     async def roulette(self, ctx:commands.Context, bet, *, bet_type:str):
         """Lets you play American-style roulette. Bet an amount of money and choose what you want to bet on.
@@ -702,6 +695,7 @@ class economy(commands.Cog, name="Economy"):
             await self.bot_send(ctx, f"The winning number is {result}. You won {payout}{BARREL_COIN}!")
 
     @commands.command(pass_context=True)
+    @checks.in_bb_channel()
     @checks.can_rob()
     @checks.has_valid_user(r"(?<=rob ).*")
     @commands.cooldown(1, 3600, commands.BucketType.user) # every 60 min
@@ -760,6 +754,7 @@ class economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, fail_msg + f" You lost {coinsmoved}{BARREL_COIN}!")
 
     @commands.command()
+    @checks.in_bb_channel()
     @checks.can_rob()
     @commands.cooldown(1, 21600, commands.BucketType.user) # every 6 hr
     async def bankrob(self, ctx:commands.Context):
@@ -783,19 +778,20 @@ class economy(commands.Cog, name="Economy"):
             await self.bot_send(ctx, f"You failed! You lost {coinsmoved}{BARREL_COIN} in the attempt.")
 
     @commands.command()
+    @checks.in_bb_channel()
     @checks.can_collect_rent()
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def collectrent(self, ctx:commands.Context):
-        """Collects rent for your houses. Rent is 400 coins per house per day."""
+        """Collects rent for your houses. Rent is 500 coins per house per day."""
         player = Player(ctx.author)
         if player.amount_in_inventory(6) < 1:
-            await self.bot_send(f"You don't have any property to collect rent on.")
+            await self.bot_send(ctx, f"You don't have any property to collect rent on.")
             return
         nocoins, tpassed = player.collect_rent()
         if nocoins == 0:
-            await self.bot_send(f"You don't have any rent to collect yet.")
+            await self.bot_send(ctx, f"You don't have any rent to collect yet.")
         else:
-            await self.bot_send(f"You collected {time_str(tpassed.seconds)} of rent -- {nocoins}{BARREL_COIN} -- from your {player.amount_in_inventory(6)} houses.")
+            await self.bot_send(ctx, f"You collected {time_str(int(tpassed.total_seconds()))} of rent from your {player.amount_in_inventory(6)} houses. You gained {nocoins}{BARREL_COIN}")
         
     @commands.command(pass_context=True)
     @commands.is_owner()

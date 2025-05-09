@@ -12,7 +12,12 @@ from item import Item
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DAILY_RENT = 400  # coins/house/day
+DAILY_RENT = 500  # coins/house/day
+
+# Research upgrades:
+# Luck (fishing, work, robbery)
+# Sale price increase
+# 
 
 class Player:
 
@@ -26,7 +31,7 @@ class Player:
                 if isinstance(_playerdata[key]["dc"][dci], int):
                     _playerdata[key]["dc"][dci] = Item(_playerdata[key]["dc"][dci])
             if "lcr" not in _playerdata[key].keys():
-                _playerdata[key]["lcr"] = dt.now(tz=tz.utc)
+                _playerdata[key]["lcr"] = 0
 
     def __init__(self, user:discord.User):
         
@@ -194,7 +199,10 @@ class Player:
         rent_to_collect = min(DAILY_RENT*nohouses, increments_passed) # max collection time 24 hr
         self.give_coins(rent_to_collect)
         Player._playerdata[self.idstr]["lcr"] = new_lcr.timestamp()
-        return rent_to_collect, new_lcr-lcr
+        # print(nohouses, lcr.isoformat(), now.isoformat())
+        # print(tpassed.total_seconds(), tincrement.total_seconds(), increments_passed)
+        # print(new_lcr.isoformat(), rent_to_collect, min(td(days=1), new_lcr-lcr).total_seconds())
+        return rent_to_collect, min(td(days=1), new_lcr-lcr)
     
     def reset_lcr(self):
         Player._playerdata[self.idstr]["lcr"] = dt.now(tz=tz.utc).timestamp()

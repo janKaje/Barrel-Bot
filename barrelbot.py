@@ -7,7 +7,7 @@ import asyncio
 import discord
 from discord.ext import commands, tasks
 
-from base.extra_exceptions import NotAbleTo, PlayerNotFound
+from base.extra_exceptions import NotAbleTo, PlayerNotFound, NotInBbChannel
 from base.messagetosend import UnsentMessage
 
 try:
@@ -55,6 +55,10 @@ bot.remove_command('help')
 dir_path = os.path.dirname(os.path.abspath(__file__))
 defaultctx = None
 messagequeue = asyncio.Queue()
+bb_channel_ids = [
+    1297596333976453291,
+    1364450362421022750
+]
 
 # get token
 TOKEN = os.environ["TOKEN"]
@@ -105,14 +109,22 @@ async def load_cog(cogname, cogn2):
 def time_str(time):
     """Takes a float of seconds and turns it into appropriate hours, minutes, and seconds."""
     st = ""
-    if time // 3600 > 1:
-        st += str(time // 3600) + ' hours'
-    elif time // 3600 > 0:
-        st += str(time // 3600) + ' hour'
 
+    if time // 86400 > 1:
+        st += str(time // 86400) + ' days'
+    elif time // 86400 > 0:
+        st += str(time // 86400) + ' day'
 
-    if time % 3600 // 60 > 0 or time // 3600 > 0:
-        if time // 3600 > 0:
+    if time % 86400 // 3600 > 0:
+        if time // 86400 > 0:
+            st += ', ' + str(time % 86400 // 3600) + ' hour'
+        else:
+            st += str(time // 3600) + ' hour'
+        if time % 86400 // 3600 > 1 or time // 86400 > 0:
+            st += "s"
+
+    if time % 3600 // 60 > 0 or time % 86400 // 3600 > 0:
+        if time % 86400 // 3600 > 0:
             st += ', ' + str(time % 3600 // 60) + ' minute'
         else:
             st += str(time // 60) + ' minute'
@@ -189,6 +201,10 @@ async def on_command_error(ctx: commands.Context, error:Exception):
         await bot_send(ctx, str(error))
     elif isinstance(error, PlayerNotFound):
         await bot_send(ctx, "Unknown user.")
+    elif isinstance(error, NotInBbChannel):
+        msg = await ctx.send(f"This command can only be done in {' or '.join([bot.get_channel(i).mention for i in bb_channel_ids])}.")
+        await ctx.message.delete(delay=5)
+        await msg.delete(delay=5)
     else:
         await bot_send(ctx, f'An unknown error occurred:\n{type(error)}\n{error.with_traceback(None)}')
 

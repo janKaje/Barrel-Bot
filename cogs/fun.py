@@ -13,11 +13,6 @@ from numpy.random import default_rng
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-sys.path.append(os.path.join(dir_path, "base"))
-
-from messagetosend import UnsentMessage
-print(__name__)
-
 async def setup(bot):
     await bot.add_cog(fun(bot))
 

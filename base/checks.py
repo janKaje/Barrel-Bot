@@ -5,8 +5,14 @@ from discord.ext.commands import check, Context, UserConverter
 
 from base.extra_exceptions import *
 from player import Player
+from barrelbot import bb_channel_ids
 
 usrconv = UserConverter()
+
+bb_channel_ids = [
+    1364450362421022750,
+    1297596333976453291
+]
 
 class checks:
 
@@ -40,3 +46,9 @@ class checks:
             return True
         return check(predicate)
     
+    def in_bb_channel():
+        async def predicate(ctx:Context):
+            if not ctx.channel.id in bb_channel_ids:
+                raise NotInBbChannel()
+            return True
+        return check(predicate)

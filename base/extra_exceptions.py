@@ -3,6 +3,9 @@ from discord.ext.commands import CheckFailure
 class NotAbleTo(CheckFailure):
     pass
 
+class NotInBbChannel(CheckFailure):
+    pass
+
 class NotEnoughCoins(Exception):
     pass
 
