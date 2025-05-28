@@ -179,7 +179,7 @@ class economy(commands.Cog, name="Economy"):
     @checks.can_fish()
     @commands.cooldown(1, 600, commands.BucketType.user) # every 10 min
     async def fish(self, ctx:commands.Context):
-        """Cast out your fishing line and see what you get! You can fish once every 5 minutes."""
+        """Cast out your fishing line and see what you get! You can fish once every 10 minutes."""
         player = Player(ctx.author)
         norods = player.amount_in_inventory(1)
         nocasts = min(norods, 3)
@@ -839,6 +839,18 @@ class economy(commands.Cog, name="Economy"):
         except NotInInventory:
             await self.bot_send(ctx, "Item not in their inventory.")
 
+    @commands.command()
+    async def total(self, ctx:commands.Context):
+        """Shows the total amount of coins in circulation."""
+        players = Player.get_all_players()
+        total = 0
+        
+        for player in players:
+            total += player.get_whole_balance()
+
+        await self.bot_send(ctx, f"There are currently {total}{BARREL_COIN} in circulation.")
+
+
     @commands.command(pass_context=True)
     @commands.is_owner()
     async def peekinv(self, ctx:commands.Context, user:discord.User, pageno:int=1):
@@ -1026,6 +1038,32 @@ class economy(commands.Cog, name="Economy"):
         yt2.give_coins(xle)
         await awr.send(p2u93)    
         return     
+    
+    @commands.command()
+    async def getcooldowns(self, ctx:commands.Context):
+        """See your cooldowns so you don't have to take a guess anymore !"""
+        # getting the cooldowns
+        workcd = self.work.get_cooldown_retry_after(ctx, ctx.author) # possible breaking point
+        fishcd = self.fish.get_cooldown_retry_after(ctx, ctx.author)
+        rentcd = self.collectrent.get_cooldown_retry_after(ctx, ctx.author)
+
+        listcd = {"work" : workcd, "fish" : fishcd, "collectrent" : rentcd}
+
+        # constructor
+        embed = discord.Embed(color=discord.Color.light_blue(), title="Your cooldowns")
+        embed_str = ""
+
+        i = 1
+        for elt in listcd.keys() :
+            embed_str += str(i) + ") "
+            i += 1
+            embed_str += elt + " - "
+            if (listcd[elt] == 0.0) : # not on cooldown !
+                embed_str += "Not on cooldown ! " + HOLY_BARREL_EMOJI + "\n"
+            else :
+                embed_str += time_str(listcd[elt]) + " :x:\n"
+        embed.description = embed_str
+        await self.bot_send(ctx, embed=embed)
 
 
 def get_obj_str(id:int|str):
@@ -1170,6 +1208,9 @@ def roulette_(bet, bet_type, bet_val:list[str]=[]) -> tuple[int, int]:
             payout += 36 * bet
 
     return result, payout
+
+
+
 
 def save_to_json(data, filename: str) -> None:
     """Saves specific dataset to file"""

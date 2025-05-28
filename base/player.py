@@ -298,6 +298,13 @@ class Player:
     def reset_lcr(self):
         Player._playerdata[self.idstr]["lcr"] = dt.now(tz=tz.utc).timestamp()
         
+    def get_all_players():
+        players = []
+        for key in Player._playerdata.keys():
+            players.append(Player(discord.Object(id=int(key))))
+        return players
+    
+        
     def get_fishing_luck(self):
         raw = random.random()
         bl = Player._playerdata[self.idstr]["tech"]["bl"]
