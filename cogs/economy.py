@@ -829,7 +829,7 @@ class economy(commands.Cog, name="Economy"):
             await self.bot_send(ctx, "Item not in their inventory.")
 
     @commands.command()
-    async def total():
+    async def total(self, ctx:commands.Context):
         """Shows the total amount of coins in circulation."""
         players = Player.get_all_players()
         total = 0

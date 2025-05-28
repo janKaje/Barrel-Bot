@@ -208,5 +208,8 @@ class Player:
         Player._playerdata[self.idstr]["lcr"] = dt.now(tz=tz.utc).timestamp()
         
     def get_all_players():
-        return [Player(user=discord.User(id=int(key))) for key in Player._playerdata.keys()]
+        players = []
+        for key in Player._playerdata.keys():
+            players.append(Player(discord.Object(id=int(key))))
+        return players
     
