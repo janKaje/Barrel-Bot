@@ -835,7 +835,7 @@ class economy(commands.Cog, name="Economy"):
         total = 0
         
         for player in players:
-            total += player.get_balance() + player.get_bank_balance()
+            total += player.get_whole_balance()
 
         await self.bot_send(ctx, f"There are currently {total}{BARREL_COIN} in circulation.")
 

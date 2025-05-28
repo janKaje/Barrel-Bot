@@ -207,3 +207,6 @@ class Player:
     def reset_lcr(self):
         Player._playerdata[self.idstr]["lcr"] = dt.now(tz=tz.utc).timestamp()
         
+    def get_all_players():
+        return [Player(user=discord.User(id=int(key))) for key in Player._playerdata.keys()]
+    
