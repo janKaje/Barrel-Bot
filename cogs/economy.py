@@ -828,6 +828,18 @@ class economy(commands.Cog, name="Economy"):
         except NotInInventory:
             await self.bot_send(ctx, "Item not in their inventory.")
 
+    @commands.command()
+    async def total():
+        """Shows the total amount of coins in circulation."""
+        players = Player.get_all_players()
+        total = 0
+        
+        for player in players:
+            total += player.get_balance() + player.get_bank_balance()
+
+        await self.bot_send(ctx, f"There are currently {total}{BARREL_COIN} in circulation.")
+
+
     @commands.command(pass_context=True)
     @commands.is_owner()
     async def peekinv(self, ctx:commands.Context, user:discord.User, pageno:int=1):
@@ -1159,6 +1171,9 @@ def roulette_(bet, bet_type, bet_val:list[str]=[]) -> tuple[int, int]:
             payout += 36 * bet
 
     return result, payout
+
+
+
 
 def save_to_json(data, filename: str) -> None:
     """Saves specific dataset to file"""
