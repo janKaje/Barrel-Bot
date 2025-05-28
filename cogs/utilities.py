@@ -87,6 +87,7 @@ class utilities(commands.Cog, name="Utilities"):
 
             await addcommands(self.bot.get_cog('Utilities'))
             await addcommands(self.bot.get_cog("Economy"))
+            await addcommands(self.bot.get_cog("Research"))
             await addcommands(self.bot.get_cog('Fun'))
             await addcommands(self.bot.get_cog("Barrel Spam"))
             await addcommands(self.bot.get_cog("Barrel News"))

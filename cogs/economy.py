@@ -96,9 +96,9 @@ class economy(commands.Cog, name="Economy"):
         if workresult < 2:
             coinsadd = rand.randint(5,15)
             try:
-                player.give_coins(-coinsadd)
+                player.take_coins(-coinsadd, True)
             except NotEnoughCoins:
-                player.give_coins(-1*player.get_balance())
+                player.take_coins(-1*player.get_whole_balance(), True)
             await self.bot_send(ctx, ctx.author.mention + ", you somehow managed to completely screw up everything at the barrel factory and had to pay " + \
                            str(coinsadd) + BARREL_COIN + " in damages.")
         elif workresult < 20:
@@ -303,7 +303,7 @@ class economy(commands.Cog, name="Economy"):
         valstr = ""
         for i in range(min(10, len(users))):
             valstr += str(i+1) + ") "
-            valstr += (await self.bot.fetch_user(int(users[i]))).display_name
+            valstr += self.bot.get_user(int(users[i])).display_name
             valstr += " - " + str(bals[i]) + BARREL_COIN # + "\n"
             if inbank[i] != 0:
                 valstr += f" - {inbank[i]} in bank"
@@ -533,10 +533,19 @@ class economy(commands.Cog, name="Economy"):
 
     @commands.command()
     @checks.in_bb_channel()
-    async def appraise(self, ctx:commands.Context, itemno:int):
+    async def appraise(self, ctx:commands.Context, itemno:int=None):
         """Check how much your items will sell for before selling them."""
-        itemno = abs(int(itemno))
         player = Player(ctx.author)
+        if itemno is None:
+            if len(player.get_inventory()) == 0:
+                await self.bot_send(ctx, "No items in your inventory.")
+                return
+            resaleprice = 0
+            for item in player.get_inventory():
+                resaleprice += item.get_sale_price()
+            await self.bot_send(ctx, f"The items in your inventory would sell for {resaleprice}{BARREL_COIN}")
+            return
+        itemno = abs(int(itemno))
         item = player.get_item_from_invno(itemno)
         resaleprice = item.get_sale_price()
         if resaleprice is None:
@@ -698,58 +707,60 @@ class economy(commands.Cog, name="Economy"):
     @checks.in_bb_channel()
     @checks.can_rob()
     @checks.has_valid_user(r"(?<=rob ).*")
-    @commands.cooldown(1, 3600, commands.BucketType.user) # every 60 min
+    @commands.cooldown(1, 3600, commands.BucketType.user) # every hr
+    # add something to keep repeated robbings in check - maybe decreased luck if you do the same person twice in a row? 
+    # maybe occasional jail time where you can't do any commands?
     async def rob(self, ctx:commands.Context, *, victim:discord.User):
         """Attempts to rob the victim. You must have a dagger to rob people, and if they have a shield, your chances of success drop drastically."""
         perpetrator = Player(ctx.author); victim_player = Player(victim)
         opponent_has_shield = victim_player.has_in_inventory(3)
-        luck_threshold = 80 if opponent_has_shield else 20
+        luck_threshold = 90 if opponent_has_shield else 30
         luck = rand.randint(0, 99)
         richfactor = 1 + victim_player.get_balance()*0.001
         if luck < 2:
             perpetrator.remove_from_inventory(2)
             await self.bot_send(ctx, "While attempting to rob them, you tripped, fell, and broke your dagger. Serves you right...")
             return
-        if luck > 97 and opponent_has_shield:
+        if luck == 99 and opponent_has_shield:
             victim_player.remove_from_inventory(3)
             coinsmoved = min(victim_player.get_balance(), int(richfactor*rand.randint(30, 60)))
             victim_player.give_coins(-coinsmoved)
             perpetrator.give_coins(coinsmoved)
-            await self.bot_send(ctx, f"In trying to defend themselves, your victim's shield broke! You successfully stole {coinsmoved} from {victim.display_name}!")
+            await self.bot_send(ctx, f"In trying to defend themselves, your victim's shield broke! You successfully stole {coinsmoved} from {victim.mention}!")
             return
         if luck >= luck_threshold:
             coinsmoved = min(victim_player.get_balance(), int(richfactor*rand.randint(30, 60)))
             victim_player.give_coins(-coinsmoved)
             perpetrator.give_coins(coinsmoved)
             success_msg = rand.choice([
-                f"You broke into {victim.display_name}'s house in the middle of the night and stole their jewelry.",
-                f"You mugged {victim.display_name} on the side of the road as they were going to " + rand.choice([
+                f"You broke into {victim.mention}'s house in the middle of the night and stole their jewelry.",
+                f"You mugged {victim.mention} on the side of the road as they were going to " + rand.choice([
                     "their grandma's funeral.", "the grocery store.", "their son's piano recital.", "work.", "their cousin's house.",
                     "a concert.", "eat lunch with their partner.", "the movie theater.", "visit their partner at work and bring them cookies.",
                     "the barrel factory."
                 ]),
-                f"You broke {victim.display_name}'s car window while they were shopping and took everything you could find.",
-                f"You seduced {victim.display_name} and made away with their wallet in the middle of the night.",
-                f"You sent {victim.display_name} a phishing email and somehow they fell for it.",
-                f"You convinced {victim.display_name} to invest in your pump and dump crypto scheme.",
-                f"You resold {BARREL_EMOJI} merch to {victim.display_name} for an exorbitantly high price.",
-                f"You flirted with {victim.display_name} long enough to distract them while your partner cleaned out their safe."
+                f"You broke {victim.mention}'s car window while they were shopping and took everything you could find.",
+                f"You seduced {victim.mention} and made away with their wallet in the middle of the night.",
+                f"You sent {victim.mention} a phishing email and somehow they fell for it.",
+                f"You convinced {victim.mention} to invest in your pump and dump crypto scheme.",
+                f"You resold {BARREL_EMOJI} merch to {victim.mention} for an exorbitantly high price.",
+                f"You flirted with {victim.mention} long enough to distract them while your partner cleaned out their safe."
             ])
             await self.bot_send(ctx, success_msg + f" You successfully stole {coinsmoved}{BARREL_COIN} from {victim.display_name}!")
             return
-        coinsmoved = min(perpetrator.get_whole_balance(), rand.randint(5, 10))
+        coinsmoved = min(perpetrator.get_whole_balance(), (1 + perpetrator.get_balance()*0.001)*rand.randint(5, 10))
         perpetrator.take_coins(coinsmoved, True)
         fail_msg = rand.choice([
-            f"You tried to mug {victim.display_name} with your dagger, but they pulled a gun on you. Are those even legal here?",
-            f"You got trapped inside {victim.display_name}'s house after breaking in, and the police caught you.",
-            f"You successfully robbed {victim.display_name}, but while making a getaway, you slipped on a banana peel and everything fell out of your pockets.",
-            f"Right after robbing {victim.display_name}, they robbed you right back.",
+            f"You tried to mug {victim.mention} with your dagger, but they pulled a gun on you. Are those even legal here?",
+            f"You got trapped inside {victim.mention}'s house after breaking in, and the police caught you.",
+            f"You successfully robbed {victim.mention}, but while making a getaway, you slipped on a banana peel and everything fell out of your pockets.",
+            f"Right after robbing {victim.mention}, they robbed you right back.",
             f"You lied on your tax forms about your criminal activities, and the IRS found you out.",
-            f"You stole {victim.display_name}'s wallet, but it only had expired coupons and a drawing of a cat.",
-            f"You tried to scam {victim.display_name} online, but they reverse-hacked you and now own your crypto wallet.",
-            f"You stole a priceless artifact from {victim.display_name}, but then dropped it into a sewer drain while taking a selfie.",
-            f"You tried to mug {victim.display_name}, but instead they gave you life advice over a cup of tea. Now you're pursuing your passion and becoming a masseuse/masseur.",
-            f"You followed {victim.display_name} home to rob them, but got lost and ended up at your ex's house. Awkward."
+            f"You stole {victim.mention}'s wallet, but it only had expired coupons and a drawing of a cat.",
+            f"You tried to scam {victim.mention} online, but they reverse-hacked you and now own your crypto wallet.",
+            f"You stole a priceless artifact from {victim.mention}, but then dropped it into a sewer drain while taking a selfie.",
+            f"You tried to mug {victim.mention}, but instead they gave you life advice over a cup of tea. Now you're pursuing your passion and becoming a masseuse/masseur.",
+            f"You followed {victim.mention} home to rob them, but got lost and ended up at your ex's house. Awkward."
         ])
         await self.bot_send(ctx, fail_msg + f" You lost {coinsmoved}{BARREL_COIN}!")
 
@@ -759,7 +770,7 @@ class economy(commands.Cog, name="Economy"):
     @commands.cooldown(1, 21600, commands.BucketType.user) # every 6 hr
     async def bankrob(self, ctx:commands.Context):
         """Attempts to rob the bank. The chance of succeeding is very low (~1%), but with more daggers your luck increases to just low (at most ~5%).
-        Amount gained upon successful robbery: 20-50% of the bank's holdings, distributed equally amongst all bank accounts.
+        Amount gained upon successful robbery: 20-40% of the bank's holdings, distributed equally amongst all bank accounts.
         Cooldown is six hours."""
         player = Player(ctx.author)
         success_luck = rand.random()*100
@@ -767,13 +778,13 @@ class economy(commands.Cog, name="Economy"):
         chances = 5*(1-math.exp(-no_daggers/5))
         if chances > success_luck:
             # successfully rob bank
-            percent_robbed = 0.2 + 0.3*rand.random()
+            percent_robbed = 0.2 + 0.2*rand.random()
             robbings = sum(Player.reduce_bank_holdings_by_percent(percent_robbed))
             player.give_coins(robbings)
             await self.bot_send(ctx, f"You successfully robbed the bank! You made away with {robbings}{BARREL_COIN}!")
         else:
             # failure
-            coinsmoved = min(player.get_whole_balance(), rand.randint(10, 20))
+            coinsmoved = min(player.get_whole_balance(), (1 + player.get_whole_balance()*0.001)*rand.randint(10, 20))
             player.take_coins(coinsmoved, True)
             await self.bot_send(ctx, f"You failed! You lost {coinsmoved}{BARREL_COIN} in the attempt.")
 

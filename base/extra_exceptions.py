@@ -26,3 +26,9 @@ class ItemNotFound(Exception):
 
 class PlayerNotFound(CheckFailure):
     pass
+
+class ResearchQueueFull(Exception):
+    pass
+
+class MissingPrerequisites(Exception):
+    pass

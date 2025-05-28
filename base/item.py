@@ -1,7 +1,7 @@
 import math
 from random import randint
 
-from base.extra_exceptions import ItemNotFound
+from extra_exceptions import ItemNotFound
 
 BARREL_COIN = "<:barrelcoin:1364027068936884405>"
 BARREL_EMOJI = "<:barrel:1296987889942397001>"

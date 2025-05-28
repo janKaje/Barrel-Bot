@@ -57,7 +57,8 @@ defaultctx = None
 messagequeue = asyncio.Queue()
 bb_channel_ids = [
     1297596333976453291,
-    1364450362421022750
+    1364450362421022750,
+    733508144617226302
 ]
 
 # get token
@@ -150,6 +151,7 @@ async def on_ready():
     await load_cog("cogs.barrelspam", "Barrel Spam")
     await load_cog("cogs.fun", "Fun")
     await load_cog("cogs.economy", "Economy")
+    await load_cog("cogs.research", "Research")
     await load_cog("cogs.utilities", "Utilities")
     await load_cog("cogs.barrelnews", "Barrel News")
     await load_cog("cogs.analytics", "Analytics")
