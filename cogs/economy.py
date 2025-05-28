@@ -366,7 +366,7 @@ class economy(commands.Cog, name="Economy"):
         except:
             await self.bot_send(ctx, "You don't have this item.")
 
-    @commands.command()
+    @commands.command(aliases=["dc"])
     async def displaycase(self, ctx:commands.Context, pageno=1):
         """Shows off your display case."""
         try:
@@ -748,7 +748,7 @@ class economy(commands.Cog, name="Economy"):
             ])
             await self.bot_send(ctx, success_msg + f" You successfully stole {coinsmoved}{BARREL_COIN} from {victim.display_name}!")
             return
-        coinsmoved = min(perpetrator.get_whole_balance(), (1 + perpetrator.get_balance()*0.001)*rand.randint(5, 10))
+        coinsmoved = min(perpetrator.get_whole_balance(), int(round((1 + perpetrator.get_balance()*0.001)*rand.randint(5, 10))))
         perpetrator.take_coins(coinsmoved, True)
         fail_msg = rand.choice([
             f"You tried to mug {victim.mention} with your dagger, but they pulled a gun on you. Are those even legal here?",
@@ -784,7 +784,7 @@ class economy(commands.Cog, name="Economy"):
             await self.bot_send(ctx, f"You successfully robbed the bank! You made away with {robbings}{BARREL_COIN}!")
         else:
             # failure
-            coinsmoved = min(player.get_whole_balance(), (1 + player.get_whole_balance()*0.001)*rand.randint(10, 20))
+            coinsmoved = min(player.get_whole_balance(), int(round((1 + player.get_whole_balance()*0.001)*rand.randint(10, 20))))
             player.take_coins(coinsmoved, True)
             await self.bot_send(ctx, f"You failed! You lost {coinsmoved}{BARREL_COIN} in the attempt.")
 
@@ -1043,14 +1043,15 @@ class economy(commands.Cog, name="Economy"):
     async def getcooldowns(self, ctx:commands.Context):
         """See your cooldowns so you don't have to take a guess anymore !"""
         # getting the cooldowns
-        workcd = self.work.get_cooldown_retry_after(ctx, ctx.author) # possible breaking point
-        fishcd = self.fish.get_cooldown_retry_after(ctx, ctx.author)
-        rentcd = self.collectrent.get_cooldown_retry_after(ctx, ctx.author)
+        workcd = int(round(self.work.get_cooldown_retry_after(ctx))) # possible breaking point
+        fishcd = int(round(self.fish.get_cooldown_retry_after(ctx)))
+        robcd = int(round(self.rob.get_cooldown_retry_after(ctx)))
+        bankrobcd = int(round(self.bankrob.get_cooldown_retry_after(ctx)))
 
-        listcd = {"work" : workcd, "fish" : fishcd, "collectrent" : rentcd}
+        listcd = {"work" : workcd, "fish" : fishcd, "rob" : robcd, "bankrob": bankrobcd}
 
         # constructor
-        embed = discord.Embed(color=discord.Color.light_blue(), title="Your cooldowns")
+        embed = discord.Embed(color=discord.Color.blue(), title="Your cooldowns")
         embed_str = ""
 
         i = 1

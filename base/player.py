@@ -106,6 +106,8 @@ class Player:
             for dci in range(len(_playerdata[key]["dc"])):
                 if isinstance(_playerdata[key]["dc"][dci], int):
                     _playerdata[key]["dc"][dci] = Item(_playerdata[key]["dc"][dci])
+            if "lcr" not in _playerdata[key].keys():
+                _playerdata[key]["lcr"] = 0
             if "tech" not in _playerdata[key].keys():
                 _playerdata[key]["tech"] = {
                     "bl": 0,  # base luck
@@ -222,7 +224,9 @@ class Player:
                 "bal": Player._playerdata[key]["bal"],
                 "inv": [int(item) for item in Player._playerdata[key]["inv"]],
                 "dc": [int(item) for item in Player._playerdata[key]["dc"]],
-                "bank": Player._playerdata[key]["bank"]
+                "bank": Player._playerdata[key]["bank"],
+                "lcr": Player._playerdata[key]["lcr"],
+                "tech": Player._playerdata[key]["tech"]
             }
         return jsond
     staticmethod(get_json_data)
@@ -273,7 +277,7 @@ class Player:
             item = Item(item)
         if item.id == 6:
             nohouses = self.amount_in_inventory(item)
-            return int(item.get_shop_price()*(1+0.2*nohouses**2))
+            return int(round(item.get_shop_price()*(1+0.2*nohouses**2)))
         return item.get_shop_price()
     
     def collect_rent(self):
