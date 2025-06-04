@@ -14,6 +14,7 @@ HOLY_BARREL_EMOJI = "<:holybarrel:1303080132642209826>"
 # Barrel Crate: 4
 # Golden Barrel Crate: 5
 # House: 6
+# Beer: 7
 # ...
 # Prizes and unique items: 20-99
 # Fish: (second two numbers are stats: length and weight)
@@ -44,6 +45,8 @@ class Item(object):
         4: [BARREL_EMOJI + " - Barrel Crate", "barrel", "barrel crate", BARREL_EMOJI],
         5: [HOLY_BARREL_EMOJI + " - Golden Barrel Crate", "golden barrel", "golden barrel crate", "holy barrel", HOLY_BARREL_EMOJI],
         6: ["🏠 - House", "house", "🏠"],
+        7: ["🍺 - Beer", "beer", "Beer" "🍺"],
+
         100: ["🦑 - Squid", "squid", "🦑"],
         200: ["🪼 - Jellyfish", "jellyfish", "🪼"],
         300: ["🦐 - Shrimp", "shrimp", "🦐"],
@@ -113,10 +116,16 @@ class Item(object):
     def get_sale_price(self):
         if self.id in Item._shop_prices.keys():
             return int(math.floor(Item._shop_prices[self.id]*0.75))
+
         if self.id == 4:
             return randint(300, 500)
+
         if self.id == 5:
             return randint(700, 1200)
+
+        if self.id == 7:
+            return 3
+
         if self.basetype == "fish":
             type = int(str(self.id)[0])
             length = int(str(self.id)[1])
