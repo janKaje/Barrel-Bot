@@ -872,7 +872,7 @@ class economy(commands.Cog, name="Economy"):
             msgID = rand.randint(0, 5)
             player.add_to_inventory(7)
         else:
-            msgID = rand.randint(5, 10)
+            msgID = rand.randint(6, 10)
         
         await self.bot_send(ctx, beerFetchMessages[msgID])
 
