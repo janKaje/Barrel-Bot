@@ -850,6 +850,44 @@ class economy(commands.Cog, name="Economy"):
 
         await self.bot_send(ctx, f"There are currently {total}{BARREL_COIN} in circulation.")
 
+    @commands.command()
+    @checks.in_bb_channel()
+    @commands.cooldown(1, 600, commands.BucketType.user) # every 10 minutes
+    async def fetchmeabeer(self, ctx:commands.Context):
+
+        beerFetchMessages = {
+
+            #success
+            0: "Fine, here you go: 🍺",
+            1: "Hmm, alright fine: 🍺",
+            2: "... 🍺",
+            3: "ugh, 🍺",
+            4: "kk, 🍺",
+            5: "can you ask more nicely next time? 🍺",
+
+            #fail
+            6: "Oh no! I accidentally dropped it on the way! Im so sorry.",
+            7: "Nuh uh buddy, not today.",
+            8: "I was thirsty and I drank it all, whoopsies.",
+            9: "Oh no! I lost it! The falcon caught it midway and then there was this car and other.. things.. happened!",
+            10: "I was bribed to not bring you the beer, sorry dude...",
+        }
+
+        player = Player(ctx.author)
+        if player.amount_in_inventory(7) >= 1:
+            await self.bot_send(ctx, f"You already have a beer!")
+            return
+        success = rand.randint(0, 1)
+
+        if success == 1:
+            msgID = rand.randint(0, 5)
+            player.add_to_inventory(7)
+        else:
+            msgID = rand.randint(6, 10)
+        
+        await self.bot_send(ctx, beerFetchMessages[msgID])
+
+
 
     @commands.command(pass_context=True)
     @commands.is_owner()
