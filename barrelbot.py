@@ -251,7 +251,7 @@ async def run_raw_code(ctx: commands.Context, *, code:str):
     if code == '':
         return
     try:
-        eval(code)
+        exec(code)
     except Exception as e:
         await bot_send(ctx, f"Something went wrong:\n{e.with_traceback(None)}")
 

@@ -1,10 +1,10 @@
 import json
 import math
 import os
+from pydoc import text
 import random as rand
 import re
 import asyncio
-from copy import deepcopy
 import sys
 from pickle import dumps as dpx
 
@@ -82,9 +82,30 @@ class economy(commands.Cog, name="Economy"):
 
     @commands.command()
     @commands.is_owner()
+    async def forcesaveplayerdata(self, ctx:commands.Context):
+        with open("tempsave.pkl", "wb") as file:
+            file.write(dpx(Player._playerdata))
+        await self.bot_send(ctx, "Done!")
+
+    @commands.command()
+    @commands.is_owner()
+    async def run_raw_code_economy(self, ctx:commands.Context, *, code:str):
+        if code == '':
+            return
+        try:
+            exec(code)
+        except Exception as e:
+            await self.bot_send(ctx, f"Something went wrong:\n{e.with_traceback(None)}")
+
+    @commands.command()
+    @commands.is_owner()
     async def geteconomydata(self, ctx: commands.Context):
-        await self.bot_send(ctx, json.dumps(Player._playerdata, indent=2))
-        await self.bot_send(ctx, json.dumps(trades))
+        outstr = json.dumps(Player.get_json_data())
+        lenstr = len(outstr)
+        nostrs = lenstr // 2000 + 1
+        for i in range(nostrs):
+            await self.bot_send(ctx, outstr[i*2000:(i+1)*2000])
+        return
 
     @commands.command()
     @checks.in_bb_channel()
@@ -748,7 +769,7 @@ class economy(commands.Cog, name="Economy"):
             ])
             await self.bot_send(ctx, success_msg + f" You successfully stole {coinsmoved}{BARREL_COIN} from {victim.display_name}!")
             return
-        coinsmoved = min(perpetrator.get_whole_balance(), int(round((1 + perpetrator.get_balance()*0.001)*rand.randint(5, 10))))
+        coinsmoved = min(perpetrator.get_whole_balance(), int(round((1 + perpetrator.get_balance()*0.0005)*rand.randint(5, 10))))
         perpetrator.take_coins(coinsmoved, True)
         fail_msg = rand.choice([
             f"You tried to mug {victim.mention} with your dagger, but they pulled a gun on you. Are those even legal here?",
@@ -784,7 +805,7 @@ class economy(commands.Cog, name="Economy"):
             await self.bot_send(ctx, f"You successfully robbed the bank! You made away with {robbings}{BARREL_COIN}!")
         else:
             # failure
-            coinsmoved = min(player.get_whole_balance(), int(round((1 + player.get_whole_balance()*0.001)*rand.randint(10, 20))))
+            coinsmoved = min(player.get_whole_balance(), int(round((1 + player.get_whole_balance()*0.0005)*rand.randint(10, 20))))
             player.take_coins(coinsmoved, True)
             await self.bot_send(ctx, f"You failed! You lost {coinsmoved}{BARREL_COIN} in the attempt.")
 
@@ -810,7 +831,15 @@ class economy(commands.Cog, name="Economy"):
         """Gives the specified user id a certain number of coins"""
         player = Player(user)
         player.give_coins(nocoins)
-        await self.bot_send(ctx, "Done. They now have " + str(player.get_balance()) + BARREL_COIN)
+        await self.bot_send(ctx, "Done. They now have " + str(player.get_whole_balance()) + BARREL_COIN)
+        
+    @commands.command(pass_context=True)
+    @commands.is_owner()
+    async def forcetakemoney(self, ctx:commands.Context, user:discord.User, nocoins:int):
+        """Takes a certain number of coins from the specified user"""
+        player = Player(user)
+        player.take_coins(nocoins, True)
+        await self.bot_send(ctx, "Done. They now have " + str(player.get_whole_balance()) + BARREL_COIN)
 
     @commands.command(pass_context=True)
     @commands.is_owner()
@@ -900,6 +929,24 @@ class economy(commands.Cog, name="Economy"):
         nopages = 1 + len(invitems_)//25
         embed = discord.Embed(color=discord.Color.light_gray())
         embed.title = user.display_name + "'s Inventory"
+        embed.description = "Total items: " + str(len(invdisplay))
+        for i, item in enumerate(invitems):
+            embed.add_field(name=str(item), value = "#" + str(i+1+(pageno-1)*25) + str("" if invdisplay.count(item)==1 else " - Count: " + str(invdisplay.count(item))))
+        if nopages > 1:
+            embed.set_footer(text=f"Page {pageno}/{nopages}")
+        await self.bot_send(ctx, embed=embed)
+        
+    @commands.command(pass_context=True)
+    @commands.is_owner()
+    async def peekdc(self, ctx:commands.Context, user:discord.User, pageno:int=1):
+        """Spies on the user's displaycase."""
+        invdisplay = Player(user).get_display()
+        invitems_ = list(set(invdisplay))
+        invitems_.sort(key=lambda i: i.id)
+        invitems = invitems_[(pageno-1)*25:pageno*25]
+        nopages = 1 + len(invitems_)//25
+        embed = discord.Embed(color=discord.Color.gold())
+        embed.title = user.display_name + "'s Display Case"
         embed.description = "Total items: " + str(len(invdisplay))
         for i, item in enumerate(invitems):
             embed.add_field(name=str(item), value = "#" + str(i+1+(pageno-1)*25) + str("" if invdisplay.count(item)==1 else " - Count: " + str(invdisplay.count(item))))

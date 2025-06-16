@@ -8,6 +8,7 @@ import random
 import time
 
 import discord
+from numpy import isin
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -129,9 +130,7 @@ class Player:
         self.id = user.id
         self.idstr = str(user.id)
         if self.idstr not in Player._playerdata.keys():
-            Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": [], "bank": 0}
-        if "bank" not in Player._playerdata[self.idstr]:
-            Player._playerdata[self.idstr]["bank"] = 0
+            Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": [], "bank": 0, "lcr": 0, "tech": []}
 
     def give_coins(self, nocoins:int):
         if (Player._playerdata[self.idstr]["bal"] + nocoins) < 0:
@@ -218,16 +217,13 @@ class Player:
         Player._playerdata[self.idstr]["inv"] = []
 
     def get_json_data():
-        jsond = {}
-        for key in Player._playerdata.keys():
-            jsond[key] = {
-                "bal": Player._playerdata[key]["bal"],
-                "inv": [int(item) for item in Player._playerdata[key]["inv"]],
-                "dc": [int(item) for item in Player._playerdata[key]["dc"]],
-                "bank": Player._playerdata[key]["bank"],
-                "lcr": Player._playerdata[key]["lcr"],
-                "tech": Player._playerdata[key]["tech"]
-            }
+        jsond = {key: {"bal":0, "inv":[], "dc":[], "bank":0, "lcr":0, "tech":{}} for key in Player._playerdata.keys()}
+        for key, val in Player._playerdata.items():
+            for i, item in val.items():
+                if isinstance(item, list):
+                    jsond[key][i] = [int(j) for j in item]
+                else:
+                    jsond[key][i] = item
         return jsond
     staticmethod(get_json_data)
 
