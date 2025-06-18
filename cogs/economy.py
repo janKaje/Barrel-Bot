@@ -863,9 +863,6 @@ class economy(commands.Cog, name="Economy"):
         }
 
         player = Player(ctx.author)
-        if player.amount_in_inventory(7) >= 1:
-            await self.bot_send(ctx, f"You already have a beer!")
-            return
         success = rand.randint(0, 1)
 
         if success == 1:
