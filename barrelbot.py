@@ -21,9 +21,11 @@ except ImportError:
     pass
 
 IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
+if isinstance(IS_IN_DEV_MODE, str):
+    IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
 
 ## Debug
-if IS_IN_DEV_MODE :
+if IS_IN_DEV_MODE == True:
     print("New debugging session started in bot testing server")
 ##
 

@@ -18,7 +18,9 @@ async def setup(bot):
 # Get is_in_dev_mode data to know whether it's in dev or on the server
 # .env is loaded from barrelbot.py
 IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
-
+if isinstance(IS_IN_DEV_MODE, str):
+    IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
+    
 
 ## Consts
 SPAM_THRESHOLD = 10
@@ -321,8 +323,6 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
                 return "decimal"
             if role.id == BINARYROLEID:
                 return "binary"
-            if role.id == TESTROLEID:
-                return "decimal"
         return "not in team"
 
     async def continueSequence(self, message: discord.Message, spamint: int) -> None:
