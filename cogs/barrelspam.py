@@ -15,8 +15,14 @@ next_barrelspam = None
 async def setup(bot):
     await bot.add_cog(barrelspam(bot))
 
+# Get is_in_dev_mode data to know whether it's in dev or on the server
+# .env is loaded from barrelbot.py
+IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
+if isinstance(IS_IN_DEV_MODE, str):
+    IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
+    
 
-# Define constants
+## Consts
 SPAM_THRESHOLD = 10
 
 DECIMALROLEID = 1303766261574008943
@@ -32,9 +38,21 @@ TEMP_DATA_MSG_ID = 1310847765517172776
 
 DATA_CHANNEL_ID = 735631640939986964
 
-# Test IDs for the bot testing server
-TESTROLEID = 735637859872276501
-TESTCHANNELID = 733508209288937544
+## Debug
+if IS_IN_DEV_MODE : # same role id (& channel ID) everywhere because I can't be bothered to create new ones in the test server (I don't have the perms anyways)
+    DECIMALROLEID = 735637859872276501
+    BINARYROLEID = 735637859872276501
+
+    BARRELCULTSPAMCHANNELID = 733508209288937544
+
+    LORD_ROLE_ID = 735637859872276501
+
+    IND_DATA_MSG_ID = 735637859872276501
+    TEAM_DATA_MSG_ID = 735637859872276501
+    TEMP_DATA_MSG_ID = 735637859872276501
+
+    DATA_CHANNEL_ID = 733508209288937544
+##
 
 # Open data files
 with open(dir_path + "/data/barrelspamdata.json") as file:
@@ -305,8 +323,6 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
                 return "decimal"
             if role.id == BINARYROLEID:
                 return "binary"
-            if role.id == TESTROLEID:
-                return "decimal"
         return "not in team"
 
     async def continueSequence(self, message: discord.Message, spamint: int) -> None:

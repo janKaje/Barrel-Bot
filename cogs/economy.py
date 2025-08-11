@@ -1,10 +1,10 @@
 import json
 import math
 import os
+from pydoc import text
 import random as rand
 import re
 import asyncio
-from copy import deepcopy
 import sys
 from pickle import dumps as dpx
 
@@ -28,7 +28,14 @@ async def setup(bot):
 with open(dir_path + "/data/trades.json") as file:
     trades = json.load(file)
 
+# Get is_in_dev_mode data to know whether it's in dev or on the server
+# .env is loaded from barrelbot.py
+IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
+if isinstance(IS_IN_DEV_MODE, str):
+    IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
+    
 
+## Consts
 DATA_CHANNEL_ID = 735631640939986964
 
 PLAYER_DATA_MSG = 1363307787848912896
@@ -36,6 +43,20 @@ PLAYER_DATA_MSG = 1363307787848912896
 BARREL_COIN = "<:barrelcoin:1364027068936884405>"
 BARREL_EMOJI = "<:barrel:1296987889942397001>"
 HOLY_BARREL_EMOJI = "<:holybarrel:1303080132642209826>"
+
+## Debug
+if IS_IN_DEV_MODE : 
+    # general channel in test server
+    DATA_CHANNEL_ID = 733508144617226302
+
+    PLAYER_DATA_MSG = 0 # Used nowhere ?!?
+
+    # Same emoji because we only have one on the test server
+    BARREL_COIN = "<:TESTbarrel:1303842935715921941>"
+    BARREL_EMOJI = "<:TESTbarrel:1303842935715921941>"
+    HOLY_BARREL_EMOJI = "<:TESTbarrel:1303842935715921941>"
+##
+
 
 slots = {
     "7️⃣": [1000, 4000, 20000], #list is rewards for 3 in a row of low, med, high stakes
@@ -82,9 +103,30 @@ class economy(commands.Cog, name="Economy"):
 
     @commands.command()
     @commands.is_owner()
+    async def forcesaveplayerdata(self, ctx:commands.Context):
+        with open("tempsave.pkl", "wb") as file:
+            file.write(dpx(Player._playerdata))
+        await self.bot_send(ctx, "Done!")
+
+    @commands.command()
+    @commands.is_owner()
+    async def run_raw_code_economy(self, ctx:commands.Context, *, code:str):
+        if code == '':
+            return
+        try:
+            exec(code)
+        except Exception as e:
+            await self.bot_send(ctx, f"Something went wrong:\n{e.with_traceback(None)}")
+
+    @commands.command()
+    @commands.is_owner()
     async def geteconomydata(self, ctx: commands.Context):
-        await self.bot_send(ctx, json.dumps(Player._playerdata, indent=2))
-        await self.bot_send(ctx, json.dumps(trades))
+        outstr = json.dumps(Player.get_json_data())
+        lenstr = len(outstr)
+        nostrs = lenstr // 2000 + 1
+        for i in range(nostrs):
+            await self.bot_send(ctx, outstr[i*2000:(i+1)*2000])
+        return
 
     @commands.command()
     @checks.in_bb_channel()
@@ -96,9 +138,9 @@ class economy(commands.Cog, name="Economy"):
         if workresult < 2:
             coinsadd = rand.randint(5,15)
             try:
-                player.give_coins(-coinsadd)
+                player.take_coins(-coinsadd, True)
             except NotEnoughCoins:
-                player.give_coins(-1*player.get_balance())
+                player.take_coins(-1*player.get_whole_balance(), True)
             await self.bot_send(ctx, ctx.author.mention + ", you somehow managed to completely screw up everything at the barrel factory and had to pay " + \
                            str(coinsadd) + BARREL_COIN + " in damages.")
         elif workresult < 20:
@@ -179,7 +221,7 @@ class economy(commands.Cog, name="Economy"):
     @checks.can_fish()
     @commands.cooldown(1, 600, commands.BucketType.user) # every 10 min
     async def fish(self, ctx:commands.Context):
-        """Cast out your fishing line and see what you get! You can fish once every 5 minutes."""
+        """Cast out your fishing line and see what you get! You can fish once every 10 minutes."""
         player = Player(ctx.author)
         norods = player.amount_in_inventory(1)
         nocasts = min(norods, 3)
@@ -303,7 +345,7 @@ class economy(commands.Cog, name="Economy"):
         valstr = ""
         for i in range(min(10, len(users))):
             valstr += str(i+1) + ") "
-            valstr += (await self.bot.fetch_user(int(users[i]))).display_name
+            valstr += self.bot.get_user(int(users[i])).display_name
             valstr += " - " + str(bals[i]) + BARREL_COIN # + "\n"
             if inbank[i] != 0:
                 valstr += f" - {inbank[i]} in bank"
@@ -366,7 +408,7 @@ class economy(commands.Cog, name="Economy"):
         except:
             await self.bot_send(ctx, "You don't have this item.")
 
-    @commands.command()
+    @commands.command(aliases=["dc"])
     async def displaycase(self, ctx:commands.Context, pageno=1):
         """Shows off your display case."""
         try:
@@ -533,10 +575,19 @@ class economy(commands.Cog, name="Economy"):
 
     @commands.command()
     @checks.in_bb_channel()
-    async def appraise(self, ctx:commands.Context, itemno:int):
+    async def appraise(self, ctx:commands.Context, itemno:int=None):
         """Check how much your items will sell for before selling them."""
-        itemno = abs(int(itemno))
         player = Player(ctx.author)
+        if itemno is None:
+            if len(player.get_inventory()) == 0:
+                await self.bot_send(ctx, "No items in your inventory.")
+                return
+            resaleprice = 0
+            for item in player.get_inventory():
+                resaleprice += item.get_sale_price()
+            await self.bot_send(ctx, f"The items in your inventory would sell for {resaleprice}{BARREL_COIN}")
+            return
+        itemno = abs(int(itemno))
         item = player.get_item_from_invno(itemno)
         resaleprice = item.get_sale_price()
         if resaleprice is None:
@@ -698,58 +749,60 @@ class economy(commands.Cog, name="Economy"):
     @checks.in_bb_channel()
     @checks.can_rob()
     @checks.has_valid_user(r"(?<=rob ).*")
-    @commands.cooldown(1, 3600, commands.BucketType.user) # every 60 min
+    @commands.cooldown(1, 3600, commands.BucketType.user) # every hr
+    # add something to keep repeated robbings in check - maybe decreased luck if you do the same person twice in a row? 
+    # maybe occasional jail time where you can't do any commands?
     async def rob(self, ctx:commands.Context, *, victim:discord.User):
         """Attempts to rob the victim. You must have a dagger to rob people, and if they have a shield, your chances of success drop drastically."""
         perpetrator = Player(ctx.author); victim_player = Player(victim)
         opponent_has_shield = victim_player.has_in_inventory(3)
-        luck_threshold = 80 if opponent_has_shield else 20
+        luck_threshold = 90 if opponent_has_shield else 30
         luck = rand.randint(0, 99)
         richfactor = 1 + victim_player.get_balance()*0.001
         if luck < 2:
             perpetrator.remove_from_inventory(2)
             await self.bot_send(ctx, "While attempting to rob them, you tripped, fell, and broke your dagger. Serves you right...")
             return
-        if luck > 97 and opponent_has_shield:
+        if luck == 99 and opponent_has_shield:
             victim_player.remove_from_inventory(3)
             coinsmoved = min(victim_player.get_balance(), int(richfactor*rand.randint(30, 60)))
             victim_player.give_coins(-coinsmoved)
             perpetrator.give_coins(coinsmoved)
-            await self.bot_send(ctx, f"In trying to defend themselves, your victim's shield broke! You successfully stole {coinsmoved} from {victim.display_name}!")
+            await self.bot_send(ctx, f"In trying to defend themselves, your victim's shield broke! You successfully stole {coinsmoved} from {victim.mention}!")
             return
         if luck >= luck_threshold:
             coinsmoved = min(victim_player.get_balance(), int(richfactor*rand.randint(30, 60)))
             victim_player.give_coins(-coinsmoved)
             perpetrator.give_coins(coinsmoved)
             success_msg = rand.choice([
-                f"You broke into {victim.display_name}'s house in the middle of the night and stole their jewelry.",
-                f"You mugged {victim.display_name} on the side of the road as they were going to " + rand.choice([
+                f"You broke into {victim.mention}'s house in the middle of the night and stole their jewelry.",
+                f"You mugged {victim.mention} on the side of the road as they were going to " + rand.choice([
                     "their grandma's funeral.", "the grocery store.", "their son's piano recital.", "work.", "their cousin's house.",
                     "a concert.", "eat lunch with their partner.", "the movie theater.", "visit their partner at work and bring them cookies.",
                     "the barrel factory."
                 ]),
-                f"You broke {victim.display_name}'s car window while they were shopping and took everything you could find.",
-                f"You seduced {victim.display_name} and made away with their wallet in the middle of the night.",
-                f"You sent {victim.display_name} a phishing email and somehow they fell for it.",
-                f"You convinced {victim.display_name} to invest in your pump and dump crypto scheme.",
-                f"You resold {BARREL_EMOJI} merch to {victim.display_name} for an exorbitantly high price.",
-                f"You flirted with {victim.display_name} long enough to distract them while your partner cleaned out their safe."
+                f"You broke {victim.mention}'s car window while they were shopping and took everything you could find.",
+                f"You seduced {victim.mention} and made away with their wallet in the middle of the night.",
+                f"You sent {victim.mention} a phishing email and somehow they fell for it.",
+                f"You convinced {victim.mention} to invest in your pump and dump crypto scheme.",
+                f"You resold {BARREL_EMOJI} merch to {victim.mention} for an exorbitantly high price.",
+                f"You flirted with {victim.mention} long enough to distract them while your partner cleaned out their safe."
             ])
             await self.bot_send(ctx, success_msg + f" You successfully stole {coinsmoved}{BARREL_COIN} from {victim.display_name}!")
             return
-        coinsmoved = min(perpetrator.get_whole_balance(), rand.randint(5, 10))
+        coinsmoved = min(perpetrator.get_whole_balance(), int(round((1 + perpetrator.get_balance()*0.0005)*rand.randint(5, 10))))
         perpetrator.take_coins(coinsmoved, True)
         fail_msg = rand.choice([
-            f"You tried to mug {victim.display_name} with your dagger, but they pulled a gun on you. Are those even legal here?",
-            f"You got trapped inside {victim.display_name}'s house after breaking in, and the police caught you.",
-            f"You successfully robbed {victim.display_name}, but while making a getaway, you slipped on a banana peel and everything fell out of your pockets.",
-            f"Right after robbing {victim.display_name}, they robbed you right back.",
+            f"You tried to mug {victim.mention} with your dagger, but they pulled a gun on you. Are those even legal here?",
+            f"You got trapped inside {victim.mention}'s house after breaking in, and the police caught you.",
+            f"You successfully robbed {victim.mention}, but while making a getaway, you slipped on a banana peel and everything fell out of your pockets.",
+            f"Right after robbing {victim.mention}, they robbed you right back.",
             f"You lied on your tax forms about your criminal activities, and the IRS found you out.",
-            f"You stole {victim.display_name}'s wallet, but it only had expired coupons and a drawing of a cat.",
-            f"You tried to scam {victim.display_name} online, but they reverse-hacked you and now own your crypto wallet.",
-            f"You stole a priceless artifact from {victim.display_name}, but then dropped it into a sewer drain while taking a selfie.",
-            f"You tried to mug {victim.display_name}, but instead they gave you life advice over a cup of tea. Now you're pursuing your passion and becoming a masseuse/masseur.",
-            f"You followed {victim.display_name} home to rob them, but got lost and ended up at your ex's house. Awkward."
+            f"You stole {victim.mention}'s wallet, but it only had expired coupons and a drawing of a cat.",
+            f"You tried to scam {victim.mention} online, but they reverse-hacked you and now own your crypto wallet.",
+            f"You stole a priceless artifact from {victim.mention}, but then dropped it into a sewer drain while taking a selfie.",
+            f"You tried to mug {victim.mention}, but instead they gave you life advice over a cup of tea. Now you're pursuing your passion and becoming a masseuse/masseur.",
+            f"You followed {victim.mention} home to rob them, but got lost and ended up at your ex's house. Awkward."
         ])
         await self.bot_send(ctx, fail_msg + f" You lost {coinsmoved}{BARREL_COIN}!")
 
@@ -759,7 +812,7 @@ class economy(commands.Cog, name="Economy"):
     @commands.cooldown(1, 21600, commands.BucketType.user) # every 6 hr
     async def bankrob(self, ctx:commands.Context):
         """Attempts to rob the bank. The chance of succeeding is very low (~1%), but with more daggers your luck increases to just low (at most ~5%).
-        Amount gained upon successful robbery: 20-50% of the bank's holdings, distributed equally amongst all bank accounts.
+        Amount gained upon successful robbery: 20-40% of the bank's holdings, distributed equally amongst all bank accounts.
         Cooldown is six hours."""
         player = Player(ctx.author)
         success_luck = rand.random()*100
@@ -767,13 +820,13 @@ class economy(commands.Cog, name="Economy"):
         chances = 5*(1-math.exp(-no_daggers/5))
         if chances > success_luck:
             # successfully rob bank
-            percent_robbed = 0.2 + 0.3*rand.random()
+            percent_robbed = 0.2 + 0.2*rand.random()
             robbings = sum(Player.reduce_bank_holdings_by_percent(percent_robbed))
             player.give_coins(robbings)
             await self.bot_send(ctx, f"You successfully robbed the bank! You made away with {robbings}{BARREL_COIN}!")
         else:
             # failure
-            coinsmoved = min(player.get_whole_balance(), rand.randint(10, 20))
+            coinsmoved = min(player.get_whole_balance(), int(round((1 + player.get_whole_balance()*0.0005)*rand.randint(10, 20))))
             player.take_coins(coinsmoved, True)
             await self.bot_send(ctx, f"You failed! You lost {coinsmoved}{BARREL_COIN} in the attempt.")
 
@@ -799,7 +852,15 @@ class economy(commands.Cog, name="Economy"):
         """Gives the specified user id a certain number of coins"""
         player = Player(user)
         player.give_coins(nocoins)
-        await self.bot_send(ctx, "Done. They now have " + str(player.get_balance()) + BARREL_COIN)
+        await self.bot_send(ctx, "Done. They now have " + str(player.get_whole_balance()) + BARREL_COIN)
+        
+    @commands.command(pass_context=True)
+    @commands.is_owner()
+    async def forcetakemoney(self, ctx:commands.Context, user:discord.User, nocoins:int):
+        """Takes a certain number of coins from the specified user"""
+        player = Player(user)
+        player.take_coins(nocoins, True)
+        await self.bot_send(ctx, "Done. They now have " + str(player.get_whole_balance()) + BARREL_COIN)
 
     @commands.command(pass_context=True)
     @commands.is_owner()
@@ -886,6 +947,24 @@ class economy(commands.Cog, name="Economy"):
         nopages = 1 + len(invitems_)//25
         embed = discord.Embed(color=discord.Color.light_gray())
         embed.title = user.display_name + "'s Inventory"
+        embed.description = "Total items: " + str(len(invdisplay))
+        for i, item in enumerate(invitems):
+            embed.add_field(name=str(item), value = "#" + str(i+1+(pageno-1)*25) + str("" if invdisplay.count(item)==1 else " - Count: " + str(invdisplay.count(item))))
+        if nopages > 1:
+            embed.set_footer(text=f"Page {pageno}/{nopages}")
+        await self.bot_send(ctx, embed=embed)
+        
+    @commands.command(pass_context=True)
+    @commands.is_owner()
+    async def peekdc(self, ctx:commands.Context, user:discord.User, pageno:int=1):
+        """Spies on the user's displaycase."""
+        invdisplay = Player(user).get_display()
+        invitems_ = list(set(invdisplay))
+        invitems_.sort(key=lambda i: i.id)
+        invitems = invitems_[(pageno-1)*25:pageno*25]
+        nopages = 1 + len(invitems_)//25
+        embed = discord.Embed(color=discord.Color.gold())
+        embed.title = user.display_name + "'s Display Case"
         embed.description = "Total items: " + str(len(invdisplay))
         for i, item in enumerate(invitems):
             embed.add_field(name=str(item), value = "#" + str(i+1+(pageno-1)*25) + str("" if invdisplay.count(item)==1 else " - Count: " + str(invdisplay.count(item))))
@@ -1062,6 +1141,33 @@ class economy(commands.Cog, name="Economy"):
         yt2.give_coins(xle)
         await awr.send(p2u93)    
         return     
+    
+    @commands.command()
+    async def getcooldowns(self, ctx:commands.Context):
+        """See your cooldowns so you don't have to take a guess anymore !"""
+        # getting the cooldowns
+        workcd = int(round(self.work.get_cooldown_retry_after(ctx))) # possible breaking point
+        fishcd = int(round(self.fish.get_cooldown_retry_after(ctx)))
+        robcd = int(round(self.rob.get_cooldown_retry_after(ctx)))
+        bankrobcd = int(round(self.bankrob.get_cooldown_retry_after(ctx)))
+
+        listcd = {"work" : workcd, "fish" : fishcd, "rob" : robcd, "bankrob": bankrobcd}
+
+        # constructor
+        embed = discord.Embed(color=discord.Color.blue(), title="Your cooldowns")
+        embed_str = ""
+
+        i = 1
+        for elt in listcd.keys() :
+            embed_str += str(i) + ") "
+            i += 1
+            embed_str += elt + " - "
+            if (listcd[elt] == 0.0) : # not on cooldown !
+                embed_str += "Not on cooldown ! " + HOLY_BARREL_EMOJI + "\n"
+            else :
+                embed_str += time_str(listcd[elt]) + " :x:\n"
+        embed.description = embed_str
+        await self.bot_send(ctx, embed=embed)
 
 
 def get_obj_str(id:int|str):

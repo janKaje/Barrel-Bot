@@ -1,7 +1,6 @@
 token.txt
 test.py
-__pycache__
-cogs/__pycache__
+*__pycache__
 .env
 notes.txt
 /.vscode

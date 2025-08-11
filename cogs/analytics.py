@@ -13,7 +13,19 @@ import numpy as np
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# Get is_in_dev_mode data to know whether it's in dev or on the server
+# .env is loaded from barrelbot.py
+IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
+if isinstance(IS_IN_DEV_MODE, str):
+    IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
+    
+# Consts
 BARREL_CULT_GUILD_ID = 1296983356541501440
+
+## Debug
+if IS_IN_DEV_MODE :
+    BARREL_CULT_GUILD_ID = 733508144185081939
+##
 
 try:
     with open(dir_path + "/data/analytics.pkl", "rb") as file:
