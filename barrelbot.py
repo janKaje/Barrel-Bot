@@ -4,6 +4,8 @@ import re
 import sys
 import asyncio
 
+import datetime
+
 import discord
 from discord.ext import commands, tasks
 
@@ -18,6 +20,12 @@ except ImportError:
     # don't bother adding dotenv to requirements
     pass
 
+IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
+
+## Debug
+if IS_IN_DEV_MODE :
+    print("New debugging session started in bot testing server")
+##
 
 # Command prefix function
 def isCommand(bot: commands.Bot, message: discord.Message) -> str:
@@ -147,6 +155,14 @@ def time_str(time):
 @bot.event
 async def on_ready():
     """Called when the bot starts and is ready."""
+    # Startup Logging
+    print("")
+    print("\033[37mUserName\033[1;34m :", bot.user.name)
+    print("\033[37mUserID\033[1;34m :", bot.user.id)
+    print("\033[37mVersion\033[1;34m  :", os.environ["VERSION"])
+    print("\033[37mIS_IN_DEV_MODE\033[1;34m :", os.environ["IS_IN_DEV_MODE"])
+    print("\033[0;34m---\033[0m")
+    print("\033[32m")
     # Load cogs
     await load_cog("cogs.barrelspam", "Barrel Spam")
     await load_cog("cogs.fun", "Fun")
@@ -155,6 +171,7 @@ async def on_ready():
     await load_cog("cogs.utilities", "Utilities")
     await load_cog("cogs.barrelnews", "Barrel News")
     await load_cog("cogs.analytics", "Analytics")
+    print("\033[0m")
 
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
 
@@ -163,7 +180,8 @@ async def on_ready():
     global defaultctx
     defaultctx = await bot.get_context(await (await bot.fetch_channel(735631686313967646)).fetch_message(1315938006259073087))
 
-    print(f"Loaded and ready! Running on {os.environ['MACHINE']}")
+    print(f"\033[32mLoaded and ready! Running on {os.environ['MACHINE']}\033[0m")
+    print("")
 
 
 @bot.event
