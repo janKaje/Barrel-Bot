@@ -151,7 +151,7 @@ async def on_ready():
     await load_cog("cogs.barrelspam", "Barrel Spam")
     await load_cog("cogs.fun", "Fun")
     await load_cog("cogs.economy", "Economy")
-    await load_cog("cogs.research", "Research")
+    # await load_cog("cogs.research", "Research")
     await load_cog("cogs.utilities", "Utilities")
     await load_cog("cogs.barrelnews", "Barrel News")
     await load_cog("cogs.analytics", "Analytics")
@@ -167,7 +167,7 @@ async def on_ready():
 
 
 @bot.event
-async def on_command_error(ctx: commands.Context, error:Exception):
+async def on_command_error(ctx: commands.Context, error:Exception|commands.CheckFailure):
     """Called when a command produces an error."""
     if isinstance(error, commands.CommandNotFound):
         return

@@ -160,9 +160,11 @@ class Player:
         Player._playerdata[self.idstr]["inv"].remove(item)
         return
     
-    def amount_in_inventory(self, item:Item|int) -> int:
+    def amount_in_inventory(self, item:Item|int, include_dc:bool=False) -> int:
         if isinstance(item, int):
             item = Item(id=item)
+        if include_dc == True:
+            return Player._playerdata[self.idstr]["inv"].count(item) + Player._playerdata[self.idstr]["dc"].count(item)
         return Player._playerdata[self.idstr]["inv"].count(item)
     
     def recent_in_inventory(self) -> Item:
@@ -272,7 +274,7 @@ class Player:
         if isinstance(item, int):
             item = Item(item)
         if item.id == 6:
-            nohouses = self.amount_in_inventory(item)
+            nohouses = self.amount_in_inventory(item, include_dc=True)
             return int(round(item.get_shop_price()*(1+0.2*nohouses**2)))
         return item.get_shop_price()
     
