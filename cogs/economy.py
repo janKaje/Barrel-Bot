@@ -28,7 +28,12 @@ async def setup(bot):
 with open(dir_path + "/data/trades.json") as file:
     trades = json.load(file)
 
+# Get is_in_dev_mode data to know whether it's in dev or on the server
+# .env is loaded from barrelbot.py
+IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
 
+
+## Consts
 DATA_CHANNEL_ID = 735631640939986964
 
 PLAYER_DATA_MSG = 1363307787848912896
@@ -36,6 +41,20 @@ PLAYER_DATA_MSG = 1363307787848912896
 BARREL_COIN = "<:barrelcoin:1364027068936884405>"
 BARREL_EMOJI = "<:barrel:1296987889942397001>"
 HOLY_BARREL_EMOJI = "<:holybarrel:1303080132642209826>"
+
+## Debug
+if IS_IN_DEV_MODE : 
+    # general channel in test server
+    DATA_CHANNEL_ID = 733508144617226302
+
+    PLAYER_DATA_MSG = 0 # Used nowhere ?!?
+
+    # Same emoji because we only have one on the test server
+    BARREL_COIN = "<:TESTbarrel:1303842935715921941>"
+    BARREL_EMOJI = "<:TESTbarrel:1303842935715921941>"
+    HOLY_BARREL_EMOJI = "<:TESTbarrel:1303842935715921941>"
+##
+
 
 slots = {
     "7️⃣": [1000, 4000, 20000], #list is rewards for 3 in a row of low, med, high stakes

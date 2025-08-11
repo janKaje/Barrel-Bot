@@ -3,22 +3,51 @@ import datetime as dt
 from random import choice, randint, random
 from math import floor
 
+import requests # http(s) requests (POST in our case)
+
 import discord
 from discord.ext import commands, tasks
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# Get is_in_dev_mode data to know whether it's in dev or on the server
+# .env is loaded from barrelbot.py
+IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
+
+
+## Consts
+
 # easily configurable reminder and deadline times
 REMINDER_TIME = [16, 30] # 16:30 UTC
-DEADLINE_TIME = [4, 0] # 04:00 UTC
+DEADLINE_TIME = [4, 00] # 04:00 UTC
 
 BARREL_NEWS_CHANNEL_ID = 1297025420184518708
 BARREL_REP_ROLE_ID = 1296985456105230412
 BARREL_SUB_ROLE_ID = 1297023311556907028
 
 BARREL_EMOJI = "<:barrel:1296987889942397001>"
+
 BARREL_REP_MENTION = f"<@&{BARREL_REP_ROLE_ID}>"
 BARREL_SUB_MENTION = f"<@&{BARREL_SUB_ROLE_ID}>"
+
+
+# Get the news key and the API endpoint
+NEWS_KEY = os.environ["NEWS_KEY"]
+NEWS_ENDPOINT = os.environ["NEWS_ENDPOINT"]
+
+## Debug
+if IS_IN_DEV_MODE :
+    BARREL_NEWS_CHANNEL_ID = 733508144617226302 # general
+    BARREL_REP_ROLE_ID = 735700976010264667 # join test role
+    BARREL_SUB_ROLE_ID = 735700976010264667 # join test role
+
+    BARREL_EMOJI = "<:TESTbarrel:1303842935715921941>"
+
+    # Modifying the mention role
+    BARREL_REP_MENTION = f"<@&{BARREL_REP_ROLE_ID}>"
+    BARREL_SUB_MENTION = f"<@&{BARREL_SUB_ROLE_ID}>"
+##
+
 
 remind_time = dt.time(hour=REMINDER_TIME[0], minute=REMINDER_TIME[1], tzinfo=dt.timezone.utc)
 deadline_time = dt.time(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], tzinfo=dt.timezone.utc)
@@ -97,6 +126,9 @@ class barrelnews(commands.Cog, name="Barrel News"):
 
         bnnmsg = self.get_bnnmsg(msgtype)
 
+        #POST TO WEBSITE (message and username)
+        POST_to_website(bnnmsg, self.bot.user.name)
+
         await self.news_channel.send(bnnmsg)
 
     async def cog_load(self):
@@ -105,6 +137,9 @@ class barrelnews(commands.Cog, name="Barrel News"):
 
         self.remind_loop.start()
         self.post_loop.start()
+
+        # print loaded
+        print(f"cog: {self.qualified_name} loaded")
 
     async def check_if_already_posted(self) -> bool:
 
@@ -118,7 +153,27 @@ class barrelnews(commands.Cog, name="Barrel News"):
         
         # otherwise
         return False
-    
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message) :
+        """Listens for messages, when it is in the news channel, and has pinged the news role, it counts as news and will be posted to the website"""
+        if message.channel.id == BARREL_NEWS_CHANNEL_ID : # Checking in news channel
+            print(message.content)
+            print(str(BARREL_SUB_MENTION))
+            if (not message.author.bot) and str(BARREL_SUB_MENTION) in message.content : # checking if the message is from a User and has the barrel news mention
+                name = message.author.name
+                message_content = message.content 
+
+                print("")
+                print("News Have Been Posted")
+                print("POSTing to barrel website")
+                print("Status :", end="")
+
+                POST_to_website(message_content, name)
+
+                print("---")
+                print("")
+
     def get_deadline(self, prev:bool) -> dt.datetime:
         now = dt.datetime.now(tz=dt.timezone.utc)
         nowtime = now.time().replace(tzinfo=dt.timezone.utc)
@@ -220,6 +275,19 @@ class barrelnews(commands.Cog, name="Barrel News"):
         
         return bnnmsg
 
+def POST_to_website(message, UserName) :
+    """Posts the message and username to the website as news, the endpoint and the key are environment variables
+    
+    The return object is a status code being printed to the console
+    """
+    obj = {
+        "message" : message,
+        "discord_user" : UserName,
+        "key": NEWS_KEY,
+    }
+    url = NEWS_ENDPOINT 
+    request = requests.post(url, data=obj)
+    print("Status", request) # status
 
 def rand_temp():
     rand = random()*3.5
