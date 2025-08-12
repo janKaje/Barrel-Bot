@@ -3,29 +3,16 @@ import os
 import re
 import sys
 import asyncio
-
-import datetime
-
+from base import env
 import discord
 from discord.ext import commands, tasks
-
 from base.extra_exceptions import NotAbleTo, PlayerNotFound, NotInBbChannel
 from base.messagetosend import UnsentMessage
 
-try:
-    import dotenv
-    dotenv.load_dotenv()
-except ImportError:
-    # If the remote host allows for manual addition of environment variables,
-    # don't bother adding dotenv to requirements
-    pass
-
-IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
-if isinstance(IS_IN_DEV_MODE, str):
-    IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
+env._BBGLOBALS.initGlobals()
 
 ## Debug
-if IS_IN_DEV_MODE == True:
+if env._BBGLOBALS.IS_IN_DEV_MODE == True:
     print("New debugging session started in bot testing server")
 ##
 
@@ -162,7 +149,7 @@ async def on_ready():
     print("\033[37mUserName\033[1;34m :", bot.user.name)
     print("\033[37mUserID\033[1;34m :", bot.user.id)
     print("\033[37mVersion\033[1;34m  :", os.environ["VERSION"])
-    print("\033[37mIS_IN_DEV_MODE\033[1;34m :", os.environ["IS_IN_DEV_MODE"])
+    print("\033[37mIS_IN_DEV_MODE\033[1;34m :", env._BBGLOBALS.IS_IN_DEV_MODE)
     print("\033[0;34m---\033[0m")
     print("\033[32m")
     # Load cogs

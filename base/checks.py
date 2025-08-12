@@ -5,7 +5,7 @@ from discord.ext.commands import check, Context, UserConverter
 from extra_exceptions import *
 from player import Player
 from barrelbot import bb_channel_ids
-
+from base import env
 usrconv = UserConverter()
 
 class checks:
