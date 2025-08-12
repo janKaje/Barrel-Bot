@@ -111,7 +111,7 @@ class barrelnews(commands.Cog, name="Barrel News"):
 
         # if any non-bot messages have been sent since last deadline, return true
         async for message in self.news_channel.history(after=prev_deadline):
-            if not message.author.bot and str(env._BBGLOBALS.env._BBGLOBALS.BARREL_SUB_MENTION) in message.content:
+            if not message.author.bot and str(env._BBGLOBALS.BARREL_SUB_MENTION) in message.content:
                 return True
         
         # otherwise
