@@ -4,8 +4,6 @@ import os
 import random as rand
 import re
 import asyncio
-import sys
-from copy import deepcopy
 
 import discord
 from discord.ext import commands, tasks
@@ -22,29 +20,6 @@ with open(dir_path + "/data/customratings.json") as file:
 
 with open(dir_path + "/data/randomnumberscores.json") as file:
     randomnumberscores = json.load(file)
-
-
-# Get is_in_dev_mode data to know whether it's in dev or on the server
-# .env is loaded from barrelbot.py
-IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
-if isinstance(IS_IN_DEV_MODE, str):
-    IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
-
-## Consts
-DATA_CHANNEL_ID = 735631640939986964
-
-DATA_MSG_ID = 1310847777302908929
-
-BARREL_EMOJI = "<:barrel:1296987889942397001>"
-
-## Debug
-if IS_IN_DEV_MODE :
-    DATA_CHANNEL_ID = 733508144617226302
-
-    DATA_MSG_ID = 0 # Not used anywhere, again ?!?
-
-    BARREL_EMOJI = "<:TESTbarrel:1303842935715921941>"
-##
 
 
 class fun(commands.Cog, name="Fun"):

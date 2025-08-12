@@ -10,54 +10,15 @@ from discord.ext import commands, tasks
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Get is_in_dev_mode data to know whether it's in dev or on the server
-# .env is loaded from barrelbot.py
-IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
-if isinstance(IS_IN_DEV_MODE, str):
-    IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
-    
+from base import env
+from .emojis import EmojiDefs as em
 
-## Consts
-
-# easily configurable reminder and deadline times
-REMINDER_TIME = [16, 30] # 16:30 UTC
-DEADLINE_TIME = [4, 00] # 04:00 UTC
-
-BARREL_NEWS_CHANNEL_ID = 1297025420184518708
-BARREL_REP_ROLE_ID = 1296985456105230412
-BARREL_SUB_ROLE_ID = 1297023311556907028
-
-BARREL_EMOJI = "<:barrel:1296987889942397001>"
-
-BARREL_REP_MENTION = f"<@&{BARREL_REP_ROLE_ID}>"
-BARREL_SUB_MENTION = f"<@&{BARREL_SUB_ROLE_ID}>"
-
-
-# Get the news key and the API endpoint
-NEWS_KEY = os.environ["NEWS_KEY"]
-NEWS_ENDPOINT = os.environ["NEWS_ENDPOINT"]
-
-## Debug
-if IS_IN_DEV_MODE :
-    BARREL_NEWS_CHANNEL_ID = 733508144617226302 # general
-    BARREL_REP_ROLE_ID = 735700976010264667 # join test role
-    BARREL_SUB_ROLE_ID = 735700976010264667 # join test role
-
-    BARREL_EMOJI = "<:TESTbarrel:1303842935715921941>"
-
-    # Modifying the mention role
-    BARREL_REP_MENTION = f"<@&{BARREL_REP_ROLE_ID}>"
-    BARREL_SUB_MENTION = f"<@&{BARREL_SUB_ROLE_ID}>"
-##
-
-
-remind_time = dt.time(hour=REMINDER_TIME[0], minute=REMINDER_TIME[1], tzinfo=dt.timezone.utc)
-deadline_time = dt.time(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], tzinfo=dt.timezone.utc)
+remind_time = dt.time(hour=env._BBGLOBALS.REMINDER_TIME[0], minute=env._BBGLOBALS.REMINDER_TIME[1], tzinfo=dt.timezone.utc)
+deadline_time = dt.time(hour=env._BBGLOBALS.DEADLINE_TIME[0], minute=env._BBGLOBALS.DEADLINE_TIME[1], tzinfo=dt.timezone.utc)
 
 
 async def setup(bot):
     await bot.add_cog(barrelnews(bot))
-
 
 class barrelnews(commands.Cog, name="Barrel News"):
 
@@ -71,7 +32,7 @@ class barrelnews(commands.Cog, name="Barrel News"):
         self.bot_send = bot_send
 
     @commands.command()
-    @commands.has_role(BARREL_REP_ROLE_ID)
+    @commands.has_role(env._BBGLOBALS.BARREL_REP_ROLE_ID)
     async def test_timing(self, ctx: commands.Context):
         prev_d = self.get_deadline(True)
         next_d = self.get_deadline(False)
@@ -135,7 +96,7 @@ class barrelnews(commands.Cog, name="Barrel News"):
 
     async def cog_load(self):
 
-        self.news_channel:discord.TextChannel = await self.bot.fetch_channel(BARREL_NEWS_CHANNEL_ID)
+        self.news_channel:discord.TextChannel = await self.bot.fetch_channel(env._BBGLOBALS.BARREL_NEWS_CHANNEL_ID)
 
         self.remind_loop.start()
         self.post_loop.start()
@@ -150,7 +111,7 @@ class barrelnews(commands.Cog, name="Barrel News"):
 
         # if any non-bot messages have been sent since last deadline, return true
         async for message in self.news_channel.history(after=prev_deadline):
-            if not message.author.bot and str(BARREL_SUB_MENTION) in message.content:
+            if not message.author.bot and str(env._BBGLOBALS.env._BBGLOBALS.BARREL_SUB_MENTION) in message.content:
                 return True
         
         # otherwise
@@ -159,10 +120,10 @@ class barrelnews(commands.Cog, name="Barrel News"):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) :
         """Listens for messages, when it is in the news channel, and has pinged the news role, it counts as news and will be posted to the website"""
-        if message.channel.id == BARREL_NEWS_CHANNEL_ID : # Checking in news channel
+        if message.channel.id == env._BBGLOBALS.BARREL_NEWS_CHANNEL_ID : # Checking in news channel
             print(message.content)
-            print(str(BARREL_SUB_MENTION))
-            if (not message.author.bot) and str(BARREL_SUB_MENTION) in message.content : # checking if the message is from a User and has the barrel news mention
+            print(str(env._BBGLOBALS.BARREL_SUB_MENTION))
+            if (not message.author.bot) and str(env._BBGLOBALS.BARREL_SUB_MENTION) in message.content : # checking if the message is from a User and has the barrel news mention
                 name = message.author.name
                 message_content = message.content 
 
@@ -183,10 +144,10 @@ class barrelnews(commands.Cog, name="Barrel News"):
         if prev:
             if nowtime > deadline_time:
                 # same day
-                to_return = now.replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+                to_return = now.replace(hour=env._BBGLOBALS.DEADLINE_TIME[0], minute=env._BBGLOBALS.DEADLINE_TIME[1], second=0, microsecond=0)
             else:
                 # previous day
-                to_return = (now - dt.timedelta(days=1)).replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+                to_return = (now - dt.timedelta(days=1)).replace(hour=env._BBGLOBALS.DEADLINE_TIME[0], minute=env._BBGLOBALS.DEADLINE_TIME[1], second=0, microsecond=0)
 
             if (now - to_return).total_seconds() < 60: # if difference is small, get day before 
                 return to_return - dt.timedelta(days=1)
@@ -195,10 +156,10 @@ class barrelnews(commands.Cog, name="Barrel News"):
         else:
             if nowtime >= deadline_time:
                 # next day
-                to_return = (now + dt.timedelta(days=1)).replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+                to_return = (now + dt.timedelta(days=1)).replace(hour=env._BBGLOBALS.DEADLINE_TIME[0], minute=env._BBGLOBALS.DEADLINE_TIME[1], second=0, microsecond=0)
             else:
                 # same day
-                to_return = now.replace(hour=DEADLINE_TIME[0], minute=DEADLINE_TIME[1], second=0, microsecond=0)
+                to_return = now.replace(hour=env._BBGLOBALS.DEADLINE_TIME[0], minute=env._BBGLOBALS.DEADLINE_TIME[1], second=0, microsecond=0)
 
             if (to_return - now).total_seconds() < 60: # if difference is small, get day after
                 return to_return + dt.timedelta(days=1)
@@ -223,12 +184,12 @@ class barrelnews(commands.Cog, name="Barrel News"):
         days_since_reveal = (dt.date.today() - dt.date(year=2024, month=1, day=25)).days - 1
         days_of_bnn = days_since_reveal - 266 - 6 #6 days missed?
 
-        bnnmsg = f"# TODAY\n## ON BNN\nWelcome to day {days_of_bnn} of bringing you your daily {BARREL_EMOJI} news! I'm your host, Barrelbot, "\
+        bnnmsg = f"# TODAY\n## ON BNN\nWelcome to day {days_of_bnn} of bringing you your daily {em.BARREL_EMOJI} news! I'm your host, Barrelbot, "\
                  f"here to bring you your randomly-generated, `{choice(adjectives).lower()}` news for today.\n\n"
 
         if msgtype == 1:
 
-            bnnmsg += f"Today the {BARREL_EMOJI} is feeling some `{choice(emotions).lower()}`, so please take that into account when you `{choice(verbs).lower()}` your `{choice(nouns).lower()}` today. "\
+            bnnmsg += f"Today the {em.BARREL_EMOJI} is feeling some `{choice(emotions).lower()}`, so please take that into account when you `{choice(verbs).lower()}` your `{choice(nouns).lower()}` today. "\
                       f"It may also affect the way that you choose to `{choice(verbs).lower()}`. \n\n"\
                       f"New research shows that a `{choice(adjectives).lower()}` `{choice(nouns).lower()}` is `{choice(adjectives).lower()}` to some `{choice(nouns).lower()}s`! So be sure to `{choice(verbs).lower()}` as much as you can today. "\
                       f"That way you can be sure `{choice(['this week'+chr(39)+'s episode of', 'your mom'+chr(39)+'s favorite', 'every single', 'Benadryl Cucumberpatch'+chr(39)+'s', 'the warm, toasty', 'the wretched', 'my'])}` "\
@@ -237,7 +198,7 @@ class barrelnews(commands.Cog, name="Barrel News"):
             
         elif msgtype == 2:
 
-            bnnmsg += f"Signs in the `{choice(['sky', 'tea leaves', 'WalMart parking lot', 'heavens', 'attic', 'depths of Tartarus'])}` show that every human is required to feel `{choice(emotions).lower()}` today! Otherwise the {BARREL_EMOJI} might not like your style of `{choice(nouns).lower()}`. "\
+            bnnmsg += f"Signs in the `{choice(['sky', 'tea leaves', 'WalMart parking lot', 'heavens', 'attic', 'depths of Tartarus'])}` show that every human is required to feel `{choice(emotions).lower()}` today! Otherwise the {em.BARREL_EMOJI} might not like your style of `{choice(nouns).lower()}`. "\
                       f"Life is short, so tell your `{choice(relationalterms)}` you `{choice(verbs).lower()}` them. `{choice(interjections).capitalize()}`!\n\n"\
                       f"In other news, the Intergalactic Badminton Tournament is going great! The `{choice(adjectives).lower()}` players are winning, and the `{choice(adjectives).lower()}` players are losing. "\
                       f"Only `{randint(1, 1000)}` people have died so far today, and the fans are `{choice(['eating it up', 'vomiting profusely', 'singing silly songs with Larry', 'going wild', 'sending death threats to their enemies', 'cheering so loud the arena is caving in', 'blackout drunk'])}`!\n\n"
@@ -252,10 +213,10 @@ class barrelnews(commands.Cog, name="Barrel News"):
             
         elif msgtype == 4:
 
-            bnnmsg += f"Today is an excellent day to praise the Almighty {BARREL_EMOJI}! Great `{choice(nouns).lower()}s` have fallen upon our `{choice(nouns).lower()}s` and upon our `{choice(nouns).lower()}s`. "\
-                      f"Reports are saying that people who `{choice(verbs).lower()}` their `{choice(nouns).lower()}` to the {BARREL_EMOJI} begin to feel `{choice(emotions).lower()}`! "\
+            bnnmsg += f"Today is an excellent day to praise the Almighty {em.BARREL_EMOJI}! Great `{choice(nouns).lower()}s` have fallen upon our `{choice(nouns).lower()}s` and upon our `{choice(nouns).lower()}s`. "\
+                      f"Reports are saying that people who `{choice(verbs).lower()}` their `{choice(nouns).lower()}` to the {em.BARREL_EMOJI} begin to feel `{choice(emotions).lower()}`! "\
                       f"However, common side effects include feeling `{choice(emotions).lower()}`, `{choice(emotions).lower()}`, and `{choice(emotions).lower()}`. "\
-                      f"Please consult your `{choice(relationalterms)}` before attempting. `{choice(adjectives).capitalize()}` `{choice(nouns).lower()}s` may prevent you from the {BARREL_EMOJI}'s grace.\n\n"
+                      f"Please consult your `{choice(relationalterms)}` before attempting. `{choice(adjectives).capitalize()}` `{choice(nouns).lower()}s` may prevent you from the {em.BARREL_EMOJI}'s grace.\n\n"
 
         elif msgtype == 5:
 
@@ -273,7 +234,7 @@ class barrelnews(commands.Cog, name="Barrel News"):
                   f"`{choice(['polar bears', 'steel hail', 'severe sharknadoes', 'chemtrails', 'frozen cats', 'plagues caused by advanced bioweapons', 'astronaut suits falling from space', 'occasional stray muon beams', 'elves that escaped from Santa'+chr(39)+'s workshop', 'ice dragons', 'liquid ammonia rain', 'adorable cat smiles', 'francophones', 'neo-nazi zombies', 'sentient crab rain', 'SNAKES!', 'freezing rain', 'spontaneously-forming black holes', 'giant tumbleweeds', 'your mom', 'the heat death of the universe', 'impending doom', 'tentacles', 'cute anime catgirls', 'arranged marriages', 'pink fluffy unicorns dancing on rainbows', 'bronies', 'that one family member (yes, that one)', 'stray mitochondria (the powerhouse of the cell!)', 'Larry the Cucumber from VeggieTales'])}` "\
                   f"`{choice(['along the east coast', 'along the west coast', 'near the entrance to Anubis'+chr(39)+' realm', 'around Olympus Mons', 'at the beaches in France', 'in any part of the world with bacteria', 'off the Arctic coast', 'on the Bridge to Asgard', 'along the outskirts of Detroit', 'where the sidewalk ends', 'where your great aunt Marge broke her coccyx', 'wherever you last ate chocolate ice cream', 'in your bathroom', 'in your mind', 'at your local grocery store!', 'hiding in your lasagna', 'in places where the sun don'+chr(39)+'t shine'])}`. "\
                   f"The `{choice(nouns).capitalize()}` also predicts the weather is going to `{choice(verbs).lower()}` even more tonight than yesterday. `{choice(interjections).capitalize()}`!\n\n"\
-                  f"That's all for today! Barrelbot, signing off. \n{days_since_reveal} days since PS reveal \n<@&{BARREL_SUB_ROLE_ID}>"
+                  f"That's all for today! Barrelbot, signing off. \n{days_since_reveal} days since PS reveal \n<@&{env._BBGLOBALS.BARREL_SUB_ROLE_ID}>"
         
         return bnnmsg
 
@@ -285,9 +246,9 @@ def POST_to_website(message, UserName) :
     obj = {
         "message" : message,
         "discord_user" : UserName,
-        "key": NEWS_KEY,
+        "key": env._BBGLOBALS.NEWS_KEY,
     }
-    url = NEWS_ENDPOINT 
+    url = env._BBGLOBALS.NEWS_ENDPOINT 
     request = requests.post(url, data=obj)
     print("Status", request) # status
 
@@ -296,26 +257,26 @@ def rand_temp():
     return floor(10**rand)
 
 reminders = [
-    BARREL_REP_MENTION + " don't forget to do daily " + BARREL_EMOJI + " news! If you haven't done it <t:{}:R> I'll have to do it myself.",
-    BARREL_REP_MENTION + "! News! Soon! You have until <t:{}:t>!",
-    "Hey " + BARREL_REP_MENTION + "! Don't forget about the news today! The deadline is the same as it always is: <t:{}:t>",
-    "Once upon a time, our beloved " + BARREL_REP_MENTION + " would forget to do daily " + BARREL_EMOJI + " news. But then I came along and prevented such a horrible tragedy. Hopefully that doesn't happen today...",
-    BARREL_REP_MENTION + ": <t:{}:t>",
-    BARREL_REP_MENTION + "\nG-guys can someone p-lease do the news for meeeeee? 🤓 I-it would really m-make my d-day...",
-    "Hewwo my deawest " + BARREL_REP_MENTION + "! I would weally wove it if you did youw news wepowt :3 Nofing would make me happiew! Would you do it fow me??? :pleading_face:",
-    "Greetings loyal " + BARREL_EMOJI + " cultists. May the " + BARREL_EMOJI + " smile upon you. We are currently awaiting the blessed deliverance of news from our esteemed " + BARREL_REP_MENTION + ". Until then, please refrain from rioting in the streets. Good day.",
-    BARREL_REP_MENTION + "\n" + BARREL_EMOJI*20,
-    BARREL_REP_MENTION + "\n" + BARREL_EMOJI*50,
-    BARREL_REP_MENTION + " more like @Barrel news reporters! Am I right? No? Ok, I'll show myself out...",
-    "Glory be to the " + BARREL_EMOJI + "! May all the earth shout for joy! May today's " + BARREL_EMOJI + " news be plentiful and great! May this day that ends <t:{}:R> see incredible " + BARREL_EMOJI + " news! May the " + BARREL_EMOJI + " be praised! May the " + BARREL_REP_MENTION + " not forget to grant us our daily blessings!",
-    BARREL_EMOJI + " " + BARREL_REP_MENTION + " " + BARREL_EMOJI + "\n" + BARREL_EMOJI + " <t:{}:F> " + BARREL_EMOJI,
-    "Our " + BARREL_EMOJI + " who art in " + BARREL_EMOJI + ". Hallowed be thy " + BARREL_EMOJI + ". Thy " + BARREL_EMOJI + "come. Thy will be done on earth, as it is in " + BARREL_EMOJI + ". Give us this day our daily " + BARREL_EMOJI + " news. Amen. \n" + BARREL_REP_MENTION,
-    "Me when the " + BARREL_REP_MENTION + " do the daily " + BARREL_EMOJI + " news: <:barrelconfetti:1316102028253991003>\nMe when they forget: <:agonybarrel:1313267644933083296>",
-    "TODAY ON BNN: The " + BARREL_EMOJI + " created the heaven and the earth. Wait, that was forever ago... " + BARREL_REP_MENTION + " can you update it?",
-    BARREL_EMOJI*20 + "\n" + BARREL_REP_MENTION + "\n" + BARREL_EMOJI*20,
-    "<t:{}:R> the day will be over and we shall be left alone, without the guiding light of daily " + BARREL_EMOJI + " news. That is, unless the " + BARREL_REP_MENTION + " deign us worthy of such a blessing.",
-    "Hewwo!!! :3 I am bawwewbot and I am hewe to wemind da " + BARREL_REP_MENTION + " to do deiw daiwy bawwew news!!! :heart_eyes_cat: :blush: <3 <3 uwu ^w^",
-    BARREL_REP_MENTION + "\n中國早上好！現在我有冰淇淋。我真的很喜歡冰淇淋，但是，速度與激情 9，與速度與激情 9 相比，我最喜歡。所以，現在是音樂時間。準備好。 1, 2, 3.整整兩週後，速度與激情9，整整兩週後，速度與激情9，整整兩週後，速度與激情9。不要忘記，不要錯過它。去電影院看《速度與激情9》，這是一部很棒的電影！動作很棒，比如“我會尖叫”。再見。",
+    env._BBGLOBALS.BARREL_REP_MENTION + " don't forget to do daily " + em.BARREL_EMOJI + " news! If you haven't done it <t:{}:R> I'll have to do it myself.",
+    env._BBGLOBALS.BARREL_REP_MENTION + "! News! Soon! You have until <t:{}:t>!",
+    "Hey " + env._BBGLOBALS.BARREL_REP_MENTION + "! Don't forget about the news today! The deadline is the same as it always is: <t:{}:t>",
+    "Once upon a time, our beloved " + env._BBGLOBALS.BARREL_REP_MENTION + " would forget to do daily " + em.BARREL_EMOJI + " news. But then I came along and prevented such a horrible tragedy. Hopefully that doesn't happen today...",
+    env._BBGLOBALS.BARREL_REP_MENTION + ": <t:{}:t>",
+    env._BBGLOBALS.BARREL_REP_MENTION + "\nG-guys can someone p-lease do the news for meeeeee? 🤓 I-it would really m-make my d-day...",
+    "Hewwo my deawest " + env._BBGLOBALS.BARREL_REP_MENTION + "! I would weally wove it if you did youw news wepowt :3 Nofing would make me happiew! Would you do it fow me??? :pleading_face:",
+    "Greetings loyal " + em.BARREL_EMOJI + " cultists. May the " + em.BARREL_EMOJI + " smile upon you. We are currently awaiting the blessed deliverance of news from our esteemed " + env._BBGLOBALS.BARREL_REP_MENTION + ". Until then, please refrain from rioting in the streets. Good day.",
+    env._BBGLOBALS.BARREL_REP_MENTION + "\n" + em.BARREL_EMOJI*20,
+    env._BBGLOBALS.BARREL_REP_MENTION + "\n" + em.BARREL_EMOJI*50,
+    env._BBGLOBALS.BARREL_REP_MENTION + " more like @Barrel news reporters! Am I right? No? Ok, I'll show myself out...",
+    "Glory be to the " + em.BARREL_EMOJI + "! May all the earth shout for joy! May today's " + em.BARREL_EMOJI + " news be plentiful and great! May this day that ends <t:{}:R> see incredible " + em.BARREL_EMOJI + " news! May the " + em.BARREL_EMOJI + " be praised! May the " + env._BBGLOBALS.BARREL_REP_MENTION + " not forget to grant us our daily blessings!",
+    em.BARREL_EMOJI + " " + env._BBGLOBALS.BARREL_REP_MENTION + " " + em.BARREL_EMOJI + "\n" + em.BARREL_EMOJI + " <t:{}:F> " + em.BARREL_EMOJI,
+    "Our " + em.BARREL_EMOJI + " who art in " + em.BARREL_EMOJI + ". Hallowed be thy " + em.BARREL_EMOJI + ". Thy " + em.BARREL_EMOJI + "come. Thy will be done on earth, as it is in " + em.BARREL_EMOJI + ". Give us this day our daily " + em.BARREL_EMOJI + " news. Amen. \n" + env._BBGLOBALS.BARREL_REP_MENTION,
+    "Me when the " + env._BBGLOBALS.BARREL_REP_MENTION + " do the daily " + em.BARREL_EMOJI + " news: <:barrelconfetti:1316102028253991003>\nMe when they forget: <:agonybarrel:1313267644933083296>",
+    "TODAY ON BNN: The " + em.BARREL_EMOJI + " created the heaven and the earth. Wait, that was forever ago... " + env._BBGLOBALS.BARREL_REP_MENTION + " can you update it?",
+    em.BARREL_EMOJI*20 + "\n" + env._BBGLOBALS.BARREL_REP_MENTION + "\n" + em.BARREL_EMOJI*20,
+    "<t:{}:R> the day will be over and we shall be left alone, without the guiding light of daily " + em.BARREL_EMOJI + " news. That is, unless the " + env._BBGLOBALS.BARREL_REP_MENTION + " deign us worthy of such a blessing.",
+    "Hewwo!!! :3 I am bawwewbot and I am hewe to wemind da " + env._BBGLOBALS.BARREL_REP_MENTION + " to do deiw daiwy bawwew news!!! :heart_eyes_cat: :blush: <3 <3 uwu ^w^",
+    env._BBGLOBALS.BARREL_REP_MENTION + "\n中國早上好！現在我有冰淇淋。我真的很喜歡冰淇淋，但是，速度與激情 9，與速度與激情 9 相比，我最喜歡。所以，現在是音樂時間。準備好。 1, 2, 3.整整兩週後，速度與激情9，整整兩週後，速度與激情9，整整兩週後，速度與激情9。不要忘記，不要錯過它。去電影院看《速度與激情9》，這是一部很棒的電影！動作很棒，比如“我會尖叫”。再見。",
 ]
 
 emotions = [

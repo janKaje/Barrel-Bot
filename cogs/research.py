@@ -24,31 +24,6 @@ from player import Player, research
 async def setup(bot):
     await bot.add_cog(research(bot))
 
-
-# Get is_in_dev_mode data to know whether it's in dev or on the server
-# .env is loaded from barrelbot.py
-IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
-if isinstance(IS_IN_DEV_MODE, str):
-    IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
-
-## Consts
-DATA_CHANNEL_ID = 735631640939986964
-
-BARREL_COIN = "<:barrelcoin:1364027068936884405>"
-BARREL_EMOJI = "<:barrel:1296987889942397001>"
-HOLY_BARREL_EMOJI = "<:holybarrel:1303080132642209826>"
-
-
-## Debug
-if IS_IN_DEV_MODE :
-    DATA_CHANNEL_ID = 735631714558148701 # data-log
-
-    # Same emoji because we only have one on the test server
-    BARREL_COIN = "<:TESTbarrel:1303842935715921941>"
-    BARREL_EMOJI = "<:TESTbarrel:1303842935715921941>"
-    HOLY_BARREL_EMOJI = "<:TESTbarrel:1303842935715921941>"
-##
-
 class research(commands.Cog, name="Research"):
     """Research module"""
 

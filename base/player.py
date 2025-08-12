@@ -364,6 +364,14 @@ class Player:
     def get_research_data(self):
         return Player._playerdata[self.idstr]["tech"]
     
+    def remove_all_data(player):
+        """Removes all data for a player."""
+        if not isinstance(player, Player):
+            raise TypeError("Expected a Player instance")
+
+        player.clear_inventory()
+        Player._playerdata[player.idstr] = {"bal": 0, "inv": [], "dc": [], "bank": 0, "lcr": 0, "tech": {}}
+
     def begin_research(self, techid:str):
 
         queue = self.get_research_queue()

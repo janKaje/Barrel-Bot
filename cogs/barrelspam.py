@@ -11,15 +11,10 @@ from discord.ext import commands, tasks
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 next_barrelspam = None
 
+from base import env
 
 async def setup(bot):
     await bot.add_cog(barrelspam(bot))
-
-# Get is_in_dev_mode data to know whether it's in dev or on the server
-# .env is loaded from barrelbot.py
-IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
-if isinstance(IS_IN_DEV_MODE, str):
-    IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
     
 
 ## Consts
@@ -39,7 +34,7 @@ TEMP_DATA_MSG_ID = 1310847765517172776
 DATA_CHANNEL_ID = 735631640939986964
 
 ## Debug
-if IS_IN_DEV_MODE : # same role id (& channel ID) everywhere because I can't be bothered to create new ones in the test server (I don't have the perms anyways)
+if env._BBGLOBALS.IS_IN_DEV_MODE : # same role id (& channel ID) everywhere because I can't be bothered to create new ones in the test server (I don't have the perms anyways)
     DECIMALROLEID = 735637859872276501
     BINARYROLEID = 735637859872276501
 
@@ -518,7 +513,11 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         ind_data_as_array = [[i, j] for i, j in barrelspamdata.items()]
         ind_data_as_array.sort(key=lambda x: x[1], reverse=True)
         next_lord = self.cult_guild.get_member(int(ind_data_as_array[0][0]))
-
+        
+        if next_lord is None:
+            print("No lord found, skipping lord update")
+            return
+        
         # remove the lord role from everyone but the next lord (if applicable)
         lords = self.lord_role.members
         for member in lords:

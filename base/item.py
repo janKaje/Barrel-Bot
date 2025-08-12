@@ -3,9 +3,7 @@ from random import randint
 
 from extra_exceptions import ItemNotFound
 
-BARREL_COIN = "<:barrelcoin:1364027068936884405>"
-BARREL_EMOJI = "<:barrel:1296987889942397001>"
-HOLY_BARREL_EMOJI = "<:holybarrel:1303080132642209826>"
+from cogs.emojis import EmojiDefs as ED
 
 # Inventory item ids
 # Fishing rod: 1
@@ -42,8 +40,8 @@ class Item(object):
         1: ["🎣 - Fishing Rod", "fishing rod", "fishing pole", "🎣"],
         2: ["🗡️ - Dagger", "dagger", "🗡️"],
         3: ["🛡️ - Shield", "shield", "🛡️"],
-        4: [BARREL_EMOJI + " - Barrel Crate", "barrel", "barrel crate", BARREL_EMOJI],
-        5: [HOLY_BARREL_EMOJI + " - Golden Barrel Crate", "golden barrel", "golden barrel crate", "holy barrel", HOLY_BARREL_EMOJI],
+        4: [ED.BARREL_EMOJI + " - Barrel Crate", "barrel", "barrel crate", ED.BARREL_EMOJI],
+        5: [ED.HOLY_BARREL_EMOJI + " - Golden Barrel Crate", "golden barrel", "golden barrel crate", "holy barrel", ED.HOLY_BARREL_EMOJI],
         6: ["🏠 - House", "house", "🏠"],
         7: ["🍺 - Beer", "beer", "Beer" "🍺"],
 
@@ -73,7 +71,7 @@ class Item(object):
     }
 
     _shop_descriptions = {
-        1: "Allows you to use the command `fish`. Collect fish to keep as trophies or sell for more " + BARREL_COIN,
+        1: "Allows you to use the command `fish`. Collect fish to keep as trophies or sell for more " + ED.BARREL_COIN,
         2: "Allows you to try to rob other people.",
         3: "Does a good job of blocking you from getting robbed.",
         6: "Become a landlord and extort your tenants. Buying a house resets your rent timer."
