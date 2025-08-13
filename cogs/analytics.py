@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import datetime as dt
 import pickle
@@ -12,18 +13,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(dir_path, "base"))
 
-# Get is_in_dev_mode data to know whether it's in dev or on the server
-# .env is loaded from barrelbot.py
-IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
-if isinstance(IS_IN_DEV_MODE, str):
-    IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
+import env
     
 # Consts
 BARREL_CULT_GUILD_ID = 1296983356541501440
 
 ## Debug
-if IS_IN_DEV_MODE :
+if env._BBGLOBALS.IS_IN_DEV_MODE :
     BARREL_CULT_GUILD_ID = 733508144185081939
 ##
 
@@ -302,5 +300,8 @@ class Analytics(commands.Cog, name="Analytics"):
 
 def save_to_pickle(data, filename: str) -> None:
     """Saves specific dataset to file"""
+    if env._BBGLOBALS.IS_IN_DEV_MODE:
+        print("dev mode - analytics NOT saved")
+        return
     with open(filename, "wb") as file:
         pickle.dump(data, file)

@@ -85,13 +85,18 @@ class utilities(commands.Cog, name="Utilities"):
                     command_msg.add_field(name=f'__{cog.qualified_name}__', value=re.sub(r'  \-  \Z', '', cog_info),
                                           inline=False)
 
-            await addcommands(self.bot.get_cog('Utilities'))
-            await addcommands(self.bot.get_cog("Economy"))
-            await addcommands(self.bot.get_cog("Research"))
-            await addcommands(self.bot.get_cog('Fun'))
-            await addcommands(self.bot.get_cog("Barrel Spam"))
-            await addcommands(self.bot.get_cog("Barrel News"))
-            await addcommands(self.bot.get_cog("Analytics"))
+            for cog_name in [
+                'Utilities',
+                'Economy',
+                'Research',
+                'Fun',
+                'Barrel Spam',
+                'Barrel News',
+                'Analytics',
+            ]:
+                cog = self.bot.get_cog(cog_name)
+                if cog is not None:
+                    await addcommands(cog)
 
             if await self.bot.is_owner(ctx.author):
                 info = ''
@@ -172,4 +177,12 @@ class utilities(commands.Cog, name="Utilities"):
     async def feedback(self, ctx:commands.Context):
         """Feedback form for bugs or feature requests"""
         await self.bot_send(ctx, "https://docs.google.com/forms/d/e/1FAIpQLScoy5MqeEZAo9UxhbrTH_zI93DSeGsAc-Sf4gsp634VRosg6A/viewform?usp=header")
-        
+    
+    @commands.command()
+    async def is_in_dev_mode(self, ctx:commands.Context):
+        """Returns whether the bot is in dev mode or not"""
+        from base import env
+        if env._BBGLOBALS.IS_IN_DEV_MODE:
+            await self.bot_send(ctx, "The bot is currently in development mode.")
+        else:
+            await self.bot_send(ctx, "The bot is currently running in production mode.")
