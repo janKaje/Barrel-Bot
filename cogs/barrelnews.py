@@ -15,7 +15,7 @@ dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"]
 if isinstance(IS_IN_DEV_MODE, str):
     IS_IN_DEV_MODE = os.environ["IS_IN_DEV_MODE"].lower() == "true"
-    
+
 
 ## Consts
 
@@ -392,7 +392,7 @@ verbs = [
     "dedicate", "dictate", "disagree", "effect", "flood", "forbid", "grip", "heat", "long", "manipulate", "merge", "part", "PIN", "position", "prescribe", "proclaim",
     "punish", "rebuild", "regain", "sack", "strain", "stroke", "substitute", "supervise", "term", "time", "toss", "underline", "abuse", "accumulate", "alert", "arm",
     "attain", "boast", "boil", "carve", "cheer", "colour", "compel", "crawl", "crush", "Curl", "deposit", "differentiate", "dip", "dislike", "divert", "embody",
-    "exert", "exhaust", "fine", "frighten", "fuck", "gasp", "honour", "inhibit", "motivate", "multiply", "narrow", "obey", "penetrate", "picture", "presume", "prevail",
+    "exert", "exhaust", "fine", "frighten", "gasp", "honour", "inhibit", "motivate", "multiply", "narrow", "obey", "penetrate", "picture", "presume", "prevail",
     "pronounce", "rate", "renew", "revise", "rip", "scan", "scratch", "shiver",
 ]
 
