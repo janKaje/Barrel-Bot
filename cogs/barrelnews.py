@@ -1,4 +1,5 @@
 import os
+import sys
 import datetime as dt
 from random import choice, randint, random
 from math import floor
@@ -9,9 +10,10 @@ import discord
 from discord.ext import commands, tasks
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(dir_path, "base"))
 
-from base import env
-from .emojis import EmojiDefs as em
+import env
+from emojis import EmojiDefs as em
 
 remind_time = dt.time(hour=env._BBGLOBALS.REMINDER_TIME[0], minute=env._BBGLOBALS.REMINDER_TIME[1], tzinfo=dt.timezone.utc)
 deadline_time = dt.time(hour=env._BBGLOBALS.DEADLINE_TIME[0], minute=env._BBGLOBALS.DEADLINE_TIME[1], tzinfo=dt.timezone.utc)

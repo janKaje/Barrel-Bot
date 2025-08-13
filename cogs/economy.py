@@ -6,15 +6,15 @@ import re
 import asyncio
 import sys
 from pickle import dumps as dpx
+
 import discord
 from discord.ext import commands, tasks
-
-from .emojis import EmojiDefs as ED
-from base import env
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(dir_path, "base"))
 
+import env
+from emojis import EmojiDefs as ED
 from checks import checks
 from extra_exceptions import *
 from item import Item

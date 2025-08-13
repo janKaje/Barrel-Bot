@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import datetime as dt
 import pickle
@@ -12,8 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(dir_path, "base"))
 
-from base import env
+import env
     
 # Consts
 BARREL_CULT_GUILD_ID = 1296983356541501440
@@ -298,5 +300,8 @@ class Analytics(commands.Cog, name="Analytics"):
 
 def save_to_pickle(data, filename: str) -> None:
     """Saves specific dataset to file"""
+    if env._BBGLOBALS.IS_IN_DEV_MODE:
+        print("dev mode - analytics NOT saved")
+        return
     with open(filename, "wb") as file:
         pickle.dump(data, file)

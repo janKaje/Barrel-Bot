@@ -2,8 +2,7 @@ import math
 from random import randint
 
 from extra_exceptions import ItemNotFound
-
-from cogs.emojis import EmojiDefs as ED
+from emojis import EmojiDefs as ED
 
 # Inventory item ids
 # Fishing rod: 1

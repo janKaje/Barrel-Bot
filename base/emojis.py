@@ -1,4 +1,4 @@
-from base import env
+import env
 
 class EmojiDefs:
     BARREL_COIN = "<:barrelcoin:1364027068936884405>"

@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import sys
 import re
 from datetime import datetime as dt
 import asyncio
@@ -10,11 +11,15 @@ from discord.ext import commands, tasks
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 next_barrelspam = None
+sys.path.append(os.path.join(dir_path, "base"))
 
-from base import env
+import env
+from emojis import EmojiDefs as em
 
 async def setup(bot):
     await bot.add_cog(barrelspam(bot))
+
+env._BBGLOBALS.initGlobals() # needs to be initialized again at the cog level
     
 
 ## Consts
