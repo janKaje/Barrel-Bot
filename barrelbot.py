@@ -144,23 +144,38 @@ def time_str(time):
 @bot.event
 async def on_ready():
     """Called when the bot starts and is ready."""
-    # Startup Logging
+    ## Startup Logging
     print("")
     print("\033[37mUserName\033[1;34m :", bot.user.name)
     print("\033[37mUserID\033[1;34m :", bot.user.id)
     print("\033[37mVersion\033[1;34m  :", os.environ["VERSION"])
     print("\033[37mIS_IN_DEV_MODE\033[1;34m :", env._BBGLOBALS.IS_IN_DEV_MODE)
     print("\033[0;34m---\033[0m")
-    print("\033[32m")
-    # Load cogs
+    print("")
+    
+    ## Load cogs
+    print("                 ---     Spam\n")
+
     await load_cog("cogs.barrelspam", "Barrel Spam")
+    print("                 ---     Fun\n")
+
     await load_cog("cogs.fun", "Fun")
+    print("                 ---     Economy\n")
+
     await load_cog("cogs.economy", "Economy")
+    print("                 ---     Research\n")
+    print("(disabled)")
     # await load_cog("cogs.research", "Research")
+    print("                 ---     Utilities\n")
+
     await load_cog("cogs.utilities", "Utilities")
+    print("                 ---     News\n")
+
     await load_cog("cogs.barrelnews", "Barrel News")
+    print("                 ---     Analytics\n")
+
     await load_cog("cogs.analytics", "Analytics")
-    print("\033[0m")
+    print("")
 
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
 

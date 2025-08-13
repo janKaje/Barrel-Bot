@@ -123,8 +123,6 @@ class barrelnews(commands.Cog, name="Barrel News"):
     async def on_message(self, message: discord.Message) :
         """Listens for messages, when it is in the news channel, and has pinged the news role, it counts as news and will be posted to the website"""
         if message.channel.id == env._BBGLOBALS.BARREL_NEWS_CHANNEL_ID : # Checking in news channel
-            print(message.content)
-            print(str(env._BBGLOBALS.BARREL_SUB_MENTION))
             if (not message.author.bot) and str(env._BBGLOBALS.BARREL_SUB_MENTION) in message.content : # checking if the message is from a User and has the barrel news mention
                 name = message.author.name
                 message_content = message.content 
@@ -132,8 +130,8 @@ class barrelnews(commands.Cog, name="Barrel News"):
                 print("")
                 print("News Have Been Posted")
                 print("POSTing to barrel website")
-                print("Status :", end="")
 
+                # returns nothing but prints the status in the logs
                 POST_to_website(message_content, name)
 
                 print("---")
@@ -252,7 +250,7 @@ def POST_to_website(message, UserName) :
     }
     url = env._BBGLOBALS.NEWS_ENDPOINT 
     request = requests.post(url, data=obj)
-    print("Status", request) # status
+    print("Status : ", request) # status
 
 def rand_temp():
     rand = random()*3.5
