@@ -4,8 +4,7 @@ test.py
 .env
 notes.txt
 /.vscode
-token.json
-credentials.json
+/.idea
 
 cogs/adventure.py
 cogs/pets.py

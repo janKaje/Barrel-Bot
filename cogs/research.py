@@ -1,12 +1,5 @@
-import json
-import math
 import os
-import random as rand
-import re
-import asyncio
-from copy import deepcopy
 import sys
-import time
 
 import discord
 from discord.ext import commands, tasks
@@ -15,19 +8,18 @@ dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 sys.path.append(os.path.join(dir_path, "base"))
 
-from checks import checks
 from extra_exceptions import *
-from item import Item
 from player import Player, research
 
 
 async def setup(bot):
-    await bot.add_cog(research(bot))
+    await bot.add_cog(Research(bot))
 
-class research(commands.Cog, name="Research"):
+
+class Research(commands.Cog, name="Research"):
     """Research module"""
 
-    def __init__(self, bot:commands.Bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.bot_send = None
 
@@ -48,7 +40,7 @@ class research(commands.Cog, name="Research"):
 
     @commands.command()
     @commands.is_owner()
-    async def forceendqueue(self, ctx:commands.Context, usr:discord.User=None):
+    async def forceendqueue(self, ctx: commands.Context, usr: discord.User = None):
         if usr is None:
             player = Player(ctx.author)
         else:
@@ -58,7 +50,7 @@ class research(commands.Cog, name="Research"):
 
     @commands.command()
     @commands.is_owner()
-    async def getresearch(self, ctx:commands.Context, usr:discord.User=None):
+    async def getresearch(self, ctx: commands.Context, usr: discord.User = None):
         if usr is None:
             player = Player(ctx.author)
         else:
@@ -67,7 +59,7 @@ class research(commands.Cog, name="Research"):
 
     @commands.command()
     @commands.is_owner()
-    async def startresearch(self, ctx:commands.Context, techid:str):
+    async def startresearch(self, ctx: commands.Context, techid: str):
         player = Player(ctx.author)
         try:
             player.begin_research(techid)

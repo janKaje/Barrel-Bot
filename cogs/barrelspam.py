@@ -1,10 +1,9 @@
 import json
 import math
 import os
-import sys
 import re
+import sys
 from datetime import datetime as dt
-import asyncio
 
 import discord
 from discord.ext import commands, tasks
@@ -14,15 +13,15 @@ next_barrelspam = None
 sys.path.append(os.path.join(dir_path, "base"))
 
 import env
-from emojis import EmojiDefs as em
+
 
 async def setup(bot):
-    await bot.add_cog(barrelspam(bot))
+    await bot.add_cog(BarrelSpam(bot))
 
-env._BBGLOBALS.initGlobals() # needs to be initialized again at the cog level
-    
 
-## Consts
+env.BBGLOBALS.init_globals()  # needs to be initialized again at the cog level
+
+# Consts
 SPAM_THRESHOLD = 10
 
 DECIMALROLEID = 1303766261574008943
@@ -38,8 +37,10 @@ TEMP_DATA_MSG_ID = 1310847765517172776
 
 DATA_CHANNEL_ID = 735631640939986964
 
-## Debug
-if env._BBGLOBALS.IS_IN_DEV_MODE : # same role id (& channel ID) everywhere because I can't be bothered to create new ones in the test server (I don't have the perms anyways)
+# Debug
+if env.BBGLOBALS.IS_IN_DEV_MODE:
+    # same role item_id (& channel ID) everywhere because I can't be bothered to create new ones in the test server
+    # (I don't have the perms anyways)
     DECIMALROLEID = 735637859872276501
     BINARYROLEID = 735637859872276501
 
@@ -68,10 +69,171 @@ except FileNotFoundError:
     barrelspamtempdata = {}
 
 
-class barrelspam(commands.Cog, name="Barrel Spam"):
+def check_valid_barrel_spam(msg: discord.Message, ignore_number: bool = False):
+    """Checks if the given message is a valid spam message. By default, it takes into account the expected next
+    spam number. However, if ignore_number is set to True, it only Checks if the format is valid and returns the
+    decimal interpretation of the spam number."""
+
+    m = re.match(r"(\d+) ?(<a?:\w*barrel\w*:\d+>)", msg.content, flags=re.I)
+    if m is None:
+        return False, 0
+    global next_barrelspam
+    if ignore_number:
+        return True, int(m.group(1))
+    if (int(m.group(1)) == next_barrelspam) or (next_barrelspam is None):
+        return True, int(m.group(1))
+    try:
+        if int(m.group(1), base=2) == next_barrelspam:
+            return True, int(m.group(1), base=2)
+    except:
+        pass
+    return False, int(m.group(1))
+
+
+def get_user_team(userid: str, guild: discord.Guild) -> str:
+    """Gets the team that the user is on. Requires the user item_id in string format and the guild they're in."""
+    member = guild.get_member(int(userid))
+    for role in member.roles:
+        if role.id == DECIMALROLEID:
+            return "decimal"
+        if role.id == BINARYROLEID:
+            return "binary"
+    return "not in team"
+
+
+async def end_long_run_sequence(message: discord.Message) -> None:
+    """To be called when a long run is complete."""
+    # update next spam
+    global next_barrelspam
+    global barrelspamdata
+    global barrelspamtempdata
+    global barrelspamteamdata
+    finalint = max(0, next_barrelspam - 1)
+    next_barrelspam = 0
+    penalty = math.floor(finalint / 5)
+
+    # Send end run msg
+    init_msg = await message.channel.send(f"Run over! Fetching data...")
+
+    async with message.channel.typing():
+
+        # get team scores, mvp data
+        thisrunteamdata = {"decimal": 0, "binary": 0}
+        mvp = [0, 0]
+        for usrid in barrelspamtempdata.keys():
+            team = get_user_team(usrid, message.guild)
+            if team != "not in team":
+                score = barrelspamtempdata[usrid]
+                thisrunteamdata[team] += score
+                if score > mvp[1]:
+                    mvp = [usrid, score]
+            else:
+                pass  # womp womp
+
+        # check winning team, add score
+        if thisrunteamdata["decimal"] > thisrunteamdata["binary"]:
+            winningteam = "decimal"
+            barrelspamteamdata["decimal"] += thisrunteamdata["decimal"]
+            barrelspamteamdata["binary"] += math.ceil(thisrunteamdata["binary"] / 2)
+
+        elif thisrunteamdata["decimal"] < thisrunteamdata["binary"]:
+            winningteam = "binary"
+            barrelspamteamdata["binary"] += thisrunteamdata["binary"]
+            barrelspamteamdata["decimal"] += math.ceil(thisrunteamdata["decimal"] / 2)
+
+        else:
+            winningteam = "tie"
+            barrelspamteamdata["decimal"] += math.ceil(thisrunteamdata["decimal"] * 0.75)
+            barrelspamteamdata["binary"] += math.ceil(thisrunteamdata["binary"] * 0.75)
+
+        # compile message
+        embed = discord.Embed(color=discord.Color.brand_red())
+        embed.description = f"Final number reached: {finalint} | {bin(finalint)[2:]}"
+        embed.set_footer(text="Remember to start at 0!")
+
+        # winning team stuff
+        if winningteam == "decimal":
+            embed.title = "Run over - Team Decimal won!"
+            embed.add_field(name="__Points Won__",
+                            value=f"Decimal: {math.ceil(thisrunteamdata['decimal'])}\n"
+                                  f"Binary: {math.ceil(thisrunteamdata['binary'] * 0.5)}",
+                            inline=False)
+        elif winningteam == "binary":
+            embed.title = "Run over - Team Binary won!"
+            embed.add_field(name="__Points Won__",
+                            value=f"Decimal: {math.ceil(thisrunteamdata['decimal'] * 0.5)}\n"
+                                  f"Binary: {math.ceil(thisrunteamdata['binary'])}",
+                            inline=False)
+        else:
+            embed.title = "Run over - and ended in a tie!"
+            embed.add_field(name="__Points Won__",
+                            value=f"Decimal: {math.ceil(thisrunteamdata['decimal'] * 0.75)}\n"
+                                  f"Binary: {math.ceil(thisrunteamdata['binary'] * 0.75)}",
+                            inline=False)
+
+        # inflict penalty
+        penaltyteam = get_user_team(str(message.author.id), message.guild)
+        barrelspamteamdata[penaltyteam] -= penalty
+        embed.add_field(
+            name=f"{message.author.display_name} ended the run, and got Team {penaltyteam.capitalize()} a penalty "
+                 f"of {penalty} points <:barrelsadge:1298695216185872500>",
+            value="", inline=False)
+
+        # mvp and team standings
+        mvpmember = message.guild.get_member(int(mvp[0]))
+        embed.add_field(name="MVP of this run goes to:",
+                        value=f"{mvpmember.display_name}, with a total of {mvp[1]} this run", inline=False)
+        embed.add_field(name="Current team standings:",
+                        value=f"Decimal: {barrelspamteamdata['decimal']}\nBinary: {barrelspamteamdata['binary']}",
+                        inline=False)
+
+        # send message
+        await message.channel.send(embed=embed)
+
+    await init_msg.delete()
+
+    # reset run scores
+    barrelspamtempdata = {}
+
+
+async def end_short_run_sequence(message: discord.Message) -> None:
+    """To be called when a short run is complete."""
+    # update next spam
+    global next_barrelspam
+    global barrelspamdata
+    global barrelspamtempdata
+    global barrelspamteamdata
+    if next_barrelspam is None:
+        finalint = 0
+    else:
+        finalint = max(0, next_barrelspam - 1)
+    next_barrelspam = 0
+
+    # reset run scores
+    for authorid in barrelspamtempdata.keys():
+        barrelspamdata[authorid] -= barrelspamtempdata[authorid]
+    barrelspamtempdata = {}
+
+    # send quick message
+    msg = await message.channel.send(
+        f"Whoops!\nSince this run only got to {finalint}, scores aren't counted. Runs must be {SPAM_THRESHOLD} "
+        f"or higher to count. Start again below! You've got this!")
+    await msg.delete(delay=5)
+
+
+async def savealldata():
+    save_to_json(barrelspamdata, dir_path + "/data/barrelspamdata.json")
+    save_to_json(barrelspamteamdata, dir_path + "/data/barrelspamteamdata.json")
+
+    print("spam data saved")
+
+
+class BarrelSpam(commands.Cog, name="Barrel Spam"):
     """Functionality for barrel spam game"""
 
-    def __init__(self, bot:commands.Bot):
+    def __init__(self, bot: commands.Bot):
+        self.lord_role = None
+        self.cult_guild = None
         self.bot = bot
         self.emoji_reactions = {
             1: "1️⃣",
@@ -125,10 +287,9 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             await self.bot_send(ctx, "Added to Team Binary!")
         else:
             # invalid entry
-            await self.bot_send(ctx, 
-                "Didn't quite get that. You can ask to join Team Decimal or Team Binary with \"barrelbot, join team "
-                "decimal\" or \"barrelbot, join team binary\"")
-            
+            await self.bot_send(ctx,
+                                "Didn't quite get that. You can ask to join Team Decimal or Team Binary with "
+                                "\"barrelbot, join team decimal\" or \"barrelbot, join team binary\"")
 
     @commands.command()
     async def leaderboard(self, ctx: commands.Context):
@@ -137,7 +298,8 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         # start embed
         embed = discord.Embed(color=discord.Color.dark_blue(), title="Barrel Spam Leaderboard", description="")
         embed.add_field(name="Team Scores",
-                        value=f"**Decimal: {barrelspamteamdata['decimal']}**\n**Binary: {barrelspamteamdata['binary']}**",
+                        value=f"**Decimal: {barrelspamteamdata['decimal']}**\n**Binary: "
+                              f"{barrelspamteamdata['binary']}**",
                         inline=False)
 
         # collect and sort all scores
@@ -148,7 +310,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
             valstr += "**" + str(i + 1) + ") "
             member = ctx.guild.get_member(int(_list[0]))
             valstr += member.display_name + "**"
-            team = self.get_user_team(_list[0], ctx.guild)
+            team = get_user_team(_list[0], ctx.guild)
             if team == "decimal":
                 valstr += " *(Decimal Enthusiast)*"
             elif team == "binary":
@@ -181,7 +343,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
     @commands.command()
     @commands.is_owner()
     async def savespamdata(self, ctx: commands.Context):
-        await self.savealldata()
+        await savealldata()
         await self.bot_send(ctx, "Done!")
 
     @commands.command()
@@ -196,7 +358,8 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
     @commands.is_owner()
     async def lordify(self, ctx: commands.Context):
         await self.update_whos_lord()
-        await self.bot_send(ctx, f"Complete. Now {self.lord_role.members[0].display_name} is Lord of <#1297028406504067142>")
+        await self.bot_send(ctx,
+                            f"Complete. Now {self.lord_role.members[0].display_name} is Lord of <#1297028406504067142>")
 
     async def cog_load(self):
         """Called when the bot starts and is ready."""
@@ -205,40 +368,43 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         global next_barrelspam
         spamchannel = self.bot.get_channel(BARRELCULTSPAMCHANNELID)
 
+        last_spamint = 0
+        check = False
+
         # get last message and if spam
         async for past_spam in spamchannel.history(limit=1):
-            check, last_spamint = self.checkValidBarrelSpam(past_spam, ignore_number=True)
+            check, last_spamint = check_valid_barrel_spam(past_spam, ignore_number=True)
             break
 
-        if check == False:
+        if check is False:
             # if the previous message isn't spam, the numbers reset to 0
             next_barrelspam = 0
         else:
             # iterate through message history, increasing next spam number until the previous 0 is found
             next_barrelspam = 0
             async for past_spam in spamchannel.history(limit=last_spamint + 20):
-                check2, past_spamint = self.checkValidBarrelSpam(past_spam, ignore_number=True)
+                check2, past_spamint = check_valid_barrel_spam(past_spam, ignore_number=True)
                 next_barrelspam += 1
                 if check2 and past_spamint == 0:
                     break
 
         # if the current number is wrong, next spam number resets to 0
-        if last_spamint != next_barrelspam - 1: # only works if previous number was printed in decimal
+        if last_spamint != next_barrelspam - 1:  # only works if previous number was printed in decimal
 
             # this mess makes sure that it's actually wrong and not just in binary
             try:
                 if int(str(last_spamint), base=2) == next_barrelspam - 1:
-                    isWrong = False
+                    is_wrong = False
                 else:
-                    isWrong = True
+                    is_wrong = True
             except ValueError:
-                isWrong = True
-            
-            if isWrong:
+                is_wrong = True
+
+            if is_wrong:
                 print(f"Spam number off: should be {next_barrelspam}, was {last_spamint}")
                 await spamchannel.send(
-                    f"I took a nap and when I came back, the spam number was off! You guys were supposed to be at {next_barrelspam - 1}... " + \
-                    "Guess you get to restart at 0!")
+                    f"I took a nap and when I came back, the spam number was off! You guys were supposed to be at "
+                    f"{next_barrelspam - 1}... Guess you get to restart at 0!")
                 next_barrelspam = 0
 
         # print next spam number
@@ -260,79 +426,50 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         if message.author.bot:
             return
 
+        global next_barrelspam
+
         # barrel spam score logging
-        if message.channel.id == BARRELCULTSPAMCHANNELID: # or message.channel.id == TESTCHANNELID:
-            team = self.get_user_team(str(message.author.id), message.guild)
+        if message.channel.id == BARRELCULTSPAMCHANNELID:  # or message.channel.item_id == TESTCHANNELID:
+            team = get_user_team(str(message.author.id), message.guild)
             if team == "not in team":
                 responsemsg = await message.channel.send(
-                    f"{message.author.mention}, you must join a team before spamming! Go to <#1297596333976453291> and type `bb help join`")
+                    f"{message.author.mention}, you must join a team before spamming! Go to <#1297596333976453291> "
+                    f"and type `bb help join`")
                 await message.delete(delay=10)
                 await responsemsg.delete(delay=10)
                 return
-            isspam, spamint = self.checkValidBarrelSpam(message)
+            isspam, spamint = check_valid_barrel_spam(message)
             if isspam:
-                await self.continueSequence(message, spamint)
+                await self.continue_sequence(message, spamint)
             elif next_barrelspam is None:
-                await self.endShortRunSequence(message)
+                await end_short_run_sequence(message)
             elif next_barrelspam > SPAM_THRESHOLD:
-                await self.endLongRunSequence(message)
+                await end_long_run_sequence(message)
             else:
-                await self.endShortRunSequence(message)
+                await end_short_run_sequence(message)
 
         # debug
-        # if message.channel.id == 733508144617226302:
+        # if message.channel.item_id == 733508144617226302:
         #     print(message.content)
-        #     print(self.checkValidBarrelSpam(message, ignore_number=True))
+        #     print(self.check_valid_barrel_spam(message, ignore_number=True))
 
     @commands.Cog.listener()
-    async def on_message_edit(self, msgbefore: discord.Message, msgafter: discord.Message):
+    async def on_message_edit(self, msgbefore: discord.Message, _: discord.Message):
         """Called when a message is edited."""
-        if msgbefore.channel.id == BARRELCULTSPAMCHANNELID: # or msgbefore.channel.id == TESTCHANNELID:
+        if msgbefore.channel.id == BARRELCULTSPAMCHANNELID:  # or msgbefore.channel.item_id == TESTCHANNELID:
             if next_barrelspam > SPAM_THRESHOLD:
-                await self.endLongRunSequence(msgbefore)
+                await end_long_run_sequence(msgbefore)
             else:
-                await self.endShortRunSequence(msgbefore)
+                await end_short_run_sequence(msgbefore)
 
-    def checkValidBarrelSpam(self, msg: discord.Message, ignore_number: bool = False):
-        """Checks if the given message is a valid spam message. By default, it takes into account the expected next spam number.
-        However, if ignore_number is set to True, it only checks if the format is valid and returns the decimal interpretation
-        of the spam number."""
-
-        # if self.bot.isdebugstate:
-
-        m = re.match(r"(\d+) ?(<a?:\w*barrel\w*:\d+>)", msg.content, flags=re.I)
-        if m == None:
-            return False, 0
-        global next_barrelspam
-        if ignore_number:
-            return True, int(m.group(1))
-        if (int(m.group(1)) == next_barrelspam) or (next_barrelspam == None):
-            return True, int(m.group(1))
-        try:
-            if int(m.group(1), base=2) == next_barrelspam:
-                return True, int(m.group(1), base=2)
-        except:
-            pass
-        return False, int(m.group(1))
-
-    def get_user_team(self, userid: str, guild: discord.Guild) -> str:
-        """Gets the team that the user is on. Requires the user id in string format and the guild they're in."""
-        member = guild.get_member(int(userid))
-        for role in member.roles:
-            if role.id == DECIMALROLEID:
-                return "decimal"
-            if role.id == BINARYROLEID:
-                return "binary"
-        return "not in team"
-
-    async def continueSequence(self, message: discord.Message, spamint: int) -> None:
+    async def continue_sequence(self, message: discord.Message, spamint: int) -> None:
         """To be called when the spam sequence continues. Requires the spam message and the spam number."""
         # update next spam
         global next_barrelspam
         global barrelspamdata
         global barrelspamtempdata
         global barrelspamteamdata
-        if next_barrelspam == None:
+        if next_barrelspam is None:
             next_barrelspam = spamint
         next_barrelspam += 1
 
@@ -346,30 +483,30 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         # increase score
         score = 0
         reactions = []
-        if isPrime(spamint):
-            if isMersenne(spamint):
-                score += getMersenneScore(spamint)
+        if is_prime(spamint):
+            if is_mersenne(spamint):
+                score += get_mersenne_score(spamint)
                 reactions.append("🇲")
             else:
-                score += getPrimeScore(spamint)
+                score += get_prime_score(spamint)
                 reactions.append("🇵")
-        if isFibonacci(spamint):
-            score += getFibScore(spamint)
+        if is_fibonacci(spamint):
+            score += get_fib_score(spamint)
             reactions.append("🇫")
-        if isBinPali(spamint):
-            score += getPaliScore(spamint)
+        if is_binary_palindrome(spamint):
+            score += get_pali_score(spamint)
             reactions.append("✨")
-        if isDecPali(spamint):
-            score += getPaliScore(spamint)
+        if is_decimal_palindrome(spamint):
+            score += get_pali_score(spamint)
             reactions.append("<:holybarrel:1303080132642209826>")
-        if isPower2(spamint):
-            score += getPower2Score(spamint)
+        if is_power_of_two(spamint):
+            score += get_power_two_score(spamint)
             reactions.append("↗️")
-        if isPerfectSquare(spamint):
-            score += getPerfectSquareScore(spamint)
+        if is_perfect_square(spamint):
+            score += get_perfect_square_score(spamint)
             reactions.append("⏹️")
-        if isThueMorse(spamint):
-            score += getThueMorseScore(spamint)
+        if is_thue_morse(spamint):
+            score += get_thue_morse_score(spamint)
             reactions.append("🇹")
         if score == 0:
             score += 1
@@ -378,7 +515,7 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         barrelspamtempdata[authorid] += score
 
         scorereactions = [self.emoji_reactions[min(score, 10)]]
-        
+
         if score > 10:
             scorereactions.append("➕")
 
@@ -392,125 +529,6 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
 
         # to add in future: react to spam msg with emojis that indicate score or special numbers
 
-    async def endLongRunSequence(self, message: discord.Message) -> None:
-        """To be called when a long run is complete."""
-        # update next spam
-        global next_barrelspam
-        global barrelspamdata
-        global barrelspamtempdata
-        global barrelspamteamdata
-        finalint = max(0, next_barrelspam - 1)
-        next_barrelspam = 0
-        penalty = math.floor(finalint / 5)
-
-        # Send end run msg
-        init_msg = await message.channel.send(f"Run over! Fetching data...")
-
-        async with message.channel.typing():
-
-            # get team scores, mvp data
-            thisrunteamdata = {"decimal": 0, "binary": 0}
-            mvp = [0, 0]
-            for usrid in barrelspamtempdata.keys():
-                team = self.get_user_team(usrid, message.guild)
-                if team != "not in team":
-                    score = barrelspamtempdata[usrid]
-                    thisrunteamdata[team] += score
-                    if score > mvp[1]:
-                        mvp = [usrid, score]
-                else:
-                    pass  # womp womp
-
-            # check winning team, add score
-            if thisrunteamdata["decimal"] > thisrunteamdata["binary"]:
-                winningteam = "decimal"
-                barrelspamteamdata["decimal"] += thisrunteamdata["decimal"]
-                barrelspamteamdata["binary"] += math.ceil(thisrunteamdata["binary"] / 2)
-
-            elif thisrunteamdata["decimal"] < thisrunteamdata["binary"]:
-                winningteam = "binary"
-                barrelspamteamdata["binary"] += thisrunteamdata["binary"]
-                barrelspamteamdata["decimal"] += math.ceil(thisrunteamdata["decimal"] / 2)
-
-            else:
-                winningteam = "tie"
-                barrelspamteamdata["decimal"] += math.ceil(thisrunteamdata["decimal"] * 0.75)
-                barrelspamteamdata["binary"] += math.ceil(thisrunteamdata["binary"] * 0.75)
-
-            # compile message
-            embed = discord.Embed(color=discord.Color.brand_red())
-            embed.description = f"Final number reached: {finalint} | {bin(finalint)[2:]}"
-            embed.set_footer(text="Remember to start at 0!")
-
-            # winning team stuff
-            if winningteam == "decimal":
-                embed.title = "Run over - Team Decimal won!"
-                embed.add_field(name="__Points Won__", \
-                                value=f"Decimal: {math.ceil(thisrunteamdata['decimal'])}\nBinary: {math.ceil(thisrunteamdata['binary'] * 0.5)}",
-                                inline=False)
-            elif winningteam == "binary":
-                embed.title = "Run over - Team Binary won!"
-                embed.add_field(name="__Points Won__", \
-                                value=f"Decimal: {math.ceil(thisrunteamdata['decimal'] * 0.5)}\nBinary: {math.ceil(thisrunteamdata['binary'])}",
-                                inline=False)
-            else:
-                embed.title = "Run over - and ended in a tie!"
-                embed.add_field(name="__Points Won__", \
-                                value=f"Decimal: {math.ceil(thisrunteamdata['decimal'] * 0.75)}\nBinary: {math.ceil(thisrunteamdata['binary'] * 0.75)}",
-                                inline=False)
-
-            # inflict penalty
-            penaltyteam = self.get_user_team(str(message.author.id), message.guild)
-            barrelspamteamdata[penaltyteam] -= penalty
-            embed.add_field(
-                name=f"{message.author.display_name} ended the run, and got Team {penaltyteam.capitalize()} a penalty of {penalty} points <:barrelsadge:1298695216185872500>",
-                value="", inline=False)
-
-            # mvp and team standings
-            mvpmember = message.guild.get_member(int(mvp[0]))
-            embed.add_field(name="MVP of this run goes to:",
-                            value=f"{mvpmember.display_name}, with a total of {mvp[1]} this run", inline=False)
-            embed.add_field(name="Current team standings:",
-                            value=f"Decimal: {barrelspamteamdata['decimal']}\nBinary: {barrelspamteamdata['binary']}",
-                            inline=False)
-
-            # send message
-            await message.channel.send(embed=embed)
-
-        await init_msg.delete()
-
-        # reset run scores
-        barrelspamtempdata = {}
-
-    async def endShortRunSequence(self, message: discord.Message) -> None:
-        """To be called when a short run is complete."""
-        # update next spam
-        global next_barrelspam
-        global barrelspamdata
-        global barrelspamtempdata
-        global barrelspamteamdata
-        if next_barrelspam == None:
-            finalint = 0
-        else:
-            finalint = max(0, next_barrelspam - 1)
-        next_barrelspam = 0
-
-        # reset run scores
-        for authorid in barrelspamtempdata.keys():
-            barrelspamdata[authorid] -= barrelspamtempdata[authorid]
-        barrelspamtempdata = {}
-
-        # send quick message
-        msg = await message.channel.send(
-            f"Whoops!\nSince this run only got to {finalint}, scores aren't counted. Runs must be {SPAM_THRESHOLD} or higher to count. Start again below! You've got this!")
-        await msg.delete(delay=5)
-
-    async def savealldata(self):
-        save_to_json(barrelspamdata, dir_path + "/data/barrelspamdata.json")
-        save_to_json(barrelspamteamdata, dir_path + "/data/barrelspamteamdata.json")
-
-        print("spam data saved")
-
     async def update_whos_lord(self):
         """Just updates who the barrel spam lord is"""
 
@@ -518,34 +536,33 @@ class barrelspam(commands.Cog, name="Barrel Spam"):
         ind_data_as_array = [[i, j] for i, j in barrelspamdata.items()]
         ind_data_as_array.sort(key=lambda x: x[1], reverse=True)
         next_lord = self.cult_guild.get_member(int(ind_data_as_array[0][0]))
-        
+
         if next_lord is None:
             print("No lord found, skipping lord update")
             return
-        
+
         # remove the lord role from everyone but the next lord (if applicable)
         lords = self.lord_role.members
         for member in lords:
             if member.id != next_lord.id:
                 await member.remove_roles(self.lord_role)
-        
+
         # add it to the next lord (if applicable)
         if self.lord_role not in next_lord.roles:
             await next_lord.add_roles(self.lord_role)
-            
-            print(f"{next_lord.display_name} is now lord of barrel spam") # only prints on switch bc why not
 
+            print(f"{next_lord.display_name} is now lord of barrel spam")  # only prints on switch bc why not
 
     @tasks.loop(hours=7)
     async def hourlyloop(self):
         """Runs every hour - mostly to save data and update lord role"""
-        await self.savealldata()
+        await savealldata()
         await self.update_whos_lord()
         print(f"{dt.now().isoformat(sep=' ', timespec='seconds')} INFO\t Hourly loop finished!")
 
 
 # MATH FUNCTIONS
-def FirstPrimeFactor(n: int) -> int:
+def first_prime_factor(n: int) -> int:
     """Returns the first prime factor of n"""
     if n & 1 == 0:
         return 2
@@ -557,14 +574,14 @@ def FirstPrimeFactor(n: int) -> int:
     return n
 
 
-def isPrime(number: int) -> bool:
+def is_prime(number: int) -> bool:
     """Checks if the number is prime"""
     if number <= 2:
         return False
-    return FirstPrimeFactor(number) == number
+    return first_prime_factor(number) == number
 
 
-def isPerfectSquare(x: int) -> bool:
+def is_perfect_square(x: int) -> bool:
     """Checks if the number is a perfect square"""
     if x <= 2:
         return False
@@ -572,43 +589,43 @@ def isPerfectSquare(x: int) -> bool:
     return s * s == x
 
 
-def isFibonacci(n: int) -> bool:
+def is_fibonacci(n: int) -> bool:
     """Checks if the number is part of the Fibonacci sequence"""
     # n is Fibonacci if one of 5*n*n + 4 or 5*n*n - 4 or both
     # is a perfect square
     if n <= 2:
         return False
-    return isPerfectSquare(5 * n * n + 4) or isPerfectSquare(5 * n * n - 4)
+    return is_perfect_square(5 * n * n + 4) or is_perfect_square(5 * n * n - 4)
 
 
-def isMersenne(n: int) -> bool:
+def is_mersenne(n: int) -> bool:
     """Checks if the number is a Mersenne prime"""
-    if not isPrime(n):
+    if not is_prime(n):
         return False
     return all([b == '1' for b in bin(n)[2:]])
 
 
-def isPalindrome(inputstr: str) -> bool:
+def is_palindrome(inputstr: str) -> bool:
     """Checks if the string is a palindrome"""
     if len(inputstr) <= 1:
         return False
     return inputstr == inputstr[::-1]
 
 
-def isBinPali(inputint: int) -> bool:
+def is_binary_palindrome(inputint: int) -> bool:
     """Checks if the number is a palindrome in binary"""
-    binstr = format(inputint, "b")  
+    binstr = format(inputint, "b")
     padding = 8 - (len(binstr) % 8)
-    binstr = "0"*padding+binstr
-    return isPalindrome(binstr)
+    binstr = "0" * padding + binstr
+    return is_palindrome(binstr)
 
 
-def isDecPali(inputint: int) -> bool:
+def is_decimal_palindrome(inputint: int) -> bool:
     """Checks if the number is a palindrome in decimal"""
-    return isPalindrome(str(inputint))
+    return is_palindrome(str(inputint))
 
 
-def isPower2(inputint: int) -> bool:
+def is_power_of_two(inputint: int) -> bool:
     """Checks if the number is a power of 2"""
     if inputint <= 1:
         return False
@@ -627,52 +644,52 @@ def generate_sequence(seq_length: int):
         yield str(value)
 
 
-def get_thuemorse(n:int) -> int:
+def get_thuemorse(n: int) -> int:
     asstr = "".join(generate_sequence(n))
     return int(asstr, base=2)
 
 
-def isThueMorse(n:int) -> bool:
+def is_thue_morse(n: int) -> bool:
     if n <= 1:
         return False
-    lenseq = len(format(n, "b"))+1
+    lenseq = len(format(n, "b")) + 1
     if n == 0:
         lenseq = 1
-    thueMorseAtLen = get_thuemorse(lenseq)
-    return thueMorseAtLen == n
+    thue_morse_at_len = get_thuemorse(lenseq)
+    return thue_morse_at_len == n
 
 
-def getPrimeScore(n: int) -> int:
+def get_prime_score(n: int) -> int:
     """Gets score of a prime number"""
     return math.ceil(n / 4)
 
 
-def getFibScore(n: int) -> int:
+def get_fib_score(n: int) -> int:
     """Gets score of a fibonacci number"""
     return math.ceil(n / 2)
 
 
-def getMersenneScore(n: int) -> int:
+def get_mersenne_score(n: int) -> int:
     """Gets score of a mersenne prime number"""
     return math.ceil(n / 1.5)
 
 
-def getPaliScore(n: int) -> int:
+def get_pali_score(n: int) -> int:
     """Gets score of a palindrome number"""
     return math.ceil(n / 2)
 
 
-def getPower2Score(n: int) -> int:
+def get_power_two_score(n: int) -> int:
     """Gets score of a power of 2"""
     return math.ceil(n / 2)
 
 
-def getPerfectSquareScore(n: int) -> int:
+def get_perfect_square_score(n: int) -> int:
     """Gets score of a perfect square"""
     return math.ceil(n / 2)
 
 
-def getThueMorseScore(n:int) -> int:
+def get_thue_morse_score(n: int) -> int:
     return math.ceil(n / 1.5)
 
 

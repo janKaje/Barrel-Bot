@@ -8,13 +8,13 @@ dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 async def setup(bot):
-    await bot.add_cog(utilities(bot))
+    await bot.add_cog(Utilities(bot))
 
 
-class utilities(commands.Cog, name="Utilities"):
+class Utilities(commands.Cog, name="Utilities"):
     """Random other stuff"""
 
-    def __init__(self, bot:commands.Bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.bot_send = None
 
@@ -82,7 +82,7 @@ class utilities(commands.Cog, name="Utilities"):
                         cog_info += f'***{i.name}***  -  '
                         cmds.append(i.name)
                 if cog_info != '':
-                    command_msg.add_field(name=f'__{cog.qualified_name}__', value=re.sub(r'  \-  \Z', '', cog_info),
+                    command_msg.add_field(name=f'__{cog.qualified_name}__', value=re.sub(r' {2}- {2}\Z', '', cog_info),
                                           inline=False)
 
             for cog_name in [
@@ -118,7 +118,7 @@ class utilities(commands.Cog, name="Utilities"):
                             info += f'***{command.name}***  -  '
                             cmds.append(command.name)
                 if info != '':
-                    command_msg.add_field(name='__Owner Only__', value=re.sub(r'  \-  \Z', '', info), inline=False)
+                    command_msg.add_field(name='__Owner Only__', value=re.sub(r' {2}- {2}\Z', '', info), inline=False)
 
             await self.bot_send(ctx, embed=command_msg)
 
@@ -126,7 +126,8 @@ class utilities(commands.Cog, name="Utilities"):
         else:
             for cog in self.bot.cogs:
                 if cmd.lower() == cog.lower():
-                    embed = discord.Embed(title=cog, color=discord.Color.blue(), description=self.bot.get_cog(cog).__doc__)
+                    embed = discord.Embed(title=cog, color=discord.Color.blue(),
+                                          description=self.bot.get_cog(cog).__doc__)
                     cog_info = ''
                     for i in self.bot.get_cog(cog).walk_commands():
                         checks = True
@@ -144,12 +145,13 @@ class utilities(commands.Cog, name="Utilities"):
                         if checks:
                             cog_info += f'***{i.name}***  -  '
                     if cog_info != '':
-                        embed.add_field(name=f'__Commands__', value=re.sub(r'  \-  \Z', '', cog_info),
-                                            inline=False)
+                        embed.add_field(name=f'__Commands__', value=re.sub(r' {2}- {2}\Z', '', cog_info),
+                                        inline=False)
                     await self.bot_send(ctx, embed=embed)
                     return
             comd = ''
             alia = 'Aliases: '
+            title = ''
             # iterates through commands
             for c in self.bot.walk_commands():
                 if c.name == cmd or cmd in c.aliases:  # if search term matches command or any of the aliases
@@ -174,15 +176,16 @@ class utilities(commands.Cog, name="Utilities"):
             await self.bot_send(ctx, embed=helpmsg)
 
     @commands.command()
-    async def feedback(self, ctx:commands.Context):
+    async def feedback(self, ctx: commands.Context):
         """Feedback form for bugs or feature requests"""
-        await self.bot_send(ctx, "https://docs.google.com/forms/d/e/1FAIpQLScoy5MqeEZAo9UxhbrTH_zI93DSeGsAc-Sf4gsp634VRosg6A/viewform?usp=header")
-    
+        await self.bot_send(ctx, "https://docs.google.com/forms/d/e/1FAIpQLScoy5MqeEZAo9UxhbrTH_zI93DSeGsAc"
+                                 "-Sf4gsp634VRosg6A/viewform?usp=header")
+
     @commands.command()
-    async def is_in_dev_mode(self, ctx:commands.Context):
+    async def is_in_dev_mode(self, ctx: commands.Context):
         """Returns whether the bot is in dev mode or not"""
         from base import env
-        if env._BBGLOBALS.IS_IN_DEV_MODE:
+        if env.BBGLOBALS.IS_IN_DEV_MODE:
             await self.bot_send(ctx, "The bot is currently in development mode.")
         else:
             await self.bot_send(ctx, "The bot is currently running in production mode.")

@@ -29,7 +29,7 @@ Bot says hi !
 - Economy system
 - Barrel spam moderation
 - Daily <img src="./github/img/barrel.png" alt="Barrel" height="15px"> news
-- Analitics about spam scores, palindromes, economy etc
+- Analytics about spam scores, palindromes, economy etc
 
 # The lore™
 BarrelBot was originaly created for the official Barrel cult server, with the aime to provide strict rules to the <img src="./github/img/barrel.png" alt="Barrel" height="15px"> spam taking place there, and add more fun activities to play with, the latest feature (still in the working) is the economy system.

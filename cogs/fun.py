@@ -11,8 +11,9 @@ from numpy.random import default_rng
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
 async def setup(bot):
-    await bot.add_cog(fun(bot))
+    await bot.add_cog(Fun(bot))
 
 
 with open(dir_path + "/data/customratings.json") as file:
@@ -22,10 +23,17 @@ with open(dir_path + "/data/randomnumberscores.json") as file:
     randomnumberscores = json.load(file)
 
 
-class fun(commands.Cog, name="Fun"):
-    """Random fun things"""
+async def savealldata():
+    """Saves data to file."""
+    save_to_json(randomnumberscores, dir_path + "/data/randomnumberscores.json")
 
-    def __init__(self, bot:commands.Bot):
+    print("Fun scores saved")
+
+
+class Fun(commands.Cog, name="Fun"):
+    """Random Fun things"""
+
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.bot_send = None
 
@@ -35,7 +43,7 @@ class fun(commands.Cog, name="Fun"):
     @commands.command()
     @commands.is_owner()
     async def savefundata(self, ctx: commands.Context):
-        await self.savealldata()
+        await savealldata()
         await self.bot_send(ctx, "Done!")
 
     @commands.command()
@@ -63,28 +71,35 @@ class fun(commands.Cog, name="Fun"):
                 await self.bot_send(ctx, "Hi! I'm BarrelBot. Nice to meet you!")
             async with ctx.typing():
                 await asyncio.sleep(1.2)
-                await self.bot_send(ctx, "I can do lots of things for you. If you want to see everything you can ask me, "
-                               "type \"Hey BarrelBot, help\".")
+                await self.bot_send(ctx,
+                                    "I can do lots of things for you. If you want to see everything you can ask me, "
+                                    "type \"Hey BarrelBot, help\".")
             async with ctx.typing():
                 await asyncio.sleep(1.8)
-                await self.bot_send(ctx, "I'll understand you if you say hey, hi, or hello before my name! And feel free to use "
-                               "capital letters or not. It doesn't really matter to me :slight_smile:")
+                await self.bot_send(ctx,
+                                    "I'll understand you if you say hey, hi, or hello before my name! And feel free "
+                                    "to use capital letters or not. It doesn't really matter to me :slight_smile:")
             async with ctx.typing():
                 await asyncio.sleep(2.1)
-                await self.bot_send(ctx, "I'm here to help the <:barrel:1296987889942397001> cult in their spiritual journey "
-                               "towards the Almighty <:barrel:1296987889942397001>, " + \
-                               "so I try to help out around here where I can.")
+                await self.bot_send(ctx,
+                                    "I'm here to help the <:barrel:1296987889942397001> cult in their spiritual "
+                                    "journey towards the Almighty <:barrel:1296987889942397001>, so I try to help out "
+                                    "around here where I can.")
             async with ctx.typing():
                 await asyncio.sleep(1.7)
-                await self.bot_send(ctx, "One cool thing I do is watch <#1297028406504067142> and keep track of everyone's "
-                               "scores. I also keep track of who sends how many messages - you can see the results by asking me to show_analytics.")
+                await self.bot_send(ctx,
+                                    "One cool thing I do is watch <#1297028406504067142> and keep track of everyone's "
+                                    "scores. I also keep track of who sends how many messages - you can see the "
+                                    "results by asking me to show_analytics.")
             async with ctx.typing():
                 await asyncio.sleep(1.2)
-                await self.bot_send(ctx, "That's all for now! May the <:barrel:1296987889942397001> be with you :smile:")
+                await self.bot_send(ctx,
+                                    "That's all for now! May the <:barrel:1296987889942397001> be with you :smile:")
             return
         else:
-            await self.bot_send(ctx, f"I don't know enough about {arg} to introduce him/her/them/it properly. You'll have to "
-                           f"ask someone who knows more, sorry!")
+            await self.bot_send(ctx,
+                                f"I don't know enough about {arg} to introduce him/her/them/it properly. You'll have "
+                                f"to ask someone who knows more, sorry!")
 
     @commands.command()
     async def rate(self, ctx: commands.Context, *, item):
@@ -140,7 +155,7 @@ class fun(commands.Cog, name="Fun"):
         """Gives a random number. Keeps track of high scores."""
 
         # fetch their random number
-        value = getRandInt()
+        value = get_randint()
 
         # send fancy embed and update high scores
         embed = discord.Embed(color=discord.Color.brand_green(), )
@@ -192,9 +207,9 @@ class fun(commands.Cog, name="Fun"):
         await self.bot_send(ctx, embed=embed)
 
     @commands.command()
-    async def cheese(self, ctx:commands.Context):
+    async def cheese(self, ctx: commands.Context):
         await self.bot_send(ctx, "🧀")
-        
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         """Called whenever a message is sent that the bot can see."""
@@ -214,19 +229,14 @@ class fun(commands.Cog, name="Fun"):
 
         # print loaded
         print(f"cog: {self.qualified_name} loaded")
-        
+
         # start hourly loop
         self.hourlyloop.start()
 
-    async def savealldata(self):
-        """Saves data to file."""
-        save_to_json(randomnumberscores, dir_path + "/data/randomnumberscores.json")
-
-        print("fun scores saved")
-
     @tasks.loop(hours=9)
     async def hourlyloop(self):
-        await self.savealldata()
+        await savealldata()
+
 
 def save_to_json(data, filename: str) -> None:
     """Saves specific dataset to file"""
@@ -234,6 +244,6 @@ def save_to_json(data, filename: str) -> None:
         json.dump(data, file)
 
 
-def getRandInt() -> int:
+def get_randint() -> int:
     """Gets a random number from an exponential distribution"""
     return math.ceil(default_rng().exponential(40))

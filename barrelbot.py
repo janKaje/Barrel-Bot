@@ -9,17 +9,17 @@ from discord.ext import commands, tasks
 from base.extra_exceptions import NotAbleTo, PlayerNotFound, NotInBbChannel
 from base.messagetosend import UnsentMessage
 
-env._BBGLOBALS.initGlobals()
+env.BBGLOBALS.init_globals()
 
-## Debug
-if env._BBGLOBALS.IS_IN_DEV_MODE == True:
+# Debug
+if env.BBGLOBALS.IS_IN_DEV_MODE:
     print("New debugging session started in bot testing server")
-##
+
 
 # Command prefix function
-def isCommand(bot: commands.Bot, message: discord.Message) -> str:
+def is_command(_: commands.Bot, message: discord.Message) -> str:
     # Allow to match with "bb " or "bb, "
-    _m = re.match("bb,? ", message.content)
+    _m = re.match("!?bb,? ", message.content)
     if _m is not None:
         return _m.group(0)
 
@@ -31,7 +31,7 @@ def isCommand(bot: commands.Bot, message: discord.Message) -> str:
     # Allow to match with mention
     m_ = re.match("<@733514909823926293>[,!.]? +", message.content)
     if m_ is not None:
-        return m.group(0)
+        return m_.group(0)
 
     # Default
     return "BarrelBot, "
@@ -45,7 +45,7 @@ Intents.guild_messages = True
 Intents.message_content = True
 
 # Initialize bot
-bot = commands.Bot(command_prefix=isCommand, intents=Intents)
+bot = commands.Bot(command_prefix=is_command, intents=Intents)
 bot.remove_command('help')
 
 # Create global variables
@@ -61,11 +61,11 @@ bb_channel_ids = [
 # get token
 TOKEN = os.environ["TOKEN"]
 
+
 # prep for save functions
 async def save_everything():
-
     global defaultctx
-    assert defaultctx != None, "Default context hasn't been established yet"
+    assert defaultctx is not None, "Default context hasn't been established yet"
 
     funcog = bot.get_cog("Fun")
     spamcog = bot.get_cog("Barrel Spam")
@@ -92,6 +92,7 @@ async def save_everything():
             await command.__call__(defaultctx)
             break
 
+
 async def load_cog(cogname, cogn2):
     try:
         await bot.load_extension(cogname)
@@ -102,6 +103,7 @@ async def load_cog(cogname, cogn2):
         cog.set_bot_send(bot_send)
     except Exception as e:
         print(f"Error in adding bot_send: {e.with_traceback(None)}")
+
 
 # helper function
 def time_str(time):
@@ -139,6 +141,7 @@ def time_str(time):
 
     return st
 
+
 # Bot events
 
 @bot.event
@@ -149,7 +152,7 @@ async def on_ready():
     print("\033[37mUserName\033[1;34m :", bot.user.name)
     print("\033[37mUserID\033[1;34m :", bot.user.id)
     print("\033[37mVersion\033[1;34m  :", os.environ["VERSION"])
-    print("\033[37mIS_IN_DEV_MODE\033[1;34m :", env._BBGLOBALS.IS_IN_DEV_MODE)
+    print("\033[37mIS_IN_DEV_MODE\033[1;34m :", env.BBGLOBALS.IS_IN_DEV_MODE)
     print("\033[0;34m---\033[0m")
     print("\033[32m")
     # Load cogs
@@ -167,20 +170,22 @@ async def on_ready():
     sendnextmsg.start()
 
     global defaultctx
-    defaultctx = await bot.get_context(await (await bot.fetch_channel(735631686313967646)).fetch_message(1315938006259073087))
+    defaultctx = await bot.get_context(
+        await (await bot.fetch_channel(735631686313967646)).fetch_message(1315938006259073087))
 
     print(f"\033[32mLoaded and ready! Running on {os.environ['MACHINE']}\033[0m")
     print("")
 
 
 @bot.event
-async def on_command_error(ctx: commands.Context, error:Exception|commands.CheckFailure):
+async def on_command_error(ctx: commands.Context, error: Exception | commands.CheckFailure):
     """Called when a command produces an error."""
     if isinstance(error, commands.CommandNotFound):
         return
     if ctx.command.name == "sell":
         if isinstance(error, (commands.BadArgument, commands.MissingRequiredArgument, commands.TooManyArguments)):
-            if len(re.search(r"(?<=sell).*", ctx.message.content).group(0)) >= 0x71 or len(ctx.message.attachments) != 0:
+            if len(re.search(r"(?<=sell).*", ctx.message.content).group(0)) >= 0x71 or len(
+                    ctx.message.attachments) != 0:
                 return
     if isinstance(error, commands.MissingRequiredArgument):
         await bot_send(ctx, 'You\'re missing a required argument: ' + str(error.param))
@@ -192,11 +197,13 @@ async def on_command_error(ctx: commands.Context, error:Exception|commands.Check
         await bot_send(ctx, "You don't have the right permissions to execute that command.")
     elif isinstance(error, commands.BotMissingPermissions):
         try:
-            await bot_send(ctx, 
-                'The bot is missing the required permissions to invoke this command: ' + str(error.missing_permissions))
+            await bot_send(ctx,
+                           'The bot is missing the required permissions to invoke this command: ' + str(
+                               error.missing_permissions))
         except commands.CommandInvokeError:
             await ctx.author.send(
-                "An error occurred and I wasn't able to handle it normally. I can't send messages to the channel you entered that command in. Other permissions I'm missing are " + str(
+                "An error occurred and I wasn't able to handle it normally. I can't send messages to the channel you "
+                "entered that command in. Other permissions I'm missing are " + str(
                     error.missing_permissions))
     elif isinstance(error, commands.ExtensionError):
         await bot_send(ctx, f'The extension {str(error.name)} raised an exception.')
@@ -211,7 +218,8 @@ async def on_command_error(ctx: commands.Context, error:Exception|commands.Check
     elif isinstance(error, PlayerNotFound):
         await bot_send(ctx, "Unknown user.")
     elif isinstance(error, NotInBbChannel):
-        msg = await ctx.send(f"This command can only be done in {' or '.join([bot.get_channel(i).mention for i in bb_channel_ids])}.")
+        msg = await ctx.send(
+            f"This command can only be done in {' or '.join([bot.get_channel(i).mention for i in bb_channel_ids])}.")
         await ctx.message.delete(delay=5)
         await msg.delete(delay=5)
     else:
@@ -246,15 +254,16 @@ async def saveeverything(ctx: commands.Context):
 @commands.is_owner()
 async def reloadcog(ctx: commands.Context, cogname: str):
     try:
-        await bot.reload_extension("cogs."+cogname)
+        await bot.reload_extension("cogs." + cogname)
         await bot_send(ctx, f"Reloaded {cogname}")
     except Exception as e:
         print(f"was not able to reload cog {cogname}:\n{e.Player.get_json_data()(None)}")
         pass
 
+
 @bot.command()
 @commands.is_owner()
-async def run_raw_code(ctx: commands.Context, *, code:str):
+async def run_raw_code(ctx: commands.Context, *, code: str):
     if code == '':
         return
     try:
@@ -264,24 +273,25 @@ async def run_raw_code(ctx: commands.Context, *, code:str):
 
 
 # Global safe-message send function
-async def bot_send(ctx:commands.Context, content:str=None, embed:discord.Embed=None, file:discord.File=None):
+async def bot_send(ctx: commands.Context, content: str = None, embed: discord.Embed = None, file: discord.File = None):
     global messagequeue
     await messagequeue.put(UnsentMessage(ctx, content, embed, file))
+
 
 @tasks.loop(seconds=0.25)
 async def sendnextmsg():
     global messagequeue
-    message:UnsentMessage = await messagequeue.get()
+    message: UnsentMessage = await messagequeue.get()
     try:
         await message.send()
     except Exception as e:
         print(e)
-        await message.ctx.send(e)
+        await message.ctx.send(str(e))
+
 
 # Run the bot
 
 def main():
-
     bot.run(TOKEN)
 
 

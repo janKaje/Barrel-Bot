@@ -4,6 +4,7 @@ from random import randint
 from extra_exceptions import ItemNotFound
 from emojis import EmojiDefs as ED
 
+
 # Inventory item ids
 # Fishing rod: 1
 # Dagger: 2
@@ -28,7 +29,6 @@ from emojis import EmojiDefs as ED
 #   10000s
 
 class Item(object):
-
     _basetypes = {
         1: "item",
         3: "fish"
@@ -40,7 +40,8 @@ class Item(object):
         2: ["🗡️ - Dagger", "dagger", "🗡️"],
         3: ["🛡️ - Shield", "shield", "🛡️"],
         4: [ED.BARREL_EMOJI + " - Barrel Crate", "barrel", "barrel crate", ED.BARREL_EMOJI],
-        5: [ED.HOLY_BARREL_EMOJI + " - Golden Barrel Crate", "golden barrel", "golden barrel crate", "holy barrel", ED.HOLY_BARREL_EMOJI],
+        5: [ED.HOLY_BARREL_EMOJI + " - Golden Barrel Crate", "golden barrel", "golden barrel crate", "holy barrel",
+            ED.HOLY_BARREL_EMOJI],
         6: ["🏠 - House", "house", "🏠"],
         7: ["🍺 - Beer", "beer", "Beer" "🍺"],
 
@@ -64,9 +65,11 @@ class Item(object):
 
     _shop_messages = {
         1: "You bought a 🎣! If you didn't have one before, now you can do `bb fish`.",
-        2: "You bought a 🗡️! If you didn't have one before, you can now try to rob people. Be warned, though: the life of crime isn't kind.",
-        3: "You bought a 🛡️! If you didn't have one before, you're now mostly protected against people trying to rob you.",
-        6: "You bought a 🏠! Being a landlord is so much fun!"
+        2: "You bought a 🗡️! If you didn't have one before, you can now try to rob people. Be warned, though: the "
+           "life of crime isn't kind.",
+        3: "You bought a 🛡️! If you didn't have one before, you're now mostly protected against people trying to rob "
+           "you.",
+        6: "You bought a 🏠! Being a landlord is so much Fun!"
     }
 
     _shop_descriptions = {
@@ -76,12 +79,12 @@ class Item(object):
         6: "Become a landlord and extort your tenants. Buying a house resets your rent timer."
     }
 
-    def __init__(self, id:int):
+    def __init__(self, item_id: int):
 
         object.__init__(self)
 
-        self.id = abs(int(id))
-        self.typeid = int(str(id)[0] + "0"*(len(str(id))-1))
+        self.id = abs(int(item_id))
+        self.typeid = int(str(item_id)[0] + "0" * (len(str(item_id)) - 1))
         try:
             self.emoji = Item._aliases[self.typeid][-1]
             self.propername = Item._aliases[self.typeid][0]
@@ -91,7 +94,7 @@ class Item(object):
             self.propername = "Item not found."
             self.easyalias = "Item not found."
         try:
-            self.basetype = Item._basetypes[len(str(id))]
+            self.basetype = Item._basetypes[len(str(item_id))]
         except KeyError:
             self.basetype = "unknown"
 
@@ -99,12 +102,12 @@ class Item(object):
         if self.id in Item._shop_prices.keys():
             return Item._shop_prices[self.id]
         raise ItemNotFound
-    
+
     def get_shop_message(self):
         if self.id in Item._shop_messages.keys():
             return Item._shop_messages[self.id]
         raise ItemNotFound
-    
+
     def get_shop_description(self):
         if self.id in Item._shop_descriptions.keys():
             return Item._shop_descriptions[self.id]
@@ -112,7 +115,7 @@ class Item(object):
 
     def get_sale_price(self):
         if self.id in Item._shop_prices.keys():
-            return int(math.floor(Item._shop_prices[self.id]*0.75))
+            return int(math.floor(Item._shop_prices[self.id] * 0.75))
 
         if self.id == 4:
             return randint(300, 500)
@@ -124,32 +127,32 @@ class Item(object):
             return 3
 
         if self.basetype == "fish":
-            type = int(str(self.id)[0])
+            fish_type = int(str(self.id)[0])
             length = int(str(self.id)[1])
             weight = int(str(self.id)[2])
-            match type:
-                case 1: # squid
+            match fish_type:
+                case 1:  # squid
                     multiplier = 5
-                case 2: # jellyfish
+                case 2:  # jellyfish
                     multiplier = 0.5
-                case 3: # shrimp
+                case 3:  # shrimp
                     multiplier = 1.5
-                case 4: # lobster
+                case 4:  # lobster
                     multiplier = 2
-                case 5: # crab
+                case 5:  # crab
                     multiplier = 2.5
-                case 6: # blowfish
+                case 6:  # blowfish
                     multiplier = 4
-                case 7: # yellow fish
+                case 7:  # yellow fish
                     multiplier = 1
-                case 8: # blue fish
+                case 8:  # blue fish
                     multiplier = 1
-                case 9: # shark
+                case 9:  # shark
                     multiplier = 8
-                case _: # ???
+                case _:  # ???
                     multiplier = 1
-            return max(int(multiplier * (math.exp(length/3) + 1.5*weight)), 1)
-        return None # not found
+            return max(int(multiplier * (math.exp(length / 3) + 1.5 * weight)), 1)
+        return None  # not found
 
     def __str__(self):
         if self.basetype == "item":
@@ -158,13 +161,13 @@ class Item(object):
 
     def _extra_info(self):
         if self.basetype == "fish":
-            return f"{(int(str(self.id)[1])+1)*5} cm, {(int(str(self.id)[2])+1)*0.5} kg"
+            return f"{(int(str(self.id)[1]) + 1) * 5} cm, {(int(str(self.id)[2]) + 1) * 0.5} kg"
         return ""
-    
+
     def __int__(self):
         return self.id
-    
-    def get_from_string(instr:str):
+
+    def get_from_string(instr: str):
         for key, val in Item._aliases.items():
             if instr.lower() in val:
                 return Item(key)
@@ -172,24 +175,30 @@ class Item(object):
                 if int(instr) == key:
                     return Item(key)
         raise ItemNotFound()
+
     staticmethod(get_from_string)
 
     def __eq__(self, other):
         if isinstance(other, Item):
             return self.id == other.id
         return False
-    
+
     def __hash__(self):
         return hash(self.id)
 
+
 def main():
     fishingrod = Item(1)
-    print(fishingrod.id, fishingrod.propername, fishingrod.basetype, fishingrod.easyalias, fishingrod.emoji, fishingrod.typeid)
-    print(fishingrod.get_shop_price(), fishingrod.get_sale_price(), fishingrod.get_shop_message(), fishingrod.get_shop_description())
+    print(fishingrod.id, fishingrod.propername, fishingrod.basetype, fishingrod.easyalias, fishingrod.emoji,
+          fishingrod.typeid)
+    print(fishingrod.get_shop_price(), fishingrod.get_sale_price(), fishingrod.get_shop_message(),
+          fishingrod.get_shop_description())
 
     rareshark = Item(687)
-    print(rareshark.id, rareshark.propername, rareshark.basetype, rareshark.easyalias, rareshark.emoji, rareshark.typeid)
+    print(rareshark.id, rareshark.propername, rareshark.basetype, rareshark.easyalias, rareshark.emoji,
+          rareshark.typeid)
     print(rareshark.get_sale_price())
+
 
 if __name__ == "__main__":
     main()
