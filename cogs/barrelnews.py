@@ -14,6 +14,7 @@ sys.path.append(os.path.join(dir_path, "base"))
 
 import env
 from emojis import EmojiDefs as ED
+from checks import Checks
 
 remind_time = dt.time(hour=env.BBGLOBALS.REMINDER_TIME[0], minute=env.BBGLOBALS.REMINDER_TIME[1],
                       tzinfo=dt.timezone.utc)
@@ -81,6 +82,12 @@ class BarrelNews(commands.Cog, name="Barrel News"):
         except:
             msgtype = randint(1, 6)
             await self.bot_send(ctx, get_bnnmsg(msgtype))
+
+    @commands.command()
+    @Checks.is_bb_dev()
+    async def test_bnn_post(self, ctx: commands.Context, message: str):
+        response = post_to_website(message=message, username=ctx.author.name)
+        await self.bot_send(ctx, content=f"Status: {response}")
 
     @tasks.loop(time=remind_time)
     async def remind_loop(self):
@@ -204,7 +211,7 @@ class BarrelNews(commands.Cog, name="Barrel News"):
         return remindmsg
 
 
-def post_to_website(message, username):
+def post_to_website(message, username) -> requests.Response:
     """Posts the message and username to the website as news, the endpoint and the key are environment variables
     
     The return object is a status code being printed to the console
@@ -217,6 +224,7 @@ def post_to_website(message, username):
     url = env.BBGLOBALS.NEWS_ENDPOINT
     request = requests.post(url, data=obj)
     print("Status", request)  # status
+    return request
 
 
 def rand_temp():

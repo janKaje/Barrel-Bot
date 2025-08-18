@@ -14,6 +14,7 @@ class BBGLOBALS:
 
     BARREL_NEWS_CHANNEL_ID: int = 1297025420184518708
     BARREL_SUB_ROLE_ID: int = 1297023311556907028
+    BB_DEV_ROLE_ID: int = 1303765973324533781
 
     BARREL_REP_MENTION: str = f"<@&{BARREL_REP_ROLE_ID}>"
     BARREL_SUB_MENTION: str = f"<@&{BARREL_SUB_ROLE_ID}>"
@@ -49,6 +50,7 @@ class BBGLOBALS:
             cls.BARREL_NEWS_CHANNEL_ID: int = 733508144617226302  # general
             cls.BARREL_REP_ROLE_ID: int = 735700976010264667  # join test role
             cls.BARREL_SUB_ROLE_ID: int = 735700976010264667  # join test role
+            cls.BB_DEV_ROLE_ID: int = 735700976010264667  # join test role
 
             # Modifying the mention role
             cls.BARREL_REP_MENTION: str = f"<@&{cls.BARREL_REP_ROLE_ID}>"
