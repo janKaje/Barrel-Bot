@@ -6,10 +6,12 @@ import pickle
 from time import time
 import io
 from json import dumps
+import itertools
 
 import discord
 from discord.ext import commands, tasks
 import matplotlib.pyplot as plt
+import matplotlib.colorizer as clrs
 import numpy as np
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -30,6 +32,11 @@ try:
 except:
     analytics = {"prev_update": {}}
 
+DEFAULT_STACKPLOT_STYLE = 'seaborn-v0_8'
+DEFAULT_BARCHART_STYLE = 'seaborn-v0_8-dark'
+DEFAULT_BARCHART_COLOR = '#329F55'
+DEFAULT_HEATMAP_STYLE = 'seaborn-v0_8-dark'
+DEFAULT_HEATMAP_COLORMAP = 'YlGn'
 
 async def setup(bot):
     await bot.add_cog(Analytics(bot))
@@ -47,17 +54,15 @@ class Analytics(commands.Cog, name="Analytics"):
     def set_bot_send(self, bot_send):
         self.bot_send = bot_send
 
-    @commands.command()
-    @commands.cooldown(1, 5, commands.BucketType.user)
-    async def show_analytics(self, ctx: commands.Context, graphtype='normal', style='seaborn-v0_8'):
-
-        """Shows an analytics graph.
+    @commands.command(help=f"""Shows an analytics graph.
         `graphtype` The type of graph to show.
         options: normal, adjusted
         default: normal
         `style` The style to use for displaying the graph.
         options: any found on https://matplotlib.org/stable/gallery/style_sheets/style_sheets_reference.html
-        default: seaborn-v0_8"""
+        default: {DEFAULT_STACKPLOT_STYLE}""")
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    async def show_analytics(self, ctx: commands.Context, graphtype='normal', style=DEFAULT_STACKPLOT_STYLE):
 
         async with ctx.channel.typing():
             if graphtype == 'normal':
@@ -72,6 +77,85 @@ class Analytics(commands.Cog, name="Analytics"):
         chart = discord.File(data_stream, filename="analytics_chart.png")
         emb = discord.Embed()
         emb.set_image(url="attachment://analytics_chart.png")
+
+        await self.bot_send(ctx, embed=emb, file=chart)
+
+    @commands.command(help=f"""Shows which emojis you've used, and how many times each was used.
+        `style` The style to use for displaying the graph.
+        options: any found on https://matplotlib.org/stable/gallery/style_sheets/style_sheets_reference.html
+        default: {DEFAULT_BARCHART_STYLE}
+        `color` The color to fill the bars with.
+        options: any found on https://matplotlib.org/stable/users/explain/colors/colors.html#colors-def
+        default: {DEFAULT_BARCHART_COLOR}""")
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    async def show_my_emoji_usages(self, ctx:commands.Context, style=DEFAULT_BARCHART_STYLE, color:str=DEFAULT_BARCHART_COLOR):
+
+        async with ctx.channel.typing():
+            try:
+                data_stream = await self.get_emoji_barchart(member=ctx.author, style=style, color=color)
+            except ValueError as e:
+                await self.bot_send(ctx, f"Something happened that shouldn't have:\n{e}")
+                return
+            except discord.NotFound as e:
+                await self.bot_send(ctx, f"Something happened that REALLY shouldn't have:\n{e}")
+                return
+            
+        chart = discord.File(data_stream, filename="emoji_barchart.png")
+        emb = discord.Embed()
+        emb.set_image(url="attachment://emoji_barchart.png")
+
+        await self.bot_send(ctx, embed=emb, file=chart)
+
+    @commands.command(help=f"""Shows who has used the given emoji, and how many times each person used it.
+        `emoji` The emoji to see usages for.
+        `style` The style to use for displaying the graph.
+        options: any found on https://matplotlib.org/stable/gallery/style_sheets/style_sheets_reference.html
+        default: {DEFAULT_BARCHART_STYLE}
+        `color` The color to fill the bars with.
+        options: any found on https://matplotlib.org/stable/users/explain/colors/colors.html#colors-def
+        default: {DEFAULT_BARCHART_COLOR}""")
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    async def show_this_emojis_usages(self, ctx:commands.Context, emoji:discord.Emoji, style:str=DEFAULT_BARCHART_STYLE, color:str=DEFAULT_BARCHART_COLOR):
+
+        async with ctx.channel.typing():
+            try:
+                data_stream = await self.get_emoji_barchart(emoji=emoji, style=style, color=color)
+            except ValueError as e:
+                await self.bot_send(ctx, f"Something happened that shouldn't have:\n{e}")
+                return
+            except discord.NotFound as e:
+                await self.bot_send(ctx, f"Something happened that REALLY shouldn't have:\n{e}")
+                return
+            
+        chart = discord.File(data_stream, filename="emoji_barchart.png")
+        emb = discord.Embed()
+        emb.set_image(url="attachment://emoji_barchart.png")
+
+        await self.bot_send(ctx, embed=emb, file=chart)
+
+    @commands.command(help=f"""Shows all emoji usage data.
+        `style` The style to use for displaying the graph.
+        options: any found on https://matplotlib.org/stable/gallery/style_sheets/style_sheets_reference.html
+        default: {DEFAULT_HEATMAP_STYLE}
+        `cmap` The color map to use for the graph.
+        options: any found on https://matplotlib.org/stable/gallery/color/colormap_reference.html
+        default: {DEFAULT_HEATMAP_COLORMAP}""")
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    async def show_emoji_usages(self, ctx:commands.Context, style:str=DEFAULT_HEATMAP_STYLE, cmap:str=DEFAULT_HEATMAP_COLORMAP):
+
+        async with ctx.channel.typing():
+            try:
+                data_stream = await self.get_emoji_heatmap(style=style, cmap=cmap)
+            except ValueError as e:
+                await self.bot_send(ctx, f"Something happened that shouldn't have:\n{e}")
+                return
+            except discord.NotFound as e:
+                await self.bot_send(ctx, f"Something happened that REALLY shouldn't have:\n{e}")
+                return
+            
+        chart = discord.File(data_stream, filename="emoji_heatmap.png")
+        emb = discord.Embed()
+        emb.set_image(url="attachment://emoji_heatmap.png")
 
         await self.bot_send(ctx, embed=emb, file=chart)
 
@@ -278,6 +362,84 @@ class Analytics(commands.Cog, name="Analytics"):
         plt.close()
         data_stream.seek(0)
         return data_stream
+    
+    async def get_emoji_barchart(self, *, member:discord.Member=None, emoji:discord.Emoji=None, style:str=DEFAULT_BARCHART_STYLE, color:str=DEFAULT_BARCHART_COLOR) -> io.BytesIO:
+        plt.style.use('default')  # reset so things don't persist
+        plt.style.use(style)
+
+        fig, ax = plt.subplots()
+
+        if member is None:
+            emojidat = await self.get_emoji_usages(emoji=emoji)
+            ax.set_title(f"Emoji usage statistics for :{emoji.name}:")
+        elif emoji is None:
+            emojidat = await self.get_emoji_usages(member=member)
+            ax.set_title(f"Emoji usage statistics for {member.display_name}")
+        else:
+            raise ValueError("Only one of member or emoji can be specified for get_emoji_barchart")
+
+        p = ax.bar(emojidat.keys(), emojidat.values(), color=color)
+        ax.bar_label(p, padding=3)
+        ax.set_ylabel("Times used in server")
+        ax.set_ylim(0, max(emojidat.values())*1.1)
+
+        data_stream = io.BytesIO()
+        fig.savefig(data_stream, format="png", bbox_inches="tight")
+        plt.close()
+        data_stream.seek(0)
+        return data_stream
+    
+    async def get_emoji_heatmap(self, style:str=DEFAULT_HEATMAP_STYLE, cmap:str=DEFAULT_HEATMAP_COLORMAP) -> io.BytesIO:
+        plt.style.use('default')  # reset so things don't persist
+        plt.style.use(style)
+
+        emojidat = await self.get_emoji_usages()
+        usernames = list(emojidat.keys())
+        emojis = list(set(itertools.chain(*[emojidat[key].keys() for key in emojidat.keys()])))
+
+        usages = np.zeros((len(usernames), len(emojis)))
+        for i, usern in enumerate(usernames):
+            for j, emoji in enumerate(emojis):
+                if emoji in emojidat[usern].keys():
+                    usages[i,j] = emojidat[usern][emoji]
+
+        maxusages = np.max(usages)
+
+        fig, ax = plt.subplots()
+        im = ax.imshow(usages, cmap=cmap)
+
+        # Show all ticks and label them with the respective list entries
+        ax.set_xticks(range(len(emojis)), labels=emojis,
+                    rotation=45, ha="right", rotation_mode="anchor")
+        ax.set_yticks(range(len(usernames)), labels=usernames)
+
+        # Loop over data dimensions and create text annotations.
+        for i in range(len(emojis)):
+            for j in range(len(usernames)):
+                try:
+                    r, g, b, a = clrs.Colorizer(cmap=cmap).to_rgba(usages[j, i] / maxusages, norm=False)
+                    brightness = a*np.sqrt(0.299*r**2 + 0.587*g**2 + 0.114*b**2)
+                    useblack = brightness > 0.4
+                    text = ax.text(i, j, int(usages[j, i]),
+                                ha="center", va="center", color=str("k" if useblack else "w"))
+                except Exception as e:
+                    print(i, j)
+                    raise e
+
+        ax.set_title("Emoji usages")
+        ax.spines[:].set_visible(False)
+
+        ax.set_xticks(np.arange(len(emojis)+1)-.5, minor=True)
+        ax.set_yticks(np.arange(len(usernames)+1)-.5, minor=True)
+        ax.grid(which="minor", color="w", linestyle='-', linewidth=5)
+        ax.tick_params(which="minor", bottom=False, left=False)
+        fig.tight_layout()
+
+        data_stream = io.BytesIO()
+        fig.savefig(data_stream, format="png", bbox_inches="tight")
+        plt.close()
+        data_stream.seek(0)
+        return data_stream
 
     async def get_graph_data(self):
         mintime = 1729295514  # a little before epoch time of first msg in barrel cult server
@@ -289,15 +451,82 @@ class Analytics(commands.Cog, name="Analytics"):
         for authorid in analytics.keys():
             if authorid == "prev_update":
                 continue
-            hist, _ = np.histogram(analytics[authorid][0], bins=100, range=(mintime, nowtime))
-            ydata.append(np.cumsum(hist))
             try:
                 author = await self.barrelcultguild.fetch_member(int(authorid))
                 authors.append(author.display_name)
             except discord.NotFound:
-                authors.append(f"User {authorid}")
+                continue
+            hist, _ = np.histogram(analytics[authorid][0], bins=100, range=(mintime, nowtime))
+            ydata.append(np.cumsum(hist))
 
         return xdata[1:], np.array(ydata), authors
+    
+    async def get_emoji_usages(self, *, member:discord.Member=None, emoji:discord.Emoji=None) -> dict:
+        """Get data for emoji usages. If member is specified, gets their personal emoji usage data.
+        If emoji is specified, gets server data for that emoji. If neither are specified, gets all emoji usage
+        data."""
+
+        if member is None and emoji is None:
+            # All usage data
+            # Data structure: {
+            #   authorname: {
+            #       emojiid: timesused
+            #   }
+            # }
+            dat = {}
+            for memberid in analytics.keys():
+                if memberid == "prev_update":
+                    continue
+                try:
+                    member = await self.barrelcultguild.fetch_member(int(memberid))
+                except discord.NotFound:
+                    continue
+                if member.bot:
+                    continue
+                dat[member.display_name] = {}
+                for emojiid, timesused in analytics[memberid][1].items():
+                    try:
+                        emoji = await self.barrelcultguild.fetch_emoji(emojiid)
+                    except discord.NotFound:
+                        continue
+                    dat[member.display_name][emoji.name] = timesused
+            return dat
+        
+        elif emoji is None:
+            # Member usage data
+            # Data structure: {
+            #   emoji: timesused
+            # }
+            _ = await self.barrelcultguild.fetch_member(int(member.id))
+            dat = {}
+            for key, val in analytics[member.id][1].items():
+                try:
+                    emoji = await self.barrelcultguild.fetch_emoji(key)
+                except discord.NotFound:
+                    continue
+                dat[emoji.name] = val
+            return dat
+        
+        elif member is None:
+            # Emoji usage data
+            # Data structure: {
+            #   authorname: timesused
+            # }
+            dat = {}
+            for memberid in analytics.keys():
+                if memberid == "prev_update":
+                    continue
+                try:
+                    member = await self.barrelcultguild.fetch_member(int(memberid))
+                except discord.NotFound:
+                    continue
+                if emoji.id in analytics[memberid][1].keys():
+                    dat[member.display_name] = analytics[memberid][1][emoji.id]
+            return dat
+        
+        else:
+            raise ValueError("Either member or emoji must be specified for get_emoji_usages")
+
 
     def is_analytics_channel(self, channel):
         return isinstance(channel, discord.TextChannel) \

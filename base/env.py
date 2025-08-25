@@ -6,7 +6,7 @@ class BBGLOBALS:
     HIDE_FROM_HELP: dict = {}
     IS_IN_DEV_MODE: bool = False
     DATA_CHANNEL_ID: int = 735631640939986964
-    BARREL_REP_ROLE_ID: int = 733508144617226302  # ID for the Barrel Rep role
+    BARREL_REP_ROLE_ID: int = 1296985456105230412  # ID for the Barrel Rep role
 
     # easily configurable reminder and deadline times
     REMINDER_TIME: list[int] = [16, 30]  # 16:30 UTC

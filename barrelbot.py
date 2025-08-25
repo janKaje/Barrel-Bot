@@ -19,9 +19,14 @@ if env.BBGLOBALS.IS_IN_DEV_MODE:
 # Command prefix function
 def is_command(_: commands.Bot, message: discord.Message) -> str:
     # Allow to match with "bb " or "bb, "
-    _m = re.match("!?bb,? ", message.content)
-    if _m is not None:
-        return _m.group(0)
+    if env.BBGLOBALS.IS_IN_DEV_MODE:
+        _m = re.match("!?bb,? ", message.content)
+        if _m is not None:
+            return _m.group(0)
+    else:
+        _m = re.match("bb,? ", message.content)
+        if _m is not None:
+            return _m.group(0)
 
     # Allow to match with direct address
     m = re.match("(hey |hello |hi )?barrel ?bot[,!.]? +", message.content, flags=re.I)
@@ -160,9 +165,9 @@ async def on_ready():
     await load_cog("cogs.fun", "Fun")
     await load_cog("cogs.economy", "Economy")
     # await load_cog("cogs.research", "Research")
-    await load_cog("cogs.utilities", "Utilities")
     await load_cog("cogs.barrelnews", "Barrel News")
     await load_cog("cogs.analytics", "Analytics")
+    await load_cog("cogs.utilities", "Utilities")
     print("\033[0m")
 
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
@@ -252,9 +257,10 @@ async def saveeverything(ctx: commands.Context):
 
 @bot.command()
 @commands.is_owner()
-async def reloadcog(ctx: commands.Context, cogname: str):
+async def reloadcog(ctx: commands.Context, cogname: str, *, cogn2: str):
     try:
-        await bot.reload_extension("cogs." + cogname)
+        await bot.unload_extension("cogs." + cogname)
+        load_cog(cogname, cogn2)
         await bot_send(ctx, f"Reloaded {cogname}")
     except Exception as e:
         print(f"was not able to reload cog {cogname}:\n{e.Player.get_json_data()(None)}")

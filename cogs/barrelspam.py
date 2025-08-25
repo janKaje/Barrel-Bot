@@ -400,7 +400,7 @@ class BarrelSpam(commands.Cog, name="Barrel Spam"):
             except ValueError:
                 is_wrong = True
 
-            if is_wrong:
+            if is_wrong and env.BBGLOBALS.IS_IN_DEV_MODE == False:
                 print(f"Spam number off: should be {next_barrelspam}, was {last_spamint}")
                 await spamchannel.send(
                     f"I took a nap and when I came back, the spam number was off! You guys were supposed to be at "
