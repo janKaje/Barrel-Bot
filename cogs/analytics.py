@@ -19,13 +19,6 @@ sys.path.append(os.path.join(dir_path, "base"))
 
 import env
 
-# Consts
-BARREL_CULT_GUILD_ID = 1296983356541501440
-
-# Debug
-if env.BBGLOBALS.IS_IN_DEV_MODE:
-    BARREL_CULT_GUILD_ID = 733508144185081939
-
 try:
     with open(dir_path + "/data/analytics.pkl", "rb") as file:
         analytics: dict = pickle.load(file)
@@ -147,8 +140,13 @@ class Analytics(commands.Cog, name="Analytics"):
             try:
                 data_stream = await self.get_emoji_heatmap(style=style, cmap=cmap)
             except ValueError as e:
-                await self.bot_send(ctx, f"Something happened that shouldn't have:\n{e}")
-                return
+                if env.BBGLOBALS.IS_IN_DEV_MODE:
+                    await self.bot_send(ctx, f"Something happened that shouldn't have:\n{e.with_traceback(None)}")
+                    print(e.with_traceback(None))
+                    return
+                else:
+                    await self.bot_send(ctx, f"Something happened that shouldn't have:\n{e}")
+                    return
             except discord.NotFound as e:
                 await self.bot_send(ctx, f"Something happened that REALLY shouldn't have:\n{e}")
                 return
@@ -162,7 +160,7 @@ class Analytics(commands.Cog, name="Analytics"):
     async def cog_load(self):
         global analytics
         await self.bot.wait_until_ready()
-        self.barrelcultguild = await self.bot.fetch_guild(BARREL_CULT_GUILD_ID)
+        self.barrelcultguild = await self.bot.fetch_guild(env.BBGLOBALS.BARREL_CULT_GUILD_ID)
         self.memberinst = None
         async for member in self.barrelcultguild.fetch_members():
             if member.id == self.bot.user.id:
@@ -205,8 +203,34 @@ class Analytics(commands.Cog, name="Analytics"):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if self.is_analytics_channel(message.channel):
+        if self.is_analytics_channel(message.channel) and not message.author.bot:
             await self.parse_message(message)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        channel = await self.bot.fetch_channel(payload.channel_id)
+        user = await channel.guild.fetch_member(payload.user_id)
+        emoji = payload.emoji
+        if self.is_analytics_channel(channel) and not user.bot and emoji.is_custom_emoji():
+            if user.id not in analytics.keys():
+                return
+            if emoji.id not in analytics[user.id][1].keys():
+                analytics[user.id][1][emoji.id] = 1
+            else:
+                analytics[user.id][1][emoji.id] += 1
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
+        channel = await self.bot.fetch_channel(payload.channel_id)
+        user = await channel.guild.fetch_member(payload.user_id)
+        emoji = payload.emoji
+        if self.is_analytics_channel(channel) and not user.bot and emoji.is_custom_emoji():
+            if user.id not in analytics.keys():
+                return
+            if emoji.id not in analytics[user.id][1].keys():
+                pass
+            else:
+                analytics[user.id][1][emoji.id] -= 1
 
     @staticmethod
     async def parse_message(message: discord.Message) -> int:
@@ -232,6 +256,19 @@ class Analytics(commands.Cog, name="Analytics"):
                     analytics[authorid][1][emoji.id] = 1
                 else:
                     analytics[authorid][1][emoji.id] += 1
+
+        # go through reactions
+        for reaction in message.reactions:
+            if isinstance(reaction.emoji, discord.Emoji):
+                async for reactor in reaction.users():
+                    if reactor.bot:
+                        continue
+                    if reactor.id not in analytics.keys():
+                        analytics[reactor.id] = [[], {}]
+                    if reaction.emoji.id not in analytics[reactor.id][1].keys():
+                        analytics[reactor.id][1][reaction.emoji.id] = 1
+                    else:
+                        analytics[reactor.id][1][reaction.emoji.id] += 1
 
         # update data of when analytics was last done in each channel
         analytics["prev_update"][message.channel.id] = message.created_at
@@ -262,44 +299,13 @@ class Analytics(commands.Cog, name="Analytics"):
 
     @commands.command()
     @commands.is_owner()
-    async def redo_analytics(self, ctx: commands.Context):
-        return
+    async def delete_analytics_data(self, ctx: commands.Context):
 
-        # global analytics
-        # analytics = {"prev_update": {}}
-        # await self.bot.wait_until_ready()
-        # self.barrelcultguild = await self.bot.fetch_guild(BARREL_CULT_GUILD_ID)
-        # self.memberinst = None
-        # async for member in self.barrelcultguild.fetch_members():
-        #     if member.id == self.bot.user.id:
-        #         self.memberinst = member
-        # timer = time()
-        # msgcount = 0
-        # channelcount = 0
-        # print(f"{dt.datetime.now().isoformat(sep=' ', timespec='seconds')} INFO\t Starting analytics...")
-        # # go back through all messages not done
-        # if len(analytics.keys()) == 1:
-        #     print(f"First time analytics!")
-        # for channel in self.bot.get_all_channels():
-        #
-        #     #make sure is a valid channel for analytics
-        #     if not self.is_analytics_channel(channel):
-        #         continue
-        #
-        #     channelcount += 1
-        #     analytics["prev_update"][channel.id] = dt.datetime.fromtimestamp(1729295514) # earliest message
-        #
-        #     thischmsgcount = 0
-        #     # iterate through previous messages in channel
-        #     async for message in channel.history(after=analytics["prev_update"][channel.id], limit=None):
-        #         if message.author.bot:
-        #             continue
-        #         msgcount += await self.parse_message(message)
-        #         thischmsgcount += 1
-        #         if thischmsgcount % 100 == 0:
-        #             print(f"{dt.datetime.now().isoformat(sep=' ', timespec='seconds')} INFO\t {thischmsgcount} messages analyzed in {channel.name}")
-        #
-        # print(f"{dt.datetime.now().isoformat(sep=' ', timespec='seconds')} INFO\t Analytics complete! Analyzed {msgcount} messages in {channelcount} channels. Time elapsed: {round(time()-timer, 5)} seconds")
+        global analytics
+        analytics = {"prev_update": {}}
+        save_to_pickle(analytics, dir_path + "/data/analytics.pkl")
+
+        await self.bot_send(ctx, "Analytics deleted. Restart the bot to redo all analytics")
 
     @tasks.loop(hours=6)
     async def sixhourlyloop(self):
@@ -382,6 +388,9 @@ class Analytics(commands.Cog, name="Analytics"):
         ax.bar_label(p, padding=3)
         ax.set_ylabel("Times used in server")
         ax.set_ylim(0, max(emojidat.values())*1.1)
+        ax.set_xticks(range(len(emojidat.keys())), labels=emojidat.keys(),
+                      rotation=45, ha="right", rotation_mode="anchor")
+        fig.set_size_inches(1.25 + 0.35*len(emojidat), 3 + 0.1*len(emojidat))
 
         data_stream = io.BytesIO()
         fig.savefig(data_stream, format="png", bbox_inches="tight")
@@ -404,12 +413,14 @@ class Analytics(commands.Cog, name="Analytics"):
                     usages[i,j] = emojidat[usern][emoji]
 
         maxusages = np.max(usages)
+        norm = "symlog"
+        aspect = 0.9
 
         fig, ax = plt.subplots()
-        im = ax.imshow(usages, cmap=cmap)
+        im = ax.imshow(usages, cmap=cmap, norm=norm, aspect=aspect, extent=(-0.5, len(emojis)/aspect-0.5, len(usernames)-0.5, -0.5))
 
         # Show all ticks and label them with the respective list entries
-        ax.set_xticks(range(len(emojis)), labels=emojis,
+        ax.set_xticks(np.arange(len(emojis))/aspect, labels=emojis,
                     rotation=45, ha="right", rotation_mode="anchor")
         ax.set_yticks(range(len(usernames)), labels=usernames)
 
@@ -417,23 +428,26 @@ class Analytics(commands.Cog, name="Analytics"):
         for i in range(len(emojis)):
             for j in range(len(usernames)):
                 try:
-                    r, g, b, a = clrs.Colorizer(cmap=cmap).to_rgba(usages[j, i] / maxusages, norm=False)
+                    rgba = clrs.Colorizer(cmap=cmap, norm=norm).to_rgba([usages[j, i], maxusages, 0])
+                    r, g, b, a = rgba[0]
                     brightness = a*np.sqrt(0.299*r**2 + 0.587*g**2 + 0.114*b**2)
-                    useblack = brightness > 0.4
-                    text = ax.text(i, j, int(usages[j, i]),
-                                ha="center", va="center", color=str("k" if useblack else "w"))
+                    useblack = brightness > 0.5
+                    text = ax.text(i/aspect+0.075, j+0.05, int(usages[j, i]),
+                                ha="center", va="center", color=str("k" if useblack else "w"), fontsize=7)
                 except Exception as e:
-                    print(i, j)
+                    if env.BBGLOBALS.IS_IN_DEV_MODE:
+                        print(i, j)
+                        print(e.with_traceback(None))
                     raise e
 
         ax.set_title("Emoji usages")
         ax.spines[:].set_visible(False)
 
-        ax.set_xticks(np.arange(len(emojis)+1)-.5, minor=True)
+        ax.set_xticks(np.arange(len(emojis)+1)/aspect-.5, minor=True)
         ax.set_yticks(np.arange(len(usernames)+1)-.5, minor=True)
-        ax.grid(which="minor", color="w", linestyle='-', linewidth=5)
+        ax.grid(which="minor", color="w", linestyle='-', linewidth=3)
         ax.tick_params(which="minor", bottom=False, left=False)
-        fig.tight_layout()
+        fig.set_size_inches(1 + 0.3*len(emojis), 1 + 0.3*len(usernames))
 
         data_stream = io.BytesIO()
         fig.savefig(data_stream, format="png", bbox_inches="tight")
@@ -474,6 +488,7 @@ class Analytics(commands.Cog, name="Analytics"):
             #   }
             # }
             dat = {}
+            emojis = {}
             for memberid in analytics.keys():
                 if memberid == "prev_update":
                     continue
@@ -485,11 +500,19 @@ class Analytics(commands.Cog, name="Analytics"):
                     continue
                 dat[member.display_name] = {}
                 for emojiid, timesused in analytics[memberid][1].items():
+                    if emojiid in emojis.keys():
+                        dat[member.display_name][emojis[emojiid]] = timesused
+                        continue
                     try:
                         emoji = await self.barrelcultguild.fetch_emoji(emojiid)
                     except discord.NotFound:
                         continue
                     dat[member.display_name][emoji.name] = timesused
+                    emojis[emojiid] = emoji.name
+                if len(dat[member.display_name].keys()) == 0:
+                    dat.pop(member.display_name)
+            if len(dat.keys()) == 0:
+                raise ValueError("Wow, there is... zero emoji data. Maybe you need to redo analytics?")
             return dat
         
         elif emoji is None:
@@ -499,6 +522,8 @@ class Analytics(commands.Cog, name="Analytics"):
             # }
             _ = await self.barrelcultguild.fetch_member(int(member.id))
             dat = {}
+            if member.id not in analytics.keys():
+                raise ValueError("You don't have any emoji data - maybe start using them!")
             for key, val in analytics[member.id][1].items():
                 try:
                     emoji = await self.barrelcultguild.fetch_emoji(key)
@@ -522,6 +547,8 @@ class Analytics(commands.Cog, name="Analytics"):
                     continue
                 if emoji.id in analytics[memberid][1].keys():
                     dat[member.display_name] = analytics[memberid][1][emoji.id]
+            if len(dat.keys()) == 0:
+                raise ValueError("Wow, there is... zero data on this emoji. Literally nobody has used it yet")
             return dat
         
         else:
@@ -530,10 +557,9 @@ class Analytics(commands.Cog, name="Analytics"):
 
     def is_analytics_channel(self, channel):
         return isinstance(channel, discord.TextChannel) \
-            and channel.guild.id == BARREL_CULT_GUILD_ID \
+            and channel.guild.id == env.BBGLOBALS.BARREL_CULT_GUILD_ID \
             and channel.permissions_for(self.memberinst).read_message_history \
-            and channel.id != 1297596333976453291 \
-            and channel.id != 1364450362421022750
+            and channel.id not in env.BBGLOBALS.BB_CHANNEL_IDS
 
 
 def save_to_pickle(data, filename: str) -> None:

@@ -57,11 +57,7 @@ bot.remove_command('help')
 dir_path = os.path.dirname(os.path.abspath(__file__))
 defaultctx = None
 messagequeue = asyncio.Queue()
-bb_channel_ids = [
-    1297596333976453291,
-    1364450362421022750,
-    733508144617226302
-]
+
 
 # get token
 TOKEN = os.environ["TOKEN"]
@@ -183,7 +179,7 @@ async def on_ready():
 
 
 @bot.event
-async def on_command_error(ctx: commands.Context, error: Exception | commands.CheckFailure):
+async def on_command_error(ctx: commands.Context, error):
     """Called when a command produces an error."""
     if isinstance(error, commands.CommandNotFound):
         return
@@ -224,7 +220,7 @@ async def on_command_error(ctx: commands.Context, error: Exception | commands.Ch
         await bot_send(ctx, "Unknown user.")
     elif isinstance(error, NotInBbChannel):
         msg = await ctx.send(
-            f"This command can only be done in {' or '.join([bot.get_channel(i).mention for i in bb_channel_ids])}.")
+            f"This command can only be done in {' or '.join([bot.get_channel(i).mention for i in env.BBGLOBALS.BB_CHANNEL_IDS])}.")
         await ctx.message.delete(delay=5)
         await msg.delete(delay=5)
     else:
@@ -233,7 +229,11 @@ async def on_command_error(ctx: commands.Context, error: Exception | commands.Ch
 
 @bot.event
 async def on_error(event, *args, **kwargs):
-    await bot.get_user(474349369274007552).send(f'There was an error on {event}:\n{args}\n{kwargs}\n'
+    if env.BBGLOBALS.IS_IN_DEV_MODE:
+        tosend = bot.get_channel(733508144617226302)
+    else:
+        tosend = bot.get_user(474349369274007552)
+    await tosend.send(f'There was an error on {event}:\n{args}\n{kwargs}\n'
                                                 f'Error message:\n{sys.exc_info()}')
 
 
@@ -260,7 +260,7 @@ async def saveeverything(ctx: commands.Context):
 async def reloadcog(ctx: commands.Context, cogname: str, *, cogn2: str):
     try:
         await bot.unload_extension("cogs." + cogname)
-        load_cog(cogname, cogn2)
+        await load_cog(cogname, cogn2)
         await bot_send(ctx, f"Reloaded {cogname}")
     except Exception as e:
         print(f"was not able to reload cog {cogname}:\n{e.Player.get_json_data()(None)}")

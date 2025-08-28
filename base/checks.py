@@ -2,7 +2,6 @@ import re
 
 from discord.ext.commands import check, Context, UserConverter, MissingPermissions
 
-from barrelbot import bb_channel_ids
 from extra_exceptions import *
 from player import Player
 from env import BBGLOBALS
@@ -53,8 +52,8 @@ class Checks:
     @staticmethod
     def in_bb_channel():
         async def predicate(ctx: Context):
-            if ctx.channel.id not in bb_channel_ids:
-                raise NotInBbChannel()
+            if ctx.channel.id not in BBGLOBALS.BB_CHANNEL_IDS:
+                raise NotInBbChannel("This command can't be used here")
             return True
 
         return check(predicate)

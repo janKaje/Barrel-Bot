@@ -23,6 +23,14 @@ class BBGLOBALS:
     NEWS_KEY: str = "-1"
     NEWS_ENDPOINT: str = "-1"
 
+    BB_CHANNEL_IDS = [
+        1297596333976453291,
+        1364450362421022750,
+        735631714558148701
+    ]
+
+    BARREL_CULT_GUILD_ID = 1296983356541501440
+
     @classmethod
     def init_globals(cls):
         try:
@@ -55,6 +63,8 @@ class BBGLOBALS:
             # Modifying the mention role
             cls.BARREL_REP_MENTION: str = f"<@&{cls.BARREL_REP_ROLE_ID}>"
             cls.BARREL_SUB_MENTION: str = f"<@&{cls.BARREL_SUB_ROLE_ID}>"
+            
+            cls.BARREL_CULT_GUILD_ID = 733508144185081939
 
     @classmethod
     def hide_command_from_help(cls, command_name):
