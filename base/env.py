@@ -29,6 +29,8 @@ class BBGLOBALS:
         735631714558148701
     ]
 
+    CHATBOT_CHANNEL_ID = 1487874411942903829
+
     BARREL_CULT_GUILD_ID = 1296983356541501440
 
     @classmethod
@@ -64,6 +66,8 @@ class BBGLOBALS:
             cls.BARREL_REP_MENTION: str = f"<@&{cls.BARREL_REP_ROLE_ID}>"
             cls.BARREL_SUB_MENTION: str = f"<@&{cls.BARREL_SUB_ROLE_ID}>"
             
+            cls.CHATBOT_CHANNEL_ID = 1487504431829356554 # test server chatbot channel
+
             cls.BARREL_CULT_GUILD_ID = 733508144185081939
 
     @classmethod

@@ -307,6 +307,20 @@ class Analytics(commands.Cog, name="Analytics"):
 
         await self.bot_send(ctx, "Analytics deleted. Restart the bot to redo all analytics")
 
+    @commands.command()
+    @commands.is_owner()
+    async def message_history_to_csv(self, ctx: commands.Context):
+
+        csv = io.StringIO("datetime,name,content")
+        async for msg in ctx.channel.history(limit=None,oldest_first=True):
+            if msg.content != "":
+                csv.write(f'\n{msg.created_at.timestamp()},{msg.author.name},"{msg.content}"')
+        csv.seek(0)
+        with open(f"{ctx.channel.name}.csv", "w", encoding='utf-16') as file:
+            file.write(csv.getvalue())
+        
+        await self.bot_send(ctx, f"File saved to {ctx.channel.name}.csv")
+
     @tasks.loop(hours=6)
     async def sixhourlyloop(self):
         save_to_pickle(analytics, dir_path + "/data/analytics.pkl")

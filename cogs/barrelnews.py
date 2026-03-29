@@ -111,10 +111,10 @@ class BarrelNews(commands.Cog, name="Barrel News"):
 
         bnnmsg = get_bnnmsg(msgtype)
 
+        await self.news_channel.send(bnnmsg)
+
         # POST TO WEBSITE (message and username)
         post_to_website(bnnmsg, self.bot.user.name)
-
-        await self.news_channel.send(bnnmsg)
 
     async def cog_load(self):
 
@@ -429,7 +429,7 @@ def get_bnnmsg(msgtype):
             f'{boxstore}, then watch as their stock plummets into the ground, their lives fall apart, they lose every '
             f'loved one they ever had, and each and every one of them slowly descend into depression, madness, and '
             f'addiction.',
-            'They\'re doing what now?? Darn, looks like I need to read the news more often.',
+            f'They\'re doing what now?? Darn, looks like I need to read the news more often.',
             f'I\'m actually the president of the local {attraction} fan club. We do a parade through town every year, '
             f'with the whole community getting involved. And I, for one, am on board with this change. {place} needs '
             f'some fresh views every once in a while, y\'know? An 18-lane superhighway would go so perfectly alongside '
@@ -446,7 +446,7 @@ def get_bnnmsg(msgtype):
             f'REAL ALPHA ENERGY KNOW WE NEED TO ASSERT OUR DOMINANCE OVER NATURE AND EVERYTHING ELSE ALL THE TIME!!! '
             f'FOLLOW MY PODCAST ON INSTAGRAM!!!!!!!',
             f'HIIIIII OMG ARE YOU A REAL NEWSPERSON??????? YES I\'D LOVE TO TALK!!!!!! HIIII PEOPLE IN THE NEWS!!!!!!! '
-            f'(✧ω✧) Oh the thing about the {boxstore}?? I don\'t know.... I love nature so much!!!! ❀.(*´◡`*)❀ But I '
+            f'(✧ω✧) Oh the thing about the {boxstore}?? I don\'t know.... I love nature so much!!!! ❀.(*´◡\`*)❀ But I '
             f'also love shopping so much...... (❁ᴗ͈ˬᴗ͈) OMG I can\'t decide!!!!! (*≧ω≦)',
             f'.........are you talking to me? Go away. I don\'t care.'
         ])

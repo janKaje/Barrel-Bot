@@ -164,6 +164,7 @@ async def on_ready():
     await load_cog("cogs.barrelnews", "Barrel News")
     await load_cog("cogs.analytics", "Analytics")
     await load_cog("cogs.utilities", "Utilities")
+    await load_cog("cogs.chat", "Chatbot")
     print("\033[0m")
 
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))

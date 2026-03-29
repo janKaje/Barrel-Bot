@@ -5,7 +5,9 @@ test.py
 notes.txt
 /.vscode
 /.idea
+/training_data
 
 cogs/adventure.py
 cogs/pets.py
 base/pet.py
+data/chatbot.*
