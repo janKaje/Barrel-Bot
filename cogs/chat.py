@@ -23,6 +23,7 @@ sys.path.append(os.path.join(dir_path, "base"))
 from checks import Checks
 from extra_exceptions import *
 from env import BBGLOBALS
+from emojis import EmojiDefs
 
 
 async def setup(bot):
@@ -60,19 +61,6 @@ class chat(commands.Cog, name="Chatbot"):
         # print loaded
         print(f"cog: {self.qualified_name} loaded")
 
-    @commands.command()
-    @commands.is_owner()
-    async def message_history_to_csv(self, ctx: commands.Context):
-
-        csv = io.StringIO("datetime,name,content")
-        async for msg in ctx.channel.history(limit=None,oldest_first=True):
-            if msg.content != "":
-                csv.write(f'\n{msg.created_at.timestamp()},{msg.author.name},"{msg.content}"')
-        csv.seek(0)
-        with open(f"{ctx.channel.name}.csv", "w", encoding='utf-16') as file:
-            file.write(csv.getvalue())
-        
-        await self.bot_send(ctx, f"File saved to {ctx.channel.name}.csv")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -115,7 +103,7 @@ class chat(commands.Cog, name="Chatbot"):
             if response.text == '':
                 return
 
-            responsetxt = f"{response.text}\n-# ✅ to tell the bot good job, 🗑️ to remove"
+            responsetxt = f"{self.refactor_output(response.text)}\n-# ✅ to tell the bot good job, 🗑️ to remove"
 
             ctx = await self.bot.get_context(message)
 
@@ -151,6 +139,18 @@ class chat(commands.Cog, name="Chatbot"):
         
         return message
         
+    def refactor_output(self, message:str) -> str:
+
+        # emojis
+        for m in re.finditer(r":\w+:", message):
+            for emoji in EmojiDefs.ALL_EMOJIS:
+                if m.group(0) in emoji:
+                    message = message.replace(m.group(0), emoji)
+
+        # newlines
+        message = message.replace("\\n", "\n")
+        
+        return message
 
     def learn_response(self, message:discord.Message, prevmsg:discord.Message):
 

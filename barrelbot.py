@@ -6,8 +6,11 @@ import asyncio
 from base import env
 import discord
 from discord.ext import commands, tasks
-from base.extra_exceptions import NotAbleTo, PlayerNotFound, NotInBbChannel
 from base.messagetosend import UnsentMessage
+
+dir_path = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(dir_path, "base"))
+from extra_exceptions import NotAbleTo, PlayerNotFound, NotInBbChannel
 
 env.BBGLOBALS.init_globals()
 
@@ -162,7 +165,7 @@ async def on_ready():
     await load_cog("cogs.economy", "Economy")
     # await load_cog("cogs.research", "Research")
     await load_cog("cogs.barrelnews", "Barrel News")
-    await load_cog("cogs.analytics", "Analytics")
+    # await load_cog("cogs.analytics", "Analytics")
     await load_cog("cogs.utilities", "Utilities")
     await load_cog("cogs.chat", "Chatbot")
     print("\033[0m")
@@ -220,11 +223,19 @@ async def on_command_error(ctx: commands.Context, error):
     elif isinstance(error, PlayerNotFound):
         await bot_send(ctx, "Unknown user.")
     elif isinstance(error, NotInBbChannel):
+        bb_channels = []
+        for i in env.BBGLOBALS.BB_CHANNEL_IDS:
+            ch = bot.get_channel(i)
+            if ch is not None:
+                bb_channels.append(ch)
+        print(bb_channels)
         msg = await ctx.send(
-            f"This command can only be done in {' or '.join([bot.get_channel(i).mention for i in env.BBGLOBALS.BB_CHANNEL_IDS])}.")
+            f"This command can only be done in {' or '.join([i.mention for i in bb_channels])}.")
         await ctx.message.delete(delay=5)
         await msg.delete(delay=5)
     else:
+        print(type(error), NotInBbChannel)
+        print(NotInBbChannel == type(error))
         await bot_send(ctx, f'An unknown error occurred:\n{type(error)}\n{error.with_traceback(None)}')
 
 
