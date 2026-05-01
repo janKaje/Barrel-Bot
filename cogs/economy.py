@@ -5,7 +5,10 @@ import random as rand
 import re
 import asyncio
 import sys
+import time
 from pickle import dumps as dpx
+from PIL import Image, ImageDraw
+from io import BytesIO
 
 import discord
 from discord.ext import commands, tasks
@@ -19,8 +22,10 @@ from checks import Checks
 from extra_exceptions import *
 from item import Item
 from player import Player
-from barrelbot import time_str
+from barrelbot import is_command, time_str
 
+env.BBGLOBALS.init_globals()
+ED.init_emojis()
 
 async def setup(bot):
     await bot.add_cog(Economy(bot))
@@ -53,6 +58,8 @@ rouletteslots = {'00': 'green', '0': 'green', '1': 'red', '2': 'black',
                  '28': 'black', '29': 'red', '30': 'black', '31': 'red',
                  '32': 'black', '33': 'red', '34': 'black', '35': 'red',
                  '36': 'black'}
+
+horse_races = {} # this can be semi-persistent horse racing thing
 
 cooldwn = commands.CooldownMapping.from_cooldown(3.0, 86400.0, commands.BucketType.user)
 
@@ -95,12 +102,16 @@ async def remove_trade(offeruserid: int | str, recipuserid: int | str):
     trades.pop(idx)
 
 
+async def temp_bot_send(ctx: commands.Context, content: str = None, embed: discord.Embed = None, file: discord.File = None):
+    pass
+
+
 class Economy(commands.Cog, name="Economy"):
     """Economy module"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.bot_send = None
+        self.bot_send = temp_bot_send
 
     def set_bot_send(self, bot_send):
         self.bot_send = bot_send
@@ -924,6 +935,56 @@ class Economy(commands.Cog, name="Economy"):
             await self.bot_send(ctx,
                                 f"You collected {time_str(int(tpassed.total_seconds()))} of rent from your "
                                 f"{player.amount_in_inventory(6)} houses. You gained {nocoins}{ED.BARREL_COIN}")
+            
+    @commands.command()
+    @Checks.in_bb_channel()
+    @commands.cooldown(1, 20, commands.BucketType.user)
+    async def horserace(self, ctx: commands.Context):
+        """Bet on a horse race!"""
+        # ok what this is gonna do
+        # pick 6-12 emojis to do a race
+        # ask if they want to bet for first or to place, and how much to bet
+        # calculate earnings based on luck + some random noise
+        # make up random speed for each and influence throughout with random noise
+        # display the horse race by stringing a series of images into a GIF
+        # give out earnings
+
+        # pick horses
+        no_horses = min(rand.randint(6, 12), len(ED.ALL_EMOJIS))
+        emojis_copy = ED.ALL_EMOJIS.copy()
+        horses = []
+        for _ in range(no_horses):
+            horse = rand.choice(emojis_copy)
+            horses.append(horse)
+            emojis_copy.remove(horse)
+        
+        context_key = f"{ctx.author.id}_{ctx.channel.id}"
+        
+        global horse_races
+
+        if context_key in horse_races.keys():
+            await self.bot_send(ctx, "You already have an ongoing horse race!")
+            return
+        
+        embed = discord.Embed(color=discord.Colour.og_blurple(), title="Here are your contestants!")
+        embed.description = ''.join(horses)
+        # embed.add_field(name='What kind of bet will you make?', 
+        #                 value='Option 1: "straight" - your pick wins first place.\n' \
+        #                 'Option 2: "place" - your pick wins either second or first place.\n' \
+        #                 'Option 3: "show" - your pick is in the top three.')
+        # embed.footer='Please respond with one of the three options.'
+        embed.set_footer(text='Please reply with the contestant you\'d like to bet on.')
+
+        await self.bot_send(ctx, embed=embed)
+        
+        horse_races[context_key] = {
+            "prev_interaction_timestamp": time.time(),
+            "horses": horses,
+            "horse": None,
+            "type": None,
+            "amount": None,
+            "strikes": 0
+        }
 
     @commands.command(pass_context=True)
     @commands.is_owner()
@@ -1064,17 +1125,263 @@ class Economy(commands.Cog, name="Economy"):
         player.clear_inventory()
         await self.bot_send(ctx, "Done!")
 
+    @commands.command(pass_context=True)
+    @commands.is_owner()
+    async def test_horserace(self, ctx: commands.Context, no_horses: int = None):
+        if no_horses is None:
+            no_horses = rand.randint(6, 12)
+        emojis_copy = ED.ALL_EMOJIS.copy()
+        horses = []
+        for _ in range(no_horses):
+            horse = rand.choice(emojis_copy)
+            horses.append(horse)
+            emojis_copy.remove(horse)
+
+        winners, image_stream = await self.simulate_horserace(horses)
+
+        image = discord.File(image_stream, filename="horse_race.gif")
+        emb = discord.Embed(color=discord.Colour.og_blurple())
+        emb.set_image(url="attachment://horse_race.gif")
+
+        await self.bot_send(ctx, embed=emb, file=image)
+        await self.bot_send(ctx, f"{winners}")
+        
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        # as of right now, only for horse races
+        # eliminate other possibilities
+        if message.author.bot:
+            return
+        if message.content.startswith(is_command(self.bot, message)): # command
+            return
+        context_key = f"{message.author.id}_{message.channel.id}"
+        global horse_races
+        if context_key not in horse_races.keys():
+            return
+        
+        
+        current_race = horse_races[context_key]
+        if current_race["horse"] is None:
+            # needs to be contestant
+            msg = message.content.strip()
+            if msg not in current_race['horses']:
+                await self.invalid_hr_msg(context_key, "Not a valid horse to choose from. Try again", message.channel)
+            else:
+                horse_races[context_key]["strikes"] = 0
+                horse_races[context_key]["prev_interaction_timestamp"] = time.time()
+                horse_races[context_key]["horse"] = current_race['horses'].index(msg)
+                await self.bot_send(message.channel, f'Your horse has been chosen. Please choose your bet type.\n' \
+                                    '  Option 1: "straight" - your pick wins first place.\n' \
+                                    '  Option 2: "place" - your pick wins either second or first place.\n' \
+                                    '  Option 3: "show" - your pick is in the top three.')
+            return
+
+        elif current_race["type"] is None:
+            # this message must be the type of bet
+            msg = message.content.strip().lower()
+
+            if msg not in ['straight', 'place', 'show']:
+                # invalid input
+                await self.invalid_hr_msg(context_key, 
+                    'Not a valid bet type! Please reply with either "straight", "place", or "show".', message.channel)
+            else:
+                horse_races[context_key]["strikes"] = 0
+                horse_races[context_key]["prev_interaction_timestamp"] = time.time()
+                horse_races[context_key]["type"] = msg
+                await self.bot_send(message.channel, f"Finally, choose the amount you would like to bet.")
+            return
+        
+        elif current_race['amount'] is None:
+            # this message must be the bet amount
+            msg = message.content.strip()
+            # convert to integer
+            try:
+                amt = int(msg)
+            except TypeError:
+                await self.invalid_hr_msg(context_key, 
+                    "Could not convert your response to an integer. Try again.", message.channel)
+                return
+            
+            if amt <= 0:
+                await self.invalid_hr_msg(context_key, 
+                    "Nice try. Positive numbers only.", message.channel)
+                return
+
+            player = Player(message.author)
+            bal = player.get_whole_balance()
+            if amt > bal:
+                await self.invalid_hr_msg(context_key, 
+                    "You don't have that much to bet. Try again.", message.channel)
+                return
+
+            horse_races[context_key]["strikes"] = 0
+            horse_races[context_key]["prev_interaction_timestamp"] = time.time()
+            horse_races[context_key]["amount"] = amt
+
+            await self.bot_send(message.channel, "Thank you for your business! Here's your horse race.")
+            
+            winners, image_stream = await self.simulate_horserace(horse_races[context_key]['horses'])
+
+            image = discord.File(image_stream, filename="horse_race.gif")
+            emb = discord.Embed(color=discord.Colour.og_blurple())
+            emb.set_image(url="attachment://horse_race.gif")
+
+            await self.bot_send(message.channel, embed=emb, file=image)
+
+            # calculate winnings (if any)
+            winnings = 0
+            n_horses = len(current_race['horses'])
+
+            if current_race['type'] == 'straight' and winners[0] == current_race['horse']:
+                winnings = round((n_horses-1)*current_race['amount']*rand.gauss(1, 0.2))
+
+            elif current_race['type'] == 'place' and current_race['horse'] in winners[:2]:
+                winnings = round((n_horses/2-1)*current_race['amount']*rand.gauss(1, 0.2))
+
+            elif current_race['type'] == 'show' and current_race['horse'] in winners:
+                winnings = round((n_horses/3-1)*current_race['amount']*rand.gauss(1, 0.2))
+
+            await asyncio.sleep(5) # wait for the race to play
+
+            if winnings > 0:
+                player.give_coins(winnings)
+                await self.bot_send(message.channel, f"Congrats! You won {winnings}{ED.BARREL_COIN}!")
+            else:
+                player.take_coins(current_race['amount'], include_bank=True)
+                await self.bot_send(message.channel, "Better luck next time!")
+
+            del horse_races[context_key]
+            
+
+    async def simulate_horserace(self, horses) -> tuple[list[int], BytesIO]:
+        # this is just going to be simulation, no money stuff
+
+        # collect emojis and files
+        emoji_ids = [re.match(r"<a?:.*:(\d+)>", i).group(1) for i in horses]
+        emojis = [self.bot.get_emoji(int(i)) for i in emoji_ids]
+        emojis_raw = [await e.read() for e in emojis]
+
+        # get horses ready
+        n_horses = len(horses)
+        accel_stats = [max(rand.gauss(5, 1), 0.1) for _ in range(n_horses)]
+        drag_stats = [max(rand.gauss(0.1, 0.02), 0.001) for _ in range(n_horses)]
+        positions = [[0] for _ in range(n_horses)]
+        velocities = [[0] for _ in range(n_horses)]
+
+        # do simulation
+        maxiter = 1000
+        count = 0
+        order = []
+
+        while min([positions[i][-1] for i in range(n_horses)]) < 100 and count < maxiter:
+            count += 1
+            for i in range(n_horses):
+                try:
+                    velocities[i].append(velocities[i][-1] + accel_stats[i]/max(2, velocities[i][-1]) - drag_stats[i] * max(0, velocities[i][-1])**2)
+                    if positions[i][-1] >= 100:
+                        velocities[i][-1] = 0
+                        if i not in order:
+                            order.append(i)
+                except:
+                    print(velocities[i][-1], accel_stats[i], drag_stats[i])
+                    raise
+                positions[i].append(positions[i][-1] + velocities[i][-1])
+
+        # draw image
+        # open emojis and resize
+        horses = [Image.open(BytesIO(e)).resize((32, 32)) for e in emojis_raw]
+
+        # paint the background
+        bgrimgsize = (
+            1024,
+            16+32*n_horses
+        )
+        bgrimg = Image.new("RGBA", bgrimgsize, (30,33,36,255))
+
+        finishline_xlevel = 900+32+8 # 900 px away from starting point
+
+        draw = ImageDraw.Draw(bgrimg)
+
+        y_ = 8+32
+        for _ in range(n_horses-1):
+            draw.line([(0, y_), (finishline_xlevel, y_)], fill=(200, 200, 200, 255), width=1)
+            y_ += 32
+
+        draw.line([(finishline_xlevel, 0), (finishline_xlevel, 1024)], fill=(200, 200, 200, 255), width=5)
+
+        # outline
+        draw.line([(0, 0), (bgrimgsize[0], 0)], fill=(255, 255, 255, 255), width=1)
+        draw.line([(bgrimgsize[0], 0), (bgrimgsize[0], bgrimgsize[1])], fill=(255, 255, 255, 255), width=3)
+        draw.line([(bgrimgsize[0], bgrimgsize[1]), (0, bgrimgsize[1])], fill=(255, 255, 255, 255), width=2)
+        draw.line([(0, bgrimgsize[1]), (0, 0)], fill=(255, 255, 255, 255), width=2)
+
+        def image_positions(pos):
+
+            offset = [8, 8]
+            image = bgrimg.copy()
+
+            for i in range(n_horses):
+                copy = horses[i].copy()
+                offset = [8 + round(pos[i]*9), 8 + i*32]
+                image.paste(copy, box=offset, mask=copy)
+
+            return image
+
+        pos = list(map(list, zip(*positions)))
+        winners = order[:3]
+
+        images = [image_positions(p) for p in pos]
+        n_imgs = len(images)
+        img1 = images.pop(0)
+        durations = [150]*n_imgs
+        durations[0] = 500; durations[-1] = 1000
+
+        # save to byte stream
+        image_stream = BytesIO()
+        img1.save(image_stream, format="GIF", append_images=images, save_all=True, duration=durations, loop=0)
+        image_stream.seek(0)
+
+        return winners, image_stream
+        
+    async def invalid_hr_msg(self, context_key, reply_msg, ctx):
+
+        global horse_races
+        
+        # invalid input
+        if horse_races[context_key]['strikes'] == 2:
+            await self.bot_send(ctx, reply_msg+"\nToo many invalid inputs. Cancelling your horse race. Try again later")
+            del horse_races[context_key]
+        else:
+            await self.bot_send(ctx, reply_msg)
+            horse_races[context_key]["strikes"] += 1
+            horse_races[context_key]["prev_interaction_timestamp"] = time.time()
+
     async def cog_load(self):
 
         # print loaded
         print(f"cog: {self.qualified_name} loaded")
 
-        # start hourly loop
+        # start tasks
         self.hourlyloop.start()
+        self.clear_inactive_horseraces.start()
 
     @tasks.loop(hours=6)
     async def hourlyloop(self):
         await savealldata()
+
+    @tasks.loop(minutes=5)
+    async def clear_inactive_horseraces(self):
+        global horse_races
+        now = time.time()
+        hr_copy = horse_races.copy()
+        for k, v in hr_copy.items():
+            if now - v['prev_interaction_timestamp'] > 300: # 5 minutes since interact
+                ch_id = int(re.match("\d+_(\d+)", k).group(1))
+                channel = await self.bot.fetch_channel(ch_id)
+                await self.bot_send(channel, "It's been more than 5 minutes since you interacted with this horse race," \
+                "so I'll cancel it.")
+                del horse_races[k]
 
     async def offer_trade(self, offeruserid: int | str, recipuserid: int | str, itemoffer: int | str,
                           itemrecip: int | str):

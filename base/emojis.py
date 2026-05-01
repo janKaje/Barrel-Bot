@@ -57,5 +57,9 @@ class EmojiDefs:
 
             cls.ALL_EMOJIS: list[str] = [
                 "<:TESTbarrel:1303842935715921941>",
-                "<:rombic_dod:1266426479303196793>"
+                "<:rombic_dod:1266426479303196793>",
+                "<:deepfriedbarrel:1499672037717966848>",
+                "<:invertedbarrel:1499672169498808431>",
+                "<:rightbarrel:1499672209541562520>",
+                "<:sleepybarrel:1499672119917678712>"
             ]
