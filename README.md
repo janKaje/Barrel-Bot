@@ -31,7 +31,7 @@ Bot says hi!
 - Daily <img src="./github/img/barrel.png" alt="Barrel" height="15px"> news
 - Analytics about spam scores, palindromes, economy etc
 
-# The lore™
+# The Lore™
 BarrelBot was originaly created for the official Barrel cult server, with the aim to provide strict rules to the <img src="./github/img/barrel.png" alt="Barrel" height="15px"> spam taking place there and add more fun activities to play with, the latest feature being the economy system.
 The barrel cult server was created based on the original Barrel Cult over on Incandescent Games's Planetsmith discord server and it's community.
 A cult was created revolving around the <img src="./github/img/barrel.png" alt="Barrel" height="15px"> that was the first mesh introduced into the game (and added as an emoji on the discord). Multiple members have taken part in spamming the <img src="./github/img/barrel.png" alt="Barrel" height="15px"> on this server (36k+ <img src="./github/img/barrel.png" alt="Barrel" height="15px"> counted from 0), which led to the creation of a place where we could manage better activities around the <img src="./github/img/barrel.png" alt="Barrel" height="15px"> so we wouldn't disturb the PS discord too much.

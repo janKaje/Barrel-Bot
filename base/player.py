@@ -31,12 +31,12 @@ DAILY_RENT = 500  # coins/house/day
 # Rent collection time extension (up to 7 days, 6 upgrades)
 #  \__> Rent multiplier (up to 2x more, 5 upgrades) (from rc no 4)
 
-research = {
+RESEARCH_CONFIG = {
     'bl': {
         'name': 'Base luck increase',
-        'costs': [5000, 10000, 15000, 20000, 30000],
-        'time': [12, 24, 36, 48, 72],
-        'prereqs': [{}, {'bl': 1}, {'bl': 2}, {'bl': 3}, {'bl': 4}]
+        'costs': [5000, 10000, 15000, 20000, 30000], # coins
+        'time': [12, 24, 36, 48, 72], # hours spent upgrading
+        'prereqs': [{}, {'bl': 1}, {'bl': 2}, {'bl': 3}, {'bl': 4}] # prerequisites for each level
     },
     'fl': {
         'name': 'Fishing luck increase',
@@ -122,6 +122,8 @@ class Player:
                     "rm": 0,  # rent multiplier
                     "in progress": [None, None]  # should be in the form [techid, timestamp it finishes]
                 }
+            if "nhouses" not in _playerdata[key].keys():
+                _playerdata[key]["nhouses"] = -1
 
     def __init__(self, user: discord.User):
 
@@ -129,9 +131,12 @@ class Player:
         self.id = user.id
         self.idstr = str(user.id)
         if self.idstr not in Player._playerdata.keys():
-            Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": [], "bank": 0, "lcr": 0, "tech": []}
+            Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": [], "bank": 0, "lcr": 0, "tech": [], "nhouses": -1}
+        if Player._playerdata[self.idstr]["nhouses"] == -1:
+            Player._playerdata[self.idstr]["nhouses"] = self.amount_in_inventory(6, include_dc=True)
 
     def give_coins(self, nocoins: int):
+        """gives or takes coins from the player"""
         if (Player._playerdata[self.idstr]["bal"] + nocoins) < 0:
             raise NotEnoughCoins("Not enough coins")
         Player._playerdata[self.idstr]["bal"] += nocoins
@@ -139,19 +144,31 @@ class Player:
 
     def get_balance(self):
         return Player._playerdata[self.idstr]["bal"]
+    
+    @property
+    def nhouses(self):
+        """number of houses that the player has bought"""
+        return Player._playerdata[self.idstr]["nhouses"]
+    
+    def increment_nhouses(self):
+        """increases the number of houses that the player has bought by 1"""
+        Player._playerdata[self.idstr]["nhouses"] += 1
 
     def has_in_inventory(self, item: Item | int) -> bool:
+        """if the player has the item in their inventory"""
         if isinstance(item, int):
             item = Item(item_id=item)
         return item in Player._playerdata[self.idstr]["inv"]
 
     def add_to_inventory(self, item: Item | int):
+        """adds item to player's inventory"""
         if isinstance(item, int):
             item = Item(item_id=item)
         Player._playerdata[self.idstr]["inv"].append(item)
         return
 
     def remove_from_inventory(self, item: Item | int):
+        """removes item from player's inventory"""
         if isinstance(item, int):
             item = Item(item_id=item)
         if item not in Player._playerdata[self.idstr]["inv"]:
@@ -160,6 +177,7 @@ class Player:
         return
 
     def amount_in_inventory(self, item: Item | int, include_dc: bool = False) -> int:
+        """return the amount of item in player's inventory. include_dc can be used to include display case"""
         if isinstance(item, int):
             item = Item(item_id=item)
         if include_dc:
@@ -167,12 +185,15 @@ class Player:
         return Player._playerdata[self.idstr]["inv"].count(item)
 
     def recent_in_inventory(self) -> Item:
+        """recently added item to inventory"""
         return Player._playerdata[self.idstr]["inv"][-1]
 
     def get_inventory(self) -> list[Item]:
+        """returns player's entire inventory"""
         return Player._playerdata[self.idstr]["inv"]
 
     def move_to_display(self, item: Item | int):
+        """moves item from inventory to display case"""
         if isinstance(item, int):
             item = Item(item_id=item)
         if item not in Player._playerdata[self.idstr]["inv"]:
@@ -182,6 +203,7 @@ class Player:
         return
 
     def move_from_display(self, item: Item | int):
+        """moves item from display case to inventory"""
         if isinstance(item, int):
             item = Item(item_id=item)
         if item not in Player._playerdata[self.idstr]["dc"]:
@@ -191,12 +213,15 @@ class Player:
         return
 
     def recent_in_display(self) -> Item:
+        """recently added item to display case"""
         return Player._playerdata[self.idstr]["dc"][-1]
 
     def get_display(self) -> list[Item]:
+        """returns player's entire display case"""
         return Player._playerdata[self.idstr]["dc"]
 
     def get_item_from_invno(self, invno: int) -> Item:
+        """gets item id of item in inventory location"""
         invitems = list(set(Player._playerdata[self.idstr]["inv"]))
         invitems.sort(key=lambda i: i.id)
         try:
@@ -206,6 +231,7 @@ class Player:
         return itemid
 
     def get_item_from_dcno(self, dcno: int) -> Item:
+        """gets item id of item in display case location"""
         dcitems = list(set(Player._playerdata[self.idstr]["dc"]))
         dcitems.sort(key=lambda i: i.id)
         try:
@@ -215,10 +241,12 @@ class Player:
         return itemid
 
     def clear_inventory(self):
+        """clears a player's inventory"""
         Player._playerdata[self.idstr]["inv"] = []
 
     @staticmethod
     def get_json_data():
+        """format all player data into json acceptable format"""
         jsond = {key: {"bal": 0, "inv": [], "dc": [], "bank": 0, "lcr": 0, "tech": {}} for key in
                  Player._playerdata.keys()}
         for key, val in Player._playerdata.items():
@@ -230,24 +258,29 @@ class Player:
         return jsond
 
     def deposit(self, nocoins):
+        """move coins from bal to bank"""
         self.give_coins(-nocoins)
         Player._playerdata[self.idstr]["bank"] += nocoins
 
     def withdraw(self, nocoins):
+        """move coins from bank to bal"""
         if nocoins > Player._playerdata[self.idstr]["bank"]:
             raise NotEnoughCoins
         self.give_coins(nocoins)
         Player._playerdata[self.idstr]["bank"] -= nocoins
 
     def get_bank_balance(self):
+        """get player's bank balance"""
         return Player._playerdata[self.idstr]["bank"]
 
     @staticmethod
     def get_all_bank_data():
+        """returns all bank data"""
         return [[key, val["bank"]] for key, val in Player._playerdata.items()]
 
     @staticmethod
     def reduce_bank_holdings_by_percent(percent: float):
+        """reduces all bank holdings by a certain percent, then returns the money taken. for bankrob"""
         reductions = []
         for key in Player._playerdata.keys():
             amount_reduced = int(round(percent * Player._playerdata[key]["bank"]))
@@ -256,9 +289,11 @@ class Player:
         return reductions
 
     def get_whole_balance(self):
+        """gets player's whole balance, bank included"""
         return Player._playerdata[self.idstr]["bank"] + Player._playerdata[self.idstr]["bal"]
 
     def take_coins(self, nocoins: int, include_bank=False):
+        """take coins from the player"""
         bank = self.get_bank_balance()
         bal = self.get_balance()
         if nocoins > bank + bal or (nocoins > bal and include_bank is False):
@@ -272,14 +307,15 @@ class Player:
         return nocoins, 0
 
     def get_shop_price(self, item: Item | int):
+        """get shop price of item"""
         if isinstance(item, int):
             item = Item(item)
         if item.id == 6:
-            nohouses = self.amount_in_inventory(item, include_dc=True)
-            return int(round(item.get_shop_price() * (1 + 0.2 * nohouses ** 2)))
+            return int(round(item.get_shop_price() * (1 + 0.2 * self.nhouses ** 2)))
         return item.get_shop_price()
 
     def collect_rent(self):
+        """collect player's rent"""
         nohouses = self.amount_in_inventory(6)
         lcr = dt.fromtimestamp(Player._playerdata[self.idstr]["lcr"], tz=tz.utc)
         now = dt.now(tz=tz.utc)
@@ -299,16 +335,19 @@ class Player:
         return rent_to_collect, min(td(days=1 + rc), new_lcr - lcr)
 
     def reset_lcr(self):
+        """reset player's last collected rent timestamp"""
         Player._playerdata[self.idstr]["lcr"] = dt.now(tz=tz.utc).timestamp()
 
     @staticmethod
     def get_all_players():
+        """get list of players"""
         players = []
         for key in Player._playerdata.keys():
             players.append(Player(discord.Object(id=int(key))))
         return players
 
     def get_fishing_luck(self):
+        """get player's fishing luck (0-999)"""
         raw = random.random()
         bl = Player._playerdata[self.idstr]["tech"]["bl"]
         fl = Player._playerdata[self.idstr]["tech"]["fl"]
@@ -316,6 +355,7 @@ class Player:
         return floor(adj * 1000)
 
     def get_working_luck(self):
+        """get player's working luck (0-99)"""
         raw = random.random()
         bl = Player._playerdata[self.idstr]["tech"]["bl"]
         wl = Player._playerdata[self.idstr]["tech"]["wl"]
@@ -323,10 +363,12 @@ class Player:
         return floor(adj * 100)
 
     def get_work_multiplier(self):
+        """get player's work earnings multiplier"""
         we = Player._playerdata[self.idstr]["tech"]["we"]
         return min(work_multiplier(we), 10)
 
     def get_robbing_luck(self):
+        """get player's working luck (0-99)"""
         raw = random.random()
         bl = Player._playerdata[self.idstr]["tech"]["bl"]
         rl = Player._playerdata[self.idstr]["tech"]["rl"]
@@ -334,6 +376,7 @@ class Player:
         return floor(adj * 100)
 
     def get_shopitem_saleprice(self, item: Item | int):
+        """get sale price of shop item"""
         if isinstance(item, int):
             item = Item(item)
         if item.id == 6:
@@ -346,6 +389,7 @@ class Player:
         return saleprice
 
     def get_fish_saleprice(self, fish: Item | int):
+        """get fish sale price"""
         if isinstance(fish, int):
             fish = Item(fish)
         fpi = Player._playerdata[self.idstr]["tech"]["fpi"]
@@ -353,19 +397,22 @@ class Player:
         return min(base_fishprice * fish_saleprice_multiplier(fpi), base_fishprice * 10)
 
     def get_fishing_rod_limit(self):
+        """get player's fishing rod limit"""
         frl = Player._playerdata[self.idstr]["tech"]["frl"]
         return min(3 + frl, 10)
 
     def get_research_queue(self):
+        """get player's research queuea"""
         return Player._playerdata[self.idstr]["tech"]["in progress"]
 
     def get_current_level(self, techid: str):
+        """get player's current level of given tech"""
         return Player._playerdata[self.idstr]["tech"][techid]
 
     def get_research_data(self):
+        """get player's research data"""
         return Player._playerdata[self.idstr]["tech"]
 
-    @staticmethod
     def remove_all_data(self):
         """Removes all data for a player."""
 
@@ -373,13 +420,14 @@ class Player:
         Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": [], "bank": 0, "lcr": 0, "tech": {}}
 
     def begin_research(self, techid: str):
+        """begin given research"""
 
         queue = self.get_research_queue()
-        if queue[1] is None:
+        if queue[1] is not None:
             raise ResearchQueueFull()
 
         currentlevel = self.get_current_level(techid)
-        tech = research[techid]
+        tech = RESEARCH_CONFIG[techid]
         for prereq, i in tech["prereqs"][currentlevel].items():
             if self.get_current_level(prereq) < i:
                 raise MissingPrerequisites()
@@ -400,11 +448,12 @@ class Player:
             inprogress = Player._playerdata[playerkey]["tech"]["in progress"]
             if inprogress[1] is not None:
                 if now >= inprogress[1]:
+                    # if a queue is done, add level and empty queue
                     Player._playerdata[playerkey]["tech"][inprogress[0]] += 1
                     Player._playerdata[playerkey]["tech"]["in progress"] = [None, None]
 
     def force_end_queue(self):
-
+        """forcibly finish current research"""
         queue = self.get_research_queue()
         if queue[1] is None:
             return
@@ -426,7 +475,7 @@ def fish_saleprice_multiplier(fpi):
 
 
 def main():
-    print(research)
+    print(RESEARCH_CONFIG)
 
 
 if __name__ == "__main__":

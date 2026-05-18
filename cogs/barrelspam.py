@@ -310,17 +310,24 @@ class BarrelSpam(commands.Cog, name="Barrel Spam"):
         # collect and sort all scores
         ind_data_as_array = [[i, j] for i, j in barrelspamdata.items()]
         ind_data_as_array.sort(key=lambda x: x[1], reverse=True)
-        valstr = ""
-        for i, _list in enumerate(ind_data_as_array):
-            valstr += "**" + str(i + 1) + ") "
-            member = ctx.guild.get_member(int(_list[0]))
-            valstr += member.display_name + "**"
-            team = get_user_team(_list[0], ctx.guild)
-            if team == "decimal":
-                valstr += " *(Decimal Enthusiast)*"
-            elif team == "binary":
-                valstr += " *(Binary Enjoyer)*"
-            valstr += ": **" + str(_list[1]) + "**\n"
+        valstr = ""; counter = 0
+        for _list in ind_data_as_array:
+            try:
+                member = ctx.guild.get_member(int(_list[0]))
+                if member is None:
+                    continue
+                valstr += "**" + str(counter + 1) + ") " + member.display_name + "**"
+                team = get_user_team(_list[0], ctx.guild)
+                if team == "decimal":
+                    valstr += " *(Decimal Enthusiast)*"
+                elif team == "binary":
+                    valstr += " *(Binary Enjoyer)*"
+                valstr += ": **" + str(_list[1]) + "**\n"
+                counter += 1
+                if counter >= 10:
+                    break
+            except:
+                pass
         embed.add_field(name="Individual Scores", value=valstr, inline=False)
 
         # send

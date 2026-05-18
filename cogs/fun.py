@@ -133,7 +133,7 @@ class Fun(commands.Cog, name="Fun"):
         rand.setstate(r)
         await self.bot_send(ctx, f"I'd give {item} a {rate_value}/10")
 
-    @commands.command()
+    @commands.command(aliases=["8ball"])
     async def eightball(self, ctx: commands.Context):
         """Roll me and I'll decide your fate."""
         responses = ["It is certain.",

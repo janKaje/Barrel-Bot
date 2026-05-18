@@ -159,9 +159,9 @@ class Economy(commands.Cog, name="Economy"):
         if workresult < 2:
             coinsadd = rand.randint(5, 15)
             try:
-                player.take_coins(-coinsadd, True)
+                player.take_coins(coinsadd, True)
             except NotEnoughCoins:
-                player.take_coins(-1 * player.get_whole_balance(), True)
+                player.take_coins(player.get_whole_balance(), True)
             await self.bot_send(ctx,
                                 ctx.author.mention +
                                 ", you somehow managed to completely screw up everything at the barrel factory and "
@@ -243,6 +243,7 @@ class Economy(commands.Cog, name="Economy"):
                 player.amount_in_inventory(item)) + "` of this item.")
             if item.id == 6:
                 player.reset_lcr()
+                player.increment_nhouses()
         except NotEnoughCoins:
             await self.bot_send(ctx, f"You don't have enough {ED.BARREL_COIN}")
         return

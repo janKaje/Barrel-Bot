@@ -9,19 +9,21 @@ dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(dir_path, "base"))
 
 from extra_exceptions import *
-from player import Player, research
+from player import Player, RESEARCH_CONFIG
 
 
 async def setup(bot):
     await bot.add_cog(Research(bot))
 
+async def temp_bot_send(ctx: commands.Context, content: str = None, embed: discord.Embed = None, file: discord.File = None):
+    pass
 
 class Research(commands.Cog, name="Research"):
     """Research module"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.bot_send = None
+        self.bot_send = temp_bot_send
 
     def set_bot_send(self, bot_send):
         self.bot_send = bot_send
