@@ -18,6 +18,7 @@ dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(dir_path, "base"))
 
 import env
+from checks import Checks
 
 try:
     with open(dir_path + "/data/analytics.pkl", "rb") as file:
@@ -34,6 +35,9 @@ DEFAULT_HEATMAP_COLORMAP = 'YlGn'
 async def setup(bot):
     await bot.add_cog(Analytics(bot))
 
+async def temp_bot_send(ctx: commands.Context, content: str = None, embed: discord.Embed = None, file: discord.File = None):
+    pass
+
 
 class Analytics(commands.Cog, name="Analytics"):
     """Keeps track of some cool things."""
@@ -42,7 +46,7 @@ class Analytics(commands.Cog, name="Analytics"):
         self.memberinst = None
         self.barrelcultguild = None
         self.bot = bot
-        self.bot_send = None
+        self.bot_send = temp_bot_send
 
     def set_bot_send(self, bot_send):
         self.bot_send = bot_send
@@ -55,6 +59,7 @@ class Analytics(commands.Cog, name="Analytics"):
         options: any found on https://matplotlib.org/stable/gallery/style_sheets/style_sheets_reference.html
         default: {DEFAULT_STACKPLOT_STYLE}""")
     @commands.cooldown(1, 5, commands.BucketType.user)
+    @Checks.is_barrel_cult()
     async def show_analytics(self, ctx: commands.Context, graphtype='normal', style=DEFAULT_STACKPLOT_STYLE):
 
         async with ctx.channel.typing():
@@ -81,6 +86,7 @@ class Analytics(commands.Cog, name="Analytics"):
         options: any found on https://matplotlib.org/stable/users/explain/colors/colors.html#colors-def
         default: {DEFAULT_BARCHART_COLOR}""")
     @commands.cooldown(1, 5, commands.BucketType.user)
+    @Checks.is_barrel_cult()
     async def show_my_emoji_usages(self, ctx:commands.Context, style=DEFAULT_BARCHART_STYLE, color:str=DEFAULT_BARCHART_COLOR):
 
         async with ctx.channel.typing():
@@ -108,6 +114,7 @@ class Analytics(commands.Cog, name="Analytics"):
         options: any found on https://matplotlib.org/stable/users/explain/colors/colors.html#colors-def
         default: {DEFAULT_BARCHART_COLOR}""")
     @commands.cooldown(1, 5, commands.BucketType.user)
+    @Checks.is_barrel_cult()
     async def show_this_emojis_usages(self, ctx:commands.Context, emoji:discord.Emoji, style:str=DEFAULT_BARCHART_STYLE, color:str=DEFAULT_BARCHART_COLOR):
 
         async with ctx.channel.typing():
@@ -134,6 +141,7 @@ class Analytics(commands.Cog, name="Analytics"):
         options: any found on https://matplotlib.org/stable/gallery/color/colormap_reference.html
         default: {DEFAULT_HEATMAP_COLORMAP}""")
     @commands.cooldown(1, 5, commands.BucketType.user)
+    @Checks.is_barrel_cult()
     async def show_emoji_usages(self, ctx:commands.Context, style:str=DEFAULT_HEATMAP_STYLE, cmap:str=DEFAULT_HEATMAP_COLORMAP):
 
         async with ctx.channel.typing():
@@ -209,9 +217,11 @@ class Analytics(commands.Cog, name="Analytics"):
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         channel = await self.bot.fetch_channel(payload.channel_id)
+        if not self.is_analytics_channel(channel):
+            return
         user = await channel.guild.fetch_member(payload.user_id)
         emoji = payload.emoji
-        if self.is_analytics_channel(channel) and not user.bot and emoji.is_custom_emoji():
+        if not user.bot and emoji.is_custom_emoji():
             if user.id not in analytics.keys():
                 return
             if emoji.id not in analytics[user.id][1].keys():
@@ -222,9 +232,11 @@ class Analytics(commands.Cog, name="Analytics"):
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
         channel = await self.bot.fetch_channel(payload.channel_id)
+        if not self.is_analytics_channel(channel):
+            return
         user = await channel.guild.fetch_member(payload.user_id)
         emoji = payload.emoji
-        if self.is_analytics_channel(channel) and not user.bot and emoji.is_custom_emoji():
+        if not user.bot and emoji.is_custom_emoji():
             if user.id not in analytics.keys():
                 return
             if emoji.id not in analytics[user.id][1].keys():

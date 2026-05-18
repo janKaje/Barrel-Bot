@@ -33,6 +33,8 @@ class BBGLOBALS:
 
     BARREL_CULT_GUILD_ID = 1296983356541501440
 
+    KEN_USER_ID = 105721759373787136
+
     @classmethod
     def init_globals(cls):
         try:

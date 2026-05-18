@@ -13,10 +13,13 @@ next_barrelspam = None
 sys.path.append(os.path.join(dir_path, "base"))
 
 import env
-
+from checks import Checks
 
 async def setup(bot):
     await bot.add_cog(BarrelSpam(bot))
+
+async def temp_bot_send(ctx: commands.Context, content: str = None, embed: discord.Embed = None, file: discord.File = None):
+    pass
 
 
 env.BBGLOBALS.init_globals()  # needs to be initialized again at the cog level
@@ -247,12 +250,13 @@ class BarrelSpam(commands.Cog, name="Barrel Spam"):
             9: "9️⃣",
             10: "🔟"
         }
-        self.bot_send = None
+        self.bot_send = temp_bot_send
 
     def set_bot_send(self, bot_send):
         self.bot_send = bot_send
 
     @commands.command()
+    @Checks.is_barrel_cult()
     async def join(self, ctx: commands.Context, *, teamname):
         """Join a team to spam some barrels! You can join Team Decimal or Team Binary.
         Example:
@@ -292,6 +296,7 @@ class BarrelSpam(commands.Cog, name="Barrel Spam"):
                                 "\"barrelbot, join team decimal\" or \"barrelbot, join team binary\"")
 
     @commands.command()
+    @Checks.is_barrel_cult()
     async def leaderboard(self, ctx: commands.Context):
         """Shows the team scores and individual leaderboard of barrel spam scores."""
 
@@ -322,6 +327,7 @@ class BarrelSpam(commands.Cog, name="Barrel Spam"):
         await self.bot_send(ctx, embed=embed)
 
     @commands.command()
+    @Checks.is_barrel_cult()
     async def rank(self, ctx: commands.Context):
         """Shows your individual barrel spam score and rank."""
 

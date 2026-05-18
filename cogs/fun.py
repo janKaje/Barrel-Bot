@@ -4,16 +4,24 @@ import os
 import random as rand
 import re
 import asyncio
+import sys
 
 import discord
 from discord.ext import commands, tasks
 from numpy.random import default_rng
 
 dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(dir_path, "base"))
+
+from checks import Checks
+from env import BBGLOBALS
 
 
 async def setup(bot):
     await bot.add_cog(Fun(bot))
+
+async def temp_bot_send(ctx: commands.Context, content: str = None, embed: discord.Embed = None, file: discord.File = None):
+    pass
 
 
 with open(dir_path + "/data/customratings.json") as file:
@@ -35,7 +43,7 @@ class Fun(commands.Cog, name="Fun"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.bot_send = None
+        self.bot_send = temp_bot_send
 
     def set_bot_send(self, bot_send):
         self.bot_send = bot_send
@@ -61,6 +69,7 @@ class Fun(commands.Cog, name="Fun"):
         await self.bot_send(ctx, to_send)
 
     @commands.command()
+    @Checks.is_barrel_cult()
     async def introduce(self, ctx: commands.Context, *, arg):
         """Ask me to introduce myself!
         Example:
@@ -216,6 +225,13 @@ class Fun(commands.Cog, name="Fun"):
         # don't interact with bots
         if message.author.bot:
             return
+        
+        # auto ken 🏳️‍⚧️ react
+        if message.author.id == BBGLOBALS.KEN_USER_ID:
+            try:
+                await message.add_reaction("🏳️‍⚧️")
+            except:
+                pass
 
         # auto react
         m = re.search(r"<:\w*barrel\w*:\d+>", message.content)

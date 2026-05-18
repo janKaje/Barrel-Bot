@@ -66,3 +66,9 @@ class Checks:
                     return True
             raise MissingPermissions("You need to be a dev to use this command")
         return check(predicate)
+
+    @staticmethod
+    def is_barrel_cult():
+        async def predicate(ctx: Context):
+            return ctx.guild.id == BBGLOBALS.BARREL_CULT_GUILD_ID
+        return check(predicate)

@@ -366,7 +366,7 @@ class Economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, f"You've given {user.display_name} {nocoins}{ED.BARREL_COIN}")
 
     @commands.command()
-    @commands.has_role(env.BBGLOBALS.BARREL_REP_ROLE_ID)
+    @commands.is_owner()
     async def kill_user(self, ctx: commands.Context, user: discord.User):
         """Kills a user and removes all their data. Only for admins."""
         if user.bot:
@@ -939,6 +939,7 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command()
     @Checks.in_bb_channel()
     @commands.cooldown(1, 20, commands.BucketType.user)
+    @commands.cooldown(1, 2, commands.BucketType.guild)
     async def horserace(self, ctx: commands.Context):
         """Bet on a horse race!"""
         # ok what this is gonna do

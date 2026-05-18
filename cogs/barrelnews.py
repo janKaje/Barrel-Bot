@@ -36,6 +36,9 @@ del words
 async def setup(bot):
     await bot.add_cog(BarrelNews(bot))
 
+async def temp_bot_send(ctx: commands.Context, content: str = None, embed: discord.Embed = None, file: discord.File = None):
+    pass
+
 
 class BarrelNews(commands.Cog, name="Barrel News"):
     """To help with barrel news reminders and posts"""
@@ -43,7 +46,7 @@ class BarrelNews(commands.Cog, name="Barrel News"):
     def __init__(self, bot: commands.Bot):
         self.news_channel = None
         self.bot = bot
-        self.bot_send = None
+        self.bot_send = temp_bot_send
 
     def set_bot_send(self, bot_send):
         self.bot_send = bot_send
@@ -446,7 +449,7 @@ def get_bnnmsg(msgtype):
             f'REAL ALPHA ENERGY KNOW WE NEED TO ASSERT OUR DOMINANCE OVER NATURE AND EVERYTHING ELSE ALL THE TIME!!! '
             f'FOLLOW MY PODCAST ON INSTAGRAM!!!!!!!',
             f'HIIIIII OMG ARE YOU A REAL NEWSPERSON??????? YES I\'D LOVE TO TALK!!!!!! HIIII PEOPLE IN THE NEWS!!!!!!! '
-            f'(✧ω✧) Oh the thing about the {boxstore}?? I don\'t know.... I love nature so much!!!! ❀.(*´◡\`*)❀ But I '
+            f'(✧ω✧) Oh the thing about the {boxstore}?? I don\'t know.... I love nature so much!!!! ❀.(*´◡`*)❀ But I '
             f'also love shopping so much...... (❁ᴗ͈ˬᴗ͈) OMG I can\'t decide!!!!! (*≧ω≦)',
             f'.........are you talking to me? Go away. I don\'t care.'
         ])
@@ -468,7 +471,7 @@ def get_bnnmsg(msgtype):
                    f"000` `{choice(['sq. ft.', 'm2', 'sq. mile', 'acre', 'hectare'])}` `{boxstore}` full of `"
                    f"{choice(nouns).lower()}s`, `{choice(nouns).lower()}s`, and `{choice(nouns).lower()}s`.\n\nTo "
                    f"understand the situation better, we interviewed the locals. One `{person}` said, "
-                   f"\"`{localquote}`\"\n\n")
+                   f"\"``{localquote}``\"\n\n")
 
     ch1 = [
         'polar bears',

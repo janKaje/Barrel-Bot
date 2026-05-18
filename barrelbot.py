@@ -160,14 +160,14 @@ async def on_ready():
     print("\033[0;34m---\033[0m")
     print("\033[32m")
     # Load cogs
-    # await load_cog("cogs.barrelspam", "Barrel Spam")
-    # await load_cog("cogs.fun", "Fun")
+    await load_cog("cogs.barrelspam", "Barrel Spam")
+    await load_cog("cogs.fun", "Fun")
     await load_cog("cogs.economy", "Economy")
     # await load_cog("cogs.research", "Research")
-    # await load_cog("cogs.barrelnews", "Barrel News")
-    # await load_cog("cogs.analytics", "Analytics")
+    await load_cog("cogs.barrelnews", "Barrel News")
+    await load_cog("cogs.analytics", "Analytics")
     await load_cog("cogs.utilities", "Utilities")
-    # await load_cog("cogs.chat", "Chatbot")
+    await load_cog("cogs.chat", "Chatbot")
     print("\033[0m")
 
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
@@ -226,25 +226,22 @@ async def on_command_error(ctx: commands.Context, error):
         bb_channels = []
         for i in env.BBGLOBALS.BB_CHANNEL_IDS:
             ch = bot.get_channel(i)
-            if ch is not None:
+            if ch is not None and ch.guild.id == ctx.guild.id:
                 bb_channels.append(ch)
-        print(bb_channels)
         msg = await ctx.send(
             f"This command can only be done in {' or '.join([i.mention for i in bb_channels])}.")
         await ctx.message.delete(delay=5)
         await msg.delete(delay=5)
     else:
-        print(type(error), NotInBbChannel)
-        print(NotInBbChannel == type(error))
         await bot_send(ctx, f'An unknown error occurred:\n{type(error)}\n{error.with_traceback(None)}')
 
 
 @bot.event
 async def on_error(event, *args, **kwargs):
     if env.BBGLOBALS.IS_IN_DEV_MODE:
-        tosend = bot.get_channel(733508144617226302)
+        tosend = bot.get_channel(733508144617226302) # bot testing general chat
     else:
-        tosend = bot.get_user(474349369274007552)
+        tosend = bot.get_user(474349369274007552) # jan Kaje's DMs
     await tosend.send(f'There was an error on {event}:\n{args}\n{kwargs}\n'
                                                 f'Error message:\n{sys.exc_info()}')
 
