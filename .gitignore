@@ -6,6 +6,7 @@ notes.txt
 /.vscode
 /.idea
 /training_data
+/data
 
 cogs/adventure.py
 cogs/pets.py

@@ -1090,9 +1090,8 @@ class Economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, embed=embed)
 
     @commands.command(pass_context=True)
-    @commands.is_owner()
     async def peekdc(self, ctx: commands.Context, user: discord.Member, pageno: int = 1):
-        """Spies on the user's displaycase."""
+        """Take a look at the user's displaycase."""
         invdisplay = Player(user).get_display()
         invitems_ = list(set(invdisplay))
         invitems_.sort(key=lambda i: i.id)
@@ -1141,7 +1140,10 @@ class Economy(commands.Cog, name="Economy"):
     @commands.is_owner()
     async def refresh_playerdata(self, ctx: commands.Context):
         for m in ctx.guild.members:
-            Player(m)
+            if not m.bot:
+                Player(m)
+                print(m.display_name)
+        await self.bot_send(ctx, "Done!")
 
     @commands.command()
     @commands.is_owner()

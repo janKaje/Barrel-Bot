@@ -23,6 +23,7 @@ if env.BBGLOBALS.IS_IN_DEV_MODE:
 def is_command(_: commands.Bot, message: discord.Message) -> str:
     # Allow to match with "bb " or "bb, "
     if env.BBGLOBALS.IS_IN_DEV_MODE:
+        # !bb as dev-mode command
         _m = re.match("!?bb,? ", message.content)
         if _m is not None:
             return _m.group(0)
@@ -76,6 +77,11 @@ async def save_everything():
     analyticscog = bot.get_cog("Analytics")
     economycog = bot.get_cog("Economy")
 
+    for command in economycog.get_commands():
+        if command.name == "saveeconomydata":
+            await command.__call__(defaultctx)
+            break
+
     for command in funcog.get_commands():
         if command.name == "savefundata":
             await command.__call__(defaultctx)
@@ -88,11 +94,6 @@ async def save_everything():
 
     for command in analyticscog.get_commands():
         if command.name == "saveanalyticsdata":
-            await command.__call__(defaultctx)
-            break
-
-    for command in economycog.get_commands():
-        if command.name == "saveeconomydata":
             await command.__call__(defaultctx)
             break
 
