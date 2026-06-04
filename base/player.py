@@ -425,8 +425,14 @@ class Player:
     def remove_all_data(self):
         """Removes all data for a player."""
 
-        self.clear_inventory()
-        Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": [], "bank": 0, "lcr": 0, "tech": {}}
+        del Player._playerdata[self.idstr]
+
+    @staticmethod
+    def remove_player_data(idstr:str):
+        """Removes all data for the given player ID"""
+        if idstr not in Player._playerdata.keys():
+            raise PlayerNotFound()
+        del Player._playerdata[idstr]
 
     def begin_research(self, techid: str):
         """begin given research"""

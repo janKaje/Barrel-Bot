@@ -64,47 +64,6 @@ horse_races = {} # this can be semi-persistent horse racing thing
 cooldwn = commands.CooldownMapping.from_cooldown(3.0, 86400.0, commands.BucketType.user)
 
 
-async def savealldata():
-    """Saves data to file."""
-    save_to_json(Player.get_json_data(), dir_path + "/data/playerdata.json")
-    save_to_json(trades, dir_path + "/data/trades.json")
-
-    print("Economy data saved")
-
-
-async def get_trades(userid: str|Player):
-    if isinstance(userid, Player):
-        userid = userid.idstr
-    outgoing = []
-    incoming = []
-    for trade in trades:
-        if trade[0] == userid:
-            outgoing.append(trade)
-    for trade in trades:
-        if trade[1] == userid:
-            incoming.append(trade)
-    return incoming, outgoing
-
-
-async def remove_trade(offeruserid: str | Player, recipuserid: str | Player):
-    global trades
-    if isinstance(offeruserid, Player):
-        offeruserid = offeruserid.idstr
-    if isinstance(recipuserid, Player):
-        recipuserid = recipuserid.idstr
-    idx = None
-
-    for i in range(len(trades)):
-        if trades[i][0] == offeruserid and trades[i][1] == recipuserid:
-            idx = i
-            break
-
-    if idx is None:
-        raise TradeNotFound("Trade not found")
-
-    trades.pop(idx)
-
-
 async def temp_bot_send(ctx: commands.Context, content: str = None, embed: discord.Embed = None, file: discord.File = None):
     pass
 
@@ -112,6 +71,8 @@ async def temp_bot_send(ctx: commands.Context, content: str = None, embed: disco
 class Economy(commands.Cog, name="Economy"):
     """Economy module"""
 
+    # INITIALIZATION
+    
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.bot_send = temp_bot_send
@@ -119,38 +80,16 @@ class Economy(commands.Cog, name="Economy"):
     def set_bot_send(self, bot_send):
         self.bot_send = bot_send
 
-    @commands.command()
-    @commands.is_owner()
-    async def saveeconomydata(self, ctx: commands.Context):
-        await savealldata()
-        await self.bot_send(ctx, "Done!")
+    async def cog_load(self):
 
-    @commands.command()
-    @commands.is_owner()
-    async def forcesaveplayerdata(self, ctx: commands.Context):
-        with open("tempsave.pkl", "wb") as file:
-            file.write(dpx(Player._playerdata))
-        await self.bot_send(ctx, "Done!")
+        # print loaded
+        print(f"cog: {self.qualified_name} loaded")
 
-    @commands.command()
-    @commands.is_owner()
-    async def run_raw_code_economy(self, ctx: commands.Context, *, code: str):
-        if code == '':
-            return
-        try:
-            exec(code)
-        except Exception as e:
-            await self.bot_send(ctx, f"Something went wrong:\n{e.with_traceback(None)}")
+        # start tasks
+        self.hourlyloop.start()
+        self.clear_inactive_horseraces.start()
 
-    @commands.command()
-    @commands.is_owner()
-    async def geteconomydata(self, ctx: commands.Context):
-        outstr = json.dumps(Player.get_json_data())
-        lenstr = len(outstr)
-        nostrs = lenstr // 2000 + 1
-        for i in range(nostrs):
-            await self.bot_send(ctx, outstr[i * 2000:(i + 1) * 2000])
-        return
+    # COMMANDS
 
     @commands.command(help=f"""Every 30 minutes, you can work to earn 
                       {ED.BARREL_COIN}.""")
@@ -356,24 +295,13 @@ class Economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, f"You've given {user.display_name} {nocoins}{ED.BARREL_COIN}")
 
     @commands.command()
-    @commands.is_owner()
-    async def kill_user(self, ctx: commands.Context, user: discord.Member):
-        """Kills a user and removes all their data. Only for admins."""
-        if user.bot:
-            await self.bot_send(ctx, "You can't remove a bot´s data.")
-            return
-        player = Player(user)
-        player.remove_all_data()
-        await self.bot_send(ctx, f"Removed all data for {user.display_name}.")
-
-    @commands.command()
     async def baltop(self, ctx: commands.Context):
         """Shows the 10 people with the most money, as well as your own ranking. Improved version."""
         # Gather all player balances
         balances = [[p, i["bal"], i["bank"]] for p, i in Player._playerdata.items()]
         # Sort by total balance (wallet + bank)
         balances.sort(key=lambda i: i[1] + i[2], reverse=True)
-        users = [i[0] for i in balances]
+        users = [re.search(r"(\d+)$", i[0]).group(1) for i in balances]
         bals = [i[1] + i[2] for i in balances]
         inbank = [i[2] for i in balances]
         try:
@@ -562,14 +490,14 @@ class Economy(commands.Cog, name="Economy"):
 
                 incoming_str = ""
                 for trade in incoming:
-                    offerer = self.bot.get_user(int(trade[0]))
+                    offerer = self.bot.get_user(int(re.search(r"(\d+)$", trade[0]).group(1)))
                     incoming_str += (f"From: {offerer.display_name}\n\tOffering: {get_obj_str(trade[2])}\n\t"
                                      f"Wants in return: {get_obj_str(trade[3])}\n")
                 embed.add_field(name="__Incoming__", value=incoming_str)
 
                 outgoing_str = ""
                 for trade in outgoing:
-                    recipient = self.bot.get_user(int(trade[1]))
+                    recipient = self.bot.get_user(int(re.search(r"(\d+)$", trade[1]).group(1)))
                     outgoing_str += (f"To: {recipient.display_name}\n\tOffering: {get_obj_str(trade[2])}\n\t"
                                      f"In return for: {get_obj_str(trade[3])}\n")
                 embed.add_field(name="__Outgoing__", value=outgoing_str)
@@ -977,53 +905,6 @@ class Economy(commands.Cog, name="Economy"):
             "strikes": 0
         }
 
-    @commands.command(pass_context=True)
-    @commands.is_owner()
-    async def forcegivemoney(self, ctx: commands.Context, user: discord.Member, nocoins: int):
-        """Gives the specified user item_id a certain number of coins"""
-        player = Player(user)
-        player.give_coins(nocoins)
-        await self.bot_send(ctx, "Done. They now have " + str(player.get_whole_balance()) + ED.BARREL_COIN)
-
-    @commands.command(pass_context=True)
-    @commands.is_owner()
-    async def forcetakemoney(self, ctx: commands.Context, user: discord.Member, nocoins: int):
-        """Takes a certain number of coins from the specified user"""
-        player = Player(user)
-        player.take_coins(nocoins, True)
-        await self.bot_send(ctx, "Done. They now have " + str(player.get_whole_balance()) + ED.BARREL_COIN)
-
-    @commands.command(pass_context=True)
-    @commands.is_owner()
-    async def clearbalance(self, ctx: commands.Context, user: discord.Member):
-        """Clears the user's balance."""
-        player = Player(user)
-        player.give_coins(-1 * player.get_balance())
-        await self.bot_send(ctx, "Done!")
-
-    @commands.command(pass_context=True)
-    async def forcegiveitem(self, ctx: commands.Context, user: discord.Member, itemid: int):
-        """Gives the specified user item_id an item"""
-
-        if (not env.BBGLOBALS.IS_IN_DEV_MODE) or (await ctx.bot.is_owner(ctx.author)):
-            await self.bot_send(ctx, "You cannot use this command.")
-            return
-
-        player = Player(user)
-        player.add_to_inventory(itemid)
-        await self.bot_send(ctx, "Done!")
-
-    @commands.command(pass_context=True)
-    @commands.is_owner()
-    async def forcetakeitem(self, ctx: commands.Context, user: discord.Member, itemid: int):
-        """Takes the specified item from the user"""
-        player = Player(user)
-        try:
-            player.remove_from_inventory(itemid)
-            await self.bot_send(ctx, "Done!")
-        except NotInInventory:
-            await self.bot_send(ctx, "Item not in their inventory.")
-
     @commands.command()
     async def total(self, ctx: commands.Context):
         """Shows the total amount of coins in circulation."""
@@ -1071,25 +952,6 @@ class Economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, beerFetchMessages[msgID])
 
     @commands.command(pass_context=True)
-    @commands.is_owner()
-    async def peekinv(self, ctx: commands.Context, user: discord.Member, pageno: int = 1):
-        """Spies on the user's inventory."""
-        invdisplay = Player(user).get_inventory()
-        invitems_ = list(set(invdisplay))
-        invitems_.sort(key=lambda i: i.id)
-        invitems = invitems_[(pageno - 1) * 25:pageno * 25]
-        nopages = 1 + len(invitems_) // 25
-        embed = discord.Embed(color=discord.Color.light_gray())
-        embed.title = user.display_name + "'s Inventory"
-        embed.description = "Total items: " + str(len(invdisplay))
-        for i, item in enumerate(invitems):
-            embed.add_field(name=str(item), value="#" + str(i + 1 + (pageno - 1) * 25) + str(
-                "" if invdisplay.count(item) == 1 else " - Count: " + str(invdisplay.count(item))))
-        if nopages > 1:
-            embed.set_footer(text=f"Page {pageno}/{nopages}")
-        await self.bot_send(ctx, embed=embed)
-
-    @commands.command(pass_context=True)
     async def peekdc(self, ctx: commands.Context, user: discord.Member, pageno: int = 1):
         """Take a look at the user's displaycase."""
         invdisplay = Player(user).get_display()
@@ -1106,6 +968,133 @@ class Economy(commands.Cog, name="Economy"):
         if nopages > 1:
             embed.set_footer(text=f"Page {pageno}/{nopages}")
         await self.bot_send(ctx, embed=embed)
+
+    @commands.command()
+    async def getcooldowns(self, ctx: commands.Context):
+        """See your cooldowns so you don't have to take a guess anymore !"""
+        # getting the cooldowns
+        workcd = int(round(self.work.get_cooldown_retry_after(ctx)))  # possible breaking point
+        fishcd = int(round(self.fish.get_cooldown_retry_after(ctx)))
+        robcd = int(round(self.rob.get_cooldown_retry_after(ctx)))
+        bankrobcd = int(round(self.bankrob.get_cooldown_retry_after(ctx)))
+
+        listcd = {"work": workcd, "fish": fishcd, "rob": robcd, "bankrob": bankrobcd}
+
+        # constructor
+        embed = discord.Embed(color=discord.Color.blue(), title="Your cooldowns")
+        embed_str = ""
+
+        i = 1
+        for elt in listcd.keys():
+            embed_str += str(i) + ") "
+            i += 1
+            embed_str += elt + " - "
+            if listcd[elt] == 0.0:  # not on cooldown !
+                embed_str += "Not on cooldown ! " + ED.HOLY_BARREL_EMOJI + "\n"
+            else:
+                embed_str += time_str(listcd[elt]) + " :x:\n"
+        embed.description = embed_str
+        await self.bot_send(ctx, embed=embed)
+
+    # ADMIN COMMANDS
+
+    @commands.command()
+    @commands.is_owner()
+    async def saveeconomydata(self, ctx: commands.Context):
+        await savealldata()
+        await self.bot_send(ctx, "Done!")
+
+    @commands.command()
+    @commands.is_owner()
+    async def forcesaveplayerdata(self, ctx: commands.Context):
+        with open("tempsave.pkl", "wb") as file:
+            file.write(dpx(Player._playerdata))
+        await self.bot_send(ctx, "Done!")
+
+    @commands.command()
+    @commands.is_owner()
+    async def run_raw_code_economy(self, ctx: commands.Context, *, code: str):
+        if code == '':
+            return
+        try:
+            exec(code)
+        except Exception as e:
+            await self.bot_send(ctx, f"Something went wrong:\n{e.with_traceback(None)}")
+
+    @commands.command()
+    @commands.is_owner()
+    async def geteconomydata(self, ctx: commands.Context):
+        outstr = json.dumps(Player.get_json_data())
+        lenstr = len(outstr)
+        nostrs = lenstr // 2000 + 1
+        for i in range(nostrs):
+            await self.bot_send(ctx, outstr[i * 2000:(i + 1) * 2000])
+        return
+
+    @commands.command()
+    @commands.is_owner()
+    async def kill_user(self, ctx: commands.Context, user: int|discord.Member):
+        """Kills a user and removes all their data. Only for admins."""
+        if user.bot:
+            await self.bot_send(ctx, "You can't remove a bot´s data.")
+            return
+        if isinstance(user, int):
+            try:
+                Player.remove_player_data(str(user))
+                await self.bot_send(ctx, f"Data for User {user} removed.")
+            except PlayerNotFound:
+                await self.bot_send(ctx, f"User {user} not found.")
+            return
+        player = Player(user)
+        player.remove_all_data()
+        await self.bot_send(ctx, f"Removed all data for {user.display_name}.")
+
+    @commands.command(pass_context=True)
+    @commands.is_owner()
+    async def forcegivemoney(self, ctx: commands.Context, user: discord.Member, nocoins: int):
+        """Gives the specified user item_id a certain number of coins"""
+        player = Player(user)
+        player.give_coins(nocoins)
+        await self.bot_send(ctx, "Done. They now have " + str(player.get_whole_balance()) + ED.BARREL_COIN)
+
+    @commands.command(pass_context=True)
+    @commands.is_owner()
+    async def forcetakemoney(self, ctx: commands.Context, user: discord.Member, nocoins: int):
+        """Takes a certain number of coins from the specified user"""
+        player = Player(user)
+        player.take_coins(nocoins, True)
+        await self.bot_send(ctx, "Done. They now have " + str(player.get_whole_balance()) + ED.BARREL_COIN)
+
+    @commands.command(pass_context=True)
+    @commands.is_owner()
+    async def clearbalance(self, ctx: commands.Context, user: discord.Member):
+        """Clears the user's balance."""
+        player = Player(user)
+        player.give_coins(-1 * player.get_balance())
+        await self.bot_send(ctx, "Done!")
+
+    @commands.command(pass_context=True)
+    async def forcegiveitem(self, ctx: commands.Context, user: discord.Member, itemid: int):
+        """Gives the specified user item_id an item"""
+
+        if (not env.BBGLOBALS.IS_IN_DEV_MODE) or (await ctx.bot.is_owner(ctx.author)):
+            await self.bot_send(ctx, "You cannot use this command.")
+            return
+
+        player = Player(user)
+        player.add_to_inventory(itemid)
+        await self.bot_send(ctx, "Done!")
+
+    @commands.command(pass_context=True)
+    @commands.is_owner()
+    async def forcetakeitem(self, ctx: commands.Context, user: discord.Member, itemid: int):
+        """Takes the specified item from the user"""
+        player = Player(user)
+        try:
+            player.remove_from_inventory(itemid)
+            await self.bot_send(ctx, "Done!")
+        except NotInInventory:
+            await self.bot_send(ctx, "Item not in their inventory.")
 
     @commands.command(pass_context=True)
     @commands.is_owner()
@@ -1149,6 +1138,27 @@ class Economy(commands.Cog, name="Economy"):
     @commands.is_owner()
     async def get_all_trade_data(self, ctx: commands.Context):
         await self.bot_send(ctx, json.dumps(trades))
+
+    @commands.command(pass_context=True)
+    @commands.is_owner()
+    async def peekinv(self, ctx: commands.Context, user: discord.Member, pageno: int = 1):
+        """Spies on the user's inventory."""
+        invdisplay = Player(user).get_inventory()
+        invitems_ = list(set(invdisplay))
+        invitems_.sort(key=lambda i: i.id)
+        invitems = invitems_[(pageno - 1) * 25:pageno * 25]
+        nopages = 1 + len(invitems_) // 25
+        embed = discord.Embed(color=discord.Color.light_gray())
+        embed.title = user.display_name + "'s Inventory"
+        embed.description = "Total items: " + str(len(invdisplay))
+        for i, item in enumerate(invitems):
+            embed.add_field(name=str(item), value="#" + str(i + 1 + (pageno - 1) * 25) + str(
+                "" if invdisplay.count(item) == 1 else " - Count: " + str(invdisplay.count(item))))
+        if nopages > 1:
+            embed.set_footer(text=f"Page {pageno}/{nopages}")
+        await self.bot_send(ctx, embed=embed)
+
+    # ROUTINES
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -1255,7 +1265,25 @@ class Economy(commands.Cog, name="Economy"):
                 await self.bot_send(message.channel, "Better luck next time!")
 
             del horse_races[context_key]
-            
+
+    @tasks.loop(hours=6)
+    async def hourlyloop(self):
+        await savealldata()
+
+    @tasks.loop(minutes=5)
+    async def clear_inactive_horseraces(self):
+        global horse_races
+        now = time.time()
+        hr_copy = horse_races.copy()
+        for k, v in hr_copy.items():
+            if now - v['prev_interaction_timestamp'] > 300: # 5 minutes since interact
+                ch_id = int(re.match("\d+_(\d+)", k).group(1))
+                channel = await self.bot.fetch_channel(ch_id)
+                await self.bot_send(channel, "It's been more than 5 minutes since you interacted with this horse race," \
+                "so I'll cancel it.")
+                del horse_races[k]
+
+    # METHODS        
 
     async def simulate_horserace(self, horses) -> tuple[list[int], BytesIO]:
         # this is just going to be simulation, no money stuff
@@ -1359,32 +1387,6 @@ class Economy(commands.Cog, name="Economy"):
             await self.bot_send(ctx, reply_msg)
             horse_races[context_key]["strikes"] += 1
             horse_races[context_key]["prev_interaction_timestamp"] = time.time()
-
-    async def cog_load(self):
-
-        # print loaded
-        print(f"cog: {self.qualified_name} loaded")
-
-        # start tasks
-        self.hourlyloop.start()
-        self.clear_inactive_horseraces.start()
-
-    @tasks.loop(hours=6)
-    async def hourlyloop(self):
-        await savealldata()
-
-    @tasks.loop(minutes=5)
-    async def clear_inactive_horseraces(self):
-        global horse_races
-        now = time.time()
-        hr_copy = horse_races.copy()
-        for k, v in hr_copy.items():
-            if now - v['prev_interaction_timestamp'] > 300: # 5 minutes since interact
-                ch_id = int(re.match("\d+_(\d+)", k).group(1))
-                channel = await self.bot.fetch_channel(ch_id)
-                await self.bot_send(channel, "It's been more than 5 minutes since you interacted with this horse race," \
-                "so I'll cancel it.")
-                del horse_races[k]
 
     async def offer_trade(self, offeruser: discord.Member, recipuser: discord.Member, 
                           itemoffer: int | str, itemrecip: int | str):
@@ -1519,33 +1521,46 @@ class Economy(commands.Cog, name="Economy"):
         await awr.send(p2u93)
         return
 
-    @commands.command()
-    async def getcooldowns(self, ctx: commands.Context):
-        """See your cooldowns so you don't have to take a guess anymore !"""
-        # getting the cooldowns
-        workcd = int(round(self.work.get_cooldown_retry_after(ctx)))  # possible breaking point
-        fishcd = int(round(self.fish.get_cooldown_retry_after(ctx)))
-        robcd = int(round(self.rob.get_cooldown_retry_after(ctx)))
-        bankrobcd = int(round(self.bankrob.get_cooldown_retry_after(ctx)))
 
-        listcd = {"work": workcd, "fish": fishcd, "rob": robcd, "bankrob": bankrobcd}
+async def savealldata():
+    """Saves data to file."""
+    save_to_json(Player.get_json_data(), dir_path + "/data/playerdata.json")
+    save_to_json(trades, dir_path + "/data/trades.json")
 
-        # constructor
-        embed = discord.Embed(color=discord.Color.blue(), title="Your cooldowns")
-        embed_str = ""
+    print("Economy data saved")
 
-        i = 1
-        for elt in listcd.keys():
-            embed_str += str(i) + ") "
-            i += 1
-            embed_str += elt + " - "
-            if listcd[elt] == 0.0:  # not on cooldown !
-                embed_str += "Not on cooldown ! " + ED.HOLY_BARREL_EMOJI + "\n"
-            else:
-                embed_str += time_str(listcd[elt]) + " :x:\n"
-        embed.description = embed_str
-        await self.bot_send(ctx, embed=embed)
 
+async def get_trades(userid: str|Player):
+    if isinstance(userid, Player):
+        userid = userid.idstr
+    outgoing = []
+    incoming = []
+    for trade in trades:
+        if trade[0] == userid:
+            outgoing.append(trade)
+    for trade in trades:
+        if trade[1] == userid:
+            incoming.append(trade)
+    return incoming, outgoing
+
+
+async def remove_trade(offeruserid: str | Player, recipuserid: str | Player):
+    global trades
+    if isinstance(offeruserid, Player):
+        offeruserid = offeruserid.idstr
+    if isinstance(recipuserid, Player):
+        recipuserid = recipuserid.idstr
+    idx = None
+
+    for i in range(len(trades)):
+        if trades[i][0] == offeruserid and trades[i][1] == recipuserid:
+            idx = i
+            break
+
+    if idx is None:
+        raise TradeNotFound("Trade not found")
+
+    trades.pop(idx)
 
 def get_obj_str(id: int | str):
     return str(Item(int(id))) if isinstance(id, str) else str(id) + ED.BARREL_COIN
