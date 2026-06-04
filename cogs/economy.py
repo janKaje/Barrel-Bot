@@ -72,8 +72,9 @@ async def savealldata():
     print("Economy data saved")
 
 
-async def get_trades(userid: int | str):
-    userid = str(userid)
+async def get_trades(userid: str|Player):
+    if isinstance(userid, Player):
+        userid = userid.idstr
     outgoing = []
     incoming = []
     for trade in trades:
@@ -85,10 +86,12 @@ async def get_trades(userid: int | str):
     return incoming, outgoing
 
 
-async def remove_trade(offeruserid: int | str, recipuserid: int | str):
+async def remove_trade(offeruserid: str | Player, recipuserid: str | Player):
     global trades
-    offeruserid = str(offeruserid)
-    recipuserid = str(recipuserid)
+    if isinstance(offeruserid, Player):
+        offeruserid = offeruserid.idstr
+    if isinstance(recipuserid, Player):
+        recipuserid = recipuserid.idstr
     idx = None
 
     for i in range(len(trades)):
@@ -149,54 +152,40 @@ class Economy(commands.Cog, name="Economy"):
             await self.bot_send(ctx, outstr[i * 2000:(i + 1) * 2000])
         return
 
-    @commands.command()
+    @commands.command(help=f"""Every 30 minutes, you can work to earn 
+                      {ED.BARREL_COIN}.""")
     @Checks.in_bb_channel()
     @commands.cooldown(1, 1800, commands.BucketType.user)  # every 30 min
     async def work(self, ctx: commands.Context):
-        f"""Every 30 minutes, you can work to earn {ED.BARREL_COIN}."""
         player = Player(ctx.author)
         workresult = rand.randint(0, 99)
         if workresult < 2:
-            coinsadd = rand.randint(5, 15)
-            try:
-                player.take_coins(coinsadd, True)
-            except NotEnoughCoins:
-                player.take_coins(player.get_whole_balance(), True)
-            await self.bot_send(ctx,
-                                ctx.author.mention +
-                                ", you somehow managed to completely screw up everything at the barrel factory and "
-                                "had to pay " +
-                                str(coinsadd) + ED.BARREL_COIN + " in damages.")
+            coinsadd = -min(rand.randint(5, 15), player.get_whole_balance())
+            msg = ctx.author.mention + ", you somehow managed to completely "
+            "screw up everything at the barrel factory and had to pay " + \
+            str(coinsadd) + ED.BARREL_COIN + " in damages."
         elif workresult < 20:
             coinsadd = rand.randint(10, 15)
-            player.give_coins(coinsadd)
-            await self.bot_send(ctx,
-                                ctx.author.mention +
-                                ", you worked hard, but things weren't in your favor today. You earned " +
-                                str(coinsadd) + ED.BARREL_COIN + ".")
+            msg = ctx.author.mention + ", you worked hard, but things weren't "
+            "in your favor today. You earned " + str(coinsadd) + ED.BARREL_COIN + "."
         elif workresult < 65:
             coinsadd = rand.randint(25, 30)
-            player.give_coins(coinsadd)
-            await self.bot_send(ctx,
-                                ctx.author.mention +
-                                ", you had a really normal and boring day at the barrel factory. You earned " +
-                                str(coinsadd) + ED.BARREL_COIN + ".")
+            msg = ctx.author.mention + ", you had a really normal and boring "
+            "day at the barrel factory. You earned " +str(coinsadd) + ED.BARREL_COIN + "."
         elif workresult < 85:
             coinsadd = rand.randint(30, 40)
-            player.give_coins(coinsadd)
-            await self.bot_send(ctx, ctx.author.mention + ", you made a new friend at work today! You earned " +
-                                str(coinsadd) + ED.BARREL_COIN + ".")
+            msg = ctx.author.mention + ", you made a new friend at work today!"
+            " You earned " + str(coinsadd) + ED.BARREL_COIN + "."
         elif workresult < 98:
             coinsadd = rand.randint(40, 50)
-            player.give_coins(coinsadd)
-            await self.bot_send(ctx,
-                                ctx.author.mention + ", you had a tough day but you powered through it! You earned " +
-                                str(coinsadd) + ED.BARREL_COIN + ".")
+            msg = ctx.author.mention + ", you had a tough day but you powered "
+            "through it! You earned " + str(coinsadd) + ED.BARREL_COIN + "."
         else:
             coinsadd = rand.randint(50, 75)
-            player.give_coins(coinsadd)
-            await self.bot_send(ctx, ctx.author.mention + ", you got a raise at work! You earned " +
-                                str(coinsadd) + ED.BARREL_COIN + ".")
+            msg = ctx.author.mention + ", you got a raise at work! You earned " + \
+            str(coinsadd) + ED.BARREL_COIN + "."
+        player.give_coins(coinsadd)
+        await self.bot_send(ctx, msg)
 
     @commands.command()
     @Checks.in_bb_channel()
@@ -350,7 +339,7 @@ class Economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, f"You opened {nosold} crates and got a total of {saleprice}{ED.BARREL_COIN}!")
 
     @commands.command(pass_context=True)
-    async def gift(self, ctx: commands.Context, nocoins, *, user: discord.User):
+    async def gift(self, ctx: commands.Context, nocoins, *, user: discord.Member):
         """Allows you to give someone else some coins. Example: `bb gift 50 @jan Kaje`"""
         nocoins = abs(int(nocoins))
         if user.bot:
@@ -368,7 +357,7 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command()
     @commands.is_owner()
-    async def kill_user(self, ctx: commands.Context, user: discord.User):
+    async def kill_user(self, ctx: commands.Context, user: discord.Member):
         """Kills a user and removes all their data. Only for admins."""
         if user.bot:
             await self.bot_send(ctx, "You can't remove a bot´s data.")
@@ -487,8 +476,8 @@ class Economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, embed=embed)
 
     @commands.command(pass_context=True)
-    async def trade(self, ctx: commands.Context, keyword: str = None, item1: discord.User | str = None,
-                    item2: str = None, *, recipient: discord.User = None):
+    async def trade(self, ctx: commands.Context, keyword: str = None, item1: discord.Member | str = None,
+                    item2: str = None, *, recipient: discord.Member = None):
         """Allows you to trade with other players.
         
         `bb trade offer <offering> <requesting> <recipient>`
@@ -509,7 +498,7 @@ class Economy(commands.Cog, name="Economy"):
         match keyword:
             case "offer":
 
-                if isinstance(item1, discord.User) or item1 is None or item2 is None:
+                if isinstance(item1, discord.Member) or item1 is None or item2 is None:
                     await self.bot_send(ctx, "Invalid item offering syntax.")
                     return
 
@@ -536,7 +525,7 @@ class Economy(commands.Cog, name="Economy"):
                     return
 
                 try:
-                    await self.offer_trade(ctx.author.id, recipient.id, item1, item2)
+                    await self.offer_trade(ctx.author, recipient, item1, item2)
                     offerer = Player(ctx.author)
                     receiver = Player(recipient)
                     await self.bot_send(ctx,
@@ -549,7 +538,7 @@ class Economy(commands.Cog, name="Economy"):
                     return
 
             case "accept":
-                if not isinstance(item1, discord.User):
+                if not isinstance(item1, discord.Member):
                     await self.bot_send(ctx, "Invalid offering user syntax.")
                     return
                 try:
@@ -567,7 +556,7 @@ class Economy(commands.Cog, name="Economy"):
 
             case "view":
 
-                incoming, outgoing = await get_trades(ctx.author.id)
+                incoming, outgoing = await get_trades(Player(ctx.author))
                 embed = discord.Embed(color=discord.Color.light_gray(), title=f"Outstanding trade offers",
                                       description="")
 
@@ -588,20 +577,20 @@ class Economy(commands.Cog, name="Economy"):
                 await self.bot_send(ctx, embed=embed)
 
             case "remove":
-                if not isinstance(item1, discord.User):
+                if not isinstance(item1, discord.Member):
                     await self.bot_send(ctx, "Invalid user syntax.")
                     return
                 if not isinstance(item2, str):
                     await self.bot_send(ctx, "Invalid incoming/outgoing syntax.")
                 if item2.lower() == "incoming":
                     try:
-                        await remove_trade(item1.id, ctx.author.id)
+                        await remove_trade(Player(item1), Player(ctx.author))
                     except Exception as e:
                         await self.bot_send(ctx, e)
                         return
                 elif item2.lower() == "outgoing":
                     try:
-                        await remove_trade(ctx.author.id, item1.id)
+                        await remove_trade(Player(ctx.author), Player(item1))
                     except Exception as e:
                         await self.bot_send(ctx, e)
                         return
@@ -823,7 +812,7 @@ class Economy(commands.Cog, name="Economy"):
     @commands.cooldown(1, 3600, commands.BucketType.user)  # every hr
     # add something to keep repeated robbings in check - maybe decreased luck if you do the same person twice in a row? 
     # maybe occasional jail time where you can't do any commands?
-    async def rob(self, ctx: commands.Context, *, victim: discord.User):
+    async def rob(self, ctx: commands.Context, *, victim: discord.Member):
         """Attempts to rob the victim. You must have a dagger to rob people, and if they have a shield, your chances
         of success drop drastically."""
         perpetrator = Player(ctx.author)
@@ -990,7 +979,7 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command(pass_context=True)
     @commands.is_owner()
-    async def forcegivemoney(self, ctx: commands.Context, user: discord.User, nocoins: int):
+    async def forcegivemoney(self, ctx: commands.Context, user: discord.Member, nocoins: int):
         """Gives the specified user item_id a certain number of coins"""
         player = Player(user)
         player.give_coins(nocoins)
@@ -998,7 +987,7 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command(pass_context=True)
     @commands.is_owner()
-    async def forcetakemoney(self, ctx: commands.Context, user: discord.User, nocoins: int):
+    async def forcetakemoney(self, ctx: commands.Context, user: discord.Member, nocoins: int):
         """Takes a certain number of coins from the specified user"""
         player = Player(user)
         player.take_coins(nocoins, True)
@@ -1006,14 +995,14 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command(pass_context=True)
     @commands.is_owner()
-    async def clearbalance(self, ctx: commands.Context, user: discord.User):
+    async def clearbalance(self, ctx: commands.Context, user: discord.Member):
         """Clears the user's balance."""
         player = Player(user)
         player.give_coins(-1 * player.get_balance())
         await self.bot_send(ctx, "Done!")
 
     @commands.command(pass_context=True)
-    async def forcegiveitem(self, ctx: commands.Context, user: discord.User, itemid: int):
+    async def forcegiveitem(self, ctx: commands.Context, user: discord.Member, itemid: int):
         """Gives the specified user item_id an item"""
 
         if (not env.BBGLOBALS.IS_IN_DEV_MODE) or (await ctx.bot.is_owner(ctx.author)):
@@ -1026,7 +1015,7 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command(pass_context=True)
     @commands.is_owner()
-    async def forcetakeitem(self, ctx: commands.Context, user: discord.User, itemid: int):
+    async def forcetakeitem(self, ctx: commands.Context, user: discord.Member, itemid: int):
         """Takes the specified item from the user"""
         player = Player(user)
         try:
@@ -1083,7 +1072,7 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command(pass_context=True)
     @commands.is_owner()
-    async def peekinv(self, ctx: commands.Context, user: discord.User, pageno: int = 1):
+    async def peekinv(self, ctx: commands.Context, user: discord.Member, pageno: int = 1):
         """Spies on the user's inventory."""
         invdisplay = Player(user).get_inventory()
         invitems_ = list(set(invdisplay))
@@ -1102,7 +1091,7 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command(pass_context=True)
     @commands.is_owner()
-    async def peekdc(self, ctx: commands.Context, user: discord.User, pageno: int = 1):
+    async def peekdc(self, ctx: commands.Context, user: discord.Member, pageno: int = 1):
         """Spies on the user's displaycase."""
         invdisplay = Player(user).get_display()
         invitems_ = list(set(invdisplay))
@@ -1121,7 +1110,7 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command(pass_context=True)
     @commands.is_owner()
-    async def clearinv(self, ctx: commands.Context, user: discord.User):
+    async def clearinv(self, ctx: commands.Context, user: discord.Member):
         """Clears the specified user's inventory."""
         player = Player(user)
         player.clear_inventory()
@@ -1148,6 +1137,16 @@ class Economy(commands.Cog, name="Economy"):
         await self.bot_send(ctx, embed=emb, file=image)
         await self.bot_send(ctx, f"{winners}")
         
+    @commands.command()
+    @commands.is_owner()
+    async def refresh_playerdata(self, ctx: commands.Context):
+        for m in ctx.guild.members:
+            Player(m)
+
+    @commands.command()
+    @commands.is_owner()
+    async def get_all_trade_data(self, ctx: commands.Context):
+        await self.bot_send(ctx, json.dumps(trades))
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -1385,87 +1384,83 @@ class Economy(commands.Cog, name="Economy"):
                 "so I'll cancel it.")
                 del horse_races[k]
 
-    async def offer_trade(self, offeruserid: int | str, recipuserid: int | str, itemoffer: int | str,
-                          itemrecip: int | str):
+    async def offer_trade(self, offeruser: discord.Member, recipuser: discord.Member, 
+                          itemoffer: int | str, itemrecip: int | str):
         """itemoffer if item needs to be string with just item number"""
         global trades
-        offeruserid = str(offeruserid)
-        recipuserid = str(recipuserid)
-        offeruser = Player((await self.bot.fetch_user(int(offeruserid))))
-        recipuser = Player((await self.bot.fetch_user(int(recipuserid))))
+        offerplayer = Player(offeruser)
+        recipplayer = Player(recipuser)
 
         # lots of Checks
         for trade in trades:
-            if trade[0] == offeruserid and trade[1] == recipuserid:
+            if trade[0] == offerplayer.idstr and trade[1] == recipplayer.idstr:
                 raise TooManyTrades("You can only have one trade offer to a person at a time.")
         if isinstance(itemoffer, int):
-            if offeruser.get_whole_balance() < itemoffer:
+            if offerplayer.get_whole_balance() < itemoffer:
                 raise NotEnoughCoins("You don't have enough coins to offer.")
         else:
             try:
-                itemoffer = str(offeruser.get_item_from_invno(int(itemoffer)).id)
+                itemoffer = str(offerplayer.get_item_from_invno(int(itemoffer)).id)
             except NotInInventory:
                 raise NotInInventory("You don't have this item.")
         if isinstance(itemrecip, int):
-            if recipuser.get_whole_balance() < itemrecip:
+            if recipplayer.get_whole_balance() < itemrecip:
                 raise NotEnoughCoins("They don't have enough coins for this offer.")
         else:
             try:
-                itemrecip = str(recipuser.get_item_from_invno(int(itemrecip)).id)
+                itemrecip = str(recipplayer.get_item_from_invno(int(itemrecip)).id)
             except NotInInventory:
                 raise NotInInventory("They don't have this item.")
 
         # add trade
-        trades.append([offeruserid, recipuserid, itemoffer, itemrecip])
+        trades.append([offerplayer.idstr, recipplayer.idstr, itemoffer, itemrecip])
 
-    async def accept_trade(self, offeruserid: int | str, recipuserid: int | str) -> (
+    async def accept_trade(self, offeruser: discord.Member, recipuser: discord.Member) -> (
             tuple)[int | str, int | str, int, int]:
         global trades
-        offeruserid = str(offeruserid)
-        recipuserid = str(recipuserid)
-        offeruser = Player((await self.bot.fetch_user(int(offeruserid))))
-        recipuser = Player((await self.bot.fetch_user(int(recipuserid))))
+        offerplayer = Player(offeruser)
+        recipplayer = Player(recipuser)
         idx = None
 
         for i in range(len(trades)):
-            if trades[i][0] == offeruserid and trades[i][1] == recipuserid:
+            if trades[i][0] == offerplayer.idstr and trades[i][1] == recipplayer.idstr:
                 idx = i
                 itemoffer = trades[i][2]
                 itemrecip = trades[i][3]
 
                 # lots of Checks
                 if isinstance(itemoffer, int):
-                    if offeruser.get_balance() < itemoffer:
+                    if offerplayer.get_balance() < itemoffer:
                         raise NotEnoughCoins("The offering party doesn't have enough coins.")
                 else:
                     itemofferid = int(itemoffer)
-                    if not offeruser.has_in_inventory(itemofferid):
+                    if not offerplayer.has_in_inventory(itemofferid):
                         raise NotInInventory("The offering party doesn't have this item anymore.")
                 if isinstance(itemrecip, int):
-                    if recipuser.get_balance() < itemrecip:
+                    if recipplayer.get_balance() < itemrecip:
                         raise NotEnoughCoins("The receiving party doesn't have enough coins.")
                 else:
                     itemrecipid = int(itemrecip)
-                    if not recipuser.has_in_inventory(itemrecipid):
+                    if not recipplayer.has_in_inventory(itemrecipid):
                         raise NotInInventory("The receiving party doesn't have this item anymore.")
 
                 # accept trade
                 if isinstance(itemoffer, int):
-                    _, frombanko = offeruser.take_coins(itemoffer, True)
-                    recipuser.give_coins(itemoffer)
+                    _, frombanko = offerplayer.take_coins(itemoffer, True)
+                    recipplayer.give_coins(itemoffer)
                 else:
                     itemofferid = int(itemoffer)
                     frombanko = 0
-                    offeruser.remove_from_inventory(itemofferid)
-                    recipuser.add_to_inventory(itemofferid)
+                    offerplayer.remove_from_inventory(itemofferid)
+                    recipplayer.add_to_inventory(itemofferid)
                 if isinstance(itemrecip, int):
-                    _, frombankr = recipuser.take_coins(itemrecip, True)
-                    offeruser.give_coins(itemrecip)
+                    _, frombankr = recipplayer.take_coins(itemrecip, True)
+                    offerplayer.give_coins(itemrecip)
                 else:
                     itemrecipid = int(itemrecip)
                     frombankr = 0
-                    recipuser.remove_from_inventory(itemrecipid)
-                    offeruser.add_to_inventory(itemrecipid)
+                    recipplayer.remove_from_inventory(itemrecipid)
+                    offerplayer.add_to_inventory(itemrecipid)
 
                 break
 

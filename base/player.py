@@ -125,13 +125,18 @@ class Player:
             if "nhouses" not in _playerdata[key].keys():
                 _playerdata[key]["nhouses"] = -1
 
-    def __init__(self, user: discord.User):
+    def __init__(self, member: discord.Member):
 
-        self.user = user
-        self.id = user.id
-        self.idstr = str(user.id)
+        self.member = member
+        self.userid = member.id
+        self.guildid = member.guild.id
+        self.idstr = str(member.guild.id) + "_" + str(member.id)
         if self.idstr not in Player._playerdata.keys():
-            Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": [], "bank": 0, "lcr": 0, "tech": [], "nhouses": -1}
+            if str(self.userid) in Player._playerdata.keys():
+                Player._playerdata[self.idstr] = Player._playerdata[str(self.userid)]
+                del Player._playerdata[str(self.userid)]
+            else:
+                Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": [], "bank": 0, "lcr": 0, "tech": [], "nhouses": -1}
         if Player._playerdata[self.idstr]["nhouses"] == -1:
             Player._playerdata[self.idstr]["nhouses"] = self.amount_in_inventory(6, include_dc=True)
 
@@ -274,15 +279,19 @@ class Player:
         return Player._playerdata[self.idstr]["bank"]
 
     @staticmethod
-    def get_all_bank_data():
+    def get_all_bank_data(guildid:str|int=None):
         """returns all bank data"""
-        return [[key, val["bank"]] for key, val in Player._playerdata.items()]
+        if guildid is None:
+            return [[key, val["bank"]] for key, val in Player._playerdata.items()]
+        return [[key, val["bank"]] for key, val in Player._playerdata.items() if key.startswith(str(guildid))]
 
     @staticmethod
-    def reduce_bank_holdings_by_percent(percent: float):
+    def reduce_bank_holdings_by_percent(percent: float, guildid:str|int):
         """reduces all bank holdings by a certain percent, then returns the money taken. for bankrob"""
         reductions = []
         for key in Player._playerdata.keys():
+            if not key.startswith(str(guildid)):
+                continue
             amount_reduced = int(round(percent * Player._playerdata[key]["bank"]))
             reductions.append(amount_reduced)
             Player._playerdata[key]["bank"] -= amount_reduced
