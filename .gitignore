@@ -6,9 +6,14 @@ notes.txt
 /.vscode
 /.idea
 /training_data
-/data
 
 cogs/adventure.py
 cogs/pets.py
 base/pet.py
 data/chatbot.*
+data/analytics.pkl
+data/barrel*
+data/trades.json
+data/playerdata.json
+data/guild_config.json
+data/randomnumberscores.json

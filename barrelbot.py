@@ -132,7 +132,7 @@ async def view_server_config(ctx: commands.Context):
                             f"Robbing: {('enabled' if robbing else 'disabled')}")
     
     emb.add_field(name="Channels with economy enabled", 
-                  value='\n'.join([bot.get_channel(id).name for id in channel_ids]),
+                  value='\n'.join([bot.get_channel(id).mention for id in channel_ids]),
                   inline = False)
     
     await bot_send(ctx, embed=emb)

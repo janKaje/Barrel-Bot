@@ -301,6 +301,7 @@ class Economy(commands.Cog, name="Economy"):
         balances = [[p, i["bal"], i["bank"]] for p, i in Player._playerdata.items()]
         # Sort by total balance (wallet + bank)
         balances.sort(key=lambda i: i[1] + i[2], reverse=True)
+        balances = [i for i in balances if i[0].startswith(str(ctx.guild.id))]
         users = [re.search(r"(\d+)$", i[0]).group(1) for i in balances]
         bals = [i[1] + i[2] for i in balances]
         inbank = [i[2] for i in balances]
@@ -1280,7 +1281,7 @@ class Economy(commands.Cog, name="Economy"):
         hr_copy = horse_races.copy()
         for k, v in hr_copy.items():
             if now - v['prev_interaction_timestamp'] > 300: # 5 minutes since interact
-                ch_id = int(re.match("\d+_(\d+)", k).group(1))
+                ch_id = int(re.match(r"\d+_(\d+)", k).group(1))
                 channel = await self.bot.fetch_channel(ch_id)
                 await self.bot_send(channel, "It's been more than 5 minutes since you interacted with this horse race," \
                 "so I'll cancel it.")
