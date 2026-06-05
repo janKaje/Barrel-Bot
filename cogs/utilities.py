@@ -44,7 +44,7 @@ class Utilities(commands.Cog, name="Utilities"):
         # displays all commands if cmd is not given
         if cmd is None or cmd == 'commands':
             command_msg = discord.Embed(title='Commands', color=discord.Color.blue(),
-                                        description='Type `barrelbot, help [command]` or `barrelbot, help [category]` '
+                                        description='Type `bb help [command]` or `bb help [category]` '
                                                     'for more information.')
 
             cmds = []

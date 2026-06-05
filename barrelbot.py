@@ -4,6 +4,7 @@ import re
 import sys
 import asyncio
 from base import env
+from base.emojis import EmojiDefs as ED
 import discord
 from discord.ext import commands, tasks
 from base.messagetosend import UnsentMessage
@@ -197,6 +198,39 @@ async def remove_channel(ctx: commands.Context):
         env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["channel_ids"].remove(ctx.channel.id)
         await bot_send(ctx, f"Economy commands are now disabled in {ctx.channel.name}")
 
+@bot.listen()
+async def on_guild_join(guild:discord.Guild):
+
+    # set up config
+    env.BBGLOBALS.GUILD_CONFIG[str(guild.id)] = {
+        "gambling": False,
+        "robbing": False,
+        "channel_ids": []
+    }
+
+    #send first message
+    embed = discord.Embed(title='Hello!', 
+        description=("I'm BarrelBot, your personal assistant in your spiritual"
+                     f" journey towards oneness with the {ED.BARREL_EMOJI}. "
+                     "Use `bb help` to see all of my commands, or ask me to "
+                     "introduce myself with `Hey BarrelBot, introduce yourself`\n\n"
+                     "If you're the admin, please set up a channel for economy"
+                     "commands with `bb add_channel`. Also, take a look at"
+                     "the help command to configure specific features."))
+    
+    for channel in guild.text_channels:
+        try:
+            await channel.send(embed=embed)
+            break
+        except:
+            pass
+
+@bot.listen()
+async def on_guild_remove(guild:discord.Guild):
+
+    # delete config
+    del env.BBGLOBALS.GUILD_CONFIG[str(guild.id)]
+
 # helper function
 def time_str(time):
     """Takes a float of seconds and turns it into appropriate hours, minutes, and seconds."""
@@ -254,7 +288,7 @@ async def on_ready():
     await load_cog("cogs.economy", "Economy")
     await load_cog("cogs.barrelnews", "Barrel News")
     await load_cog("cogs.chat", "Chatbot")
-    # await load_cog("cogs.analytics", "Analytics")
+    await load_cog("cogs.analytics", "Analytics")
     # await load_cog("cogs.research", "Research")
     print("\033[0m")
 

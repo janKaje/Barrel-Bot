@@ -1,0 +1,21 @@
+{
+    "cult": [
+        [1, "Hi! I'm BarrelBot. Nice to meet you!"],
+        [1.2, "I can do lots of things for you. If you want to see everything you can ask me, type `bb help`."],
+        [2.1, "I'm here to help this wonderful <:barrel:1296987889942397001> cult in their spiritual journey towards the Almighty <:barrel:1296987889942397001>, so I try to help out around here where I can."],
+        [1.7, "One cool thing I do is watch <#1297028406504067142> and keep track of everyone's scores. I also keep track of who sends how many messages - you can see the results by asking me to show_analytics."],
+        [3.0, "I've also started studying finance, and to help me practice for my exams, I've made myself an economy system to manage. All of the new commands can be found with bb help, but some notable ones are:\n* `work`: work to earn <:barrelcoin:1364027068936884405> \n* `shop`: see what there is to buy (not much right now but that'll change)\n* `buy`: buy an item from the shop\n* `fish`: use your fishing rod (if you have one) to catch some fish\n* `gift`: give some <:barrelcoin:1364027068936884405> to someone else\n* `balance`: see how much <:barrelcoin:1364027068936884405> you have\n* `baltop`: see who has the most <:barrelcoin:1364027068936884405>"],
+        [1.5, "As part of my criminology minor, I'm doing a social experiment: you can use daggers and shields to rob each other! Of course, the server admins have to allow this, so that might not be available here."],
+        [1.7, "To help pay for my tuition, I've taken up a job at the local casino. I'm still new, so all I know how to manage are slot machines, the roulette table, and the horseraces. This is another admin-enabled feature though."],
+        [1.2, "That's all for now! May the <:barrel:1296987889942397001> be with you :smile:"]
+    ],
+    "default": [
+        [1, "Hi! I'm BarrelBot. Nice to meet you!"],
+        [1.2, "I can do lots of things for you. If you want to see everything you can ask me, type `bb help`."],
+        [2.1, "I'm here to help the <:barrel:1296987889942397001> cult in their spiritual journey towards the Almighty <:barrel:1296987889942397001>, so I try to help out around here where I can."],
+        [3.0, "I've also started studying finance, and to help me practice for my exams, I've made myself an economy system to manage. All of the new commands can be found with bb help, but some notable ones are:\n* `work`: work to earn <:barrelcoin:1364027068936884405> \n* `shop`: see what there is to buy (not much right now but that'll change)\n* `buy`: buy an item from the shop\n* `fish`: use your fishing rod (if you have one) to catch some fish\n* `gift`: give some <:barrelcoin:1364027068936884405> to someone else\n* `balance`: see how much <:barrelcoin:1364027068936884405> you have\n* `baltop`: see who has the most <:barrelcoin:1364027068936884405>"],
+        [1.5, "As part of my criminology minor, I'm doing a social experiment: you can use daggers and shields to rob each other! Of course, the server admins have to allow this, so that might not be available here."],
+        [1.7, "To help pay for my tuition, I've taken up a job at the local casino. I'm still new, so all I know how to manage are slot machines, the roulette table, and the horseraces. This is another admin-enabled feature though."],
+        [1.2, "That's all for now! May the <:barrel:1296987889942397001> be with you :smile:"]
+    ]
+}

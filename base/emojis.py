@@ -1,5 +1,7 @@
-import env
-
+try:
+	import env
+except ImportError:
+    from base import env
 
 class EmojiDefs:
     BARREL_COIN: str = "<:barrelcoin:1364027068936884405>"

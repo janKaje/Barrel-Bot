@@ -30,6 +30,10 @@ with open(dir_path + "/data/customratings.json") as file:
 with open(dir_path + "/data/randomnumberscores.json") as file:
     randomnumberscores = json.load(file)
 
+with open(dir_path + "/data/introductions.json") as file:
+    introductions = json.load(file)
+
+
 
 async def savealldata():
     """Saves data to file."""
@@ -70,41 +74,19 @@ class Fun(commands.Cog, name="Fun"):
 
     @commands.command()
     @Checks.is_barrel_cult()
-    async def introduce(self, ctx: commands.Context, *, arg):
+    async def introduce(self, ctx: commands.Context, *, arg:str):
         """Ask me to introduce myself!
         Example:
         `Hey BarrelBot, introduce yourself!`"""
-        if re.match("yourself", arg) is not None:
-            async with ctx.typing():
-                await asyncio.sleep(1)
-                await self.bot_send(ctx, "Hi! I'm BarrelBot. Nice to meet you!")
-            async with ctx.typing():
-                await asyncio.sleep(1.2)
-                await self.bot_send(ctx,
-                                    "I can do lots of things for you. If you want to see everything you can ask me, "
-                                    "type \"Hey BarrelBot, help\".")
-            async with ctx.typing():
-                await asyncio.sleep(1.8)
-                await self.bot_send(ctx,
-                                    "I'll understand you if you say hey, hi, or hello before my name! And feel free "
-                                    "to use capital letters or not. It doesn't really matter to me :slight_smile:")
-            async with ctx.typing():
-                await asyncio.sleep(2.1)
-                await self.bot_send(ctx,
-                                    "I'm here to help the <:barrel:1296987889942397001> cult in their spiritual "
-                                    "journey towards the Almighty <:barrel:1296987889942397001>, so I try to help out "
-                                    "around here where I can.")
-            async with ctx.typing():
-                await asyncio.sleep(1.7)
-                await self.bot_send(ctx,
-                                    "One cool thing I do is watch <#1297028406504067142> and keep track of everyone's "
-                                    "scores. I also keep track of who sends how many messages - you can see the "
-                                    "results by asking me to show_analytics.")
-            async with ctx.typing():
-                await asyncio.sleep(1.2)
-                await self.bot_send(ctx,
-                                    "That's all for now! May the <:barrel:1296987889942397001> be with you :smile:")
-            return
+        if arg.lower().startswith("yourself"):
+            if ctx.guild.id == BBGLOBALS.BARREL_CULT_GUILD_ID:
+                messages = introductions['cult']
+            else:
+                messages = introductions['default']
+            for type_sec, msg in messages:
+                async with ctx.typing():
+                    await asyncio.sleep(type_sec)
+                    await self.bot_send(ctx, msg)
         else:
             await self.bot_send(ctx,
                                 f"I don't know enough about {arg} to introduce him/her/them/it properly. You'll have "
