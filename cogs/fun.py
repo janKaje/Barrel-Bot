@@ -73,7 +73,6 @@ class Fun(commands.Cog, name="Fun"):
         await self.bot_send(ctx, to_send)
 
     @commands.command()
-    @Checks.is_barrel_cult()
     async def introduce(self, ctx: commands.Context, *, arg:str):
         """Ask me to introduce myself!
         Example:

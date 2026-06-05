@@ -55,7 +55,8 @@ Intents.guild_messages = True
 Intents.message_content = True
 
 # Initialize bot
-bot = commands.Bot(command_prefix=is_command, intents=Intents)
+bot = commands.Bot(command_prefix=is_command, intents=Intents,
+                   allowed_mentions=discord.AllowedMentions(everyone=False))
 bot.remove_command('help')
 
 # Create global variables
@@ -215,7 +216,7 @@ async def on_guild_join(guild:discord.Guild):
                      "Use `bb help` to see all of my commands, or ask me to "
                      "introduce myself with `Hey BarrelBot, introduce yourself`\n\n"
                      "If you're the admin, please set up a channel for economy"
-                     "commands with `bb add_channel`. Also, take a look at"
+                     " commands with `bb add_channel`. Also, take a look at "
                      "the help command to configure specific features."))
     
     for channel in guild.text_channels:
@@ -355,6 +356,8 @@ async def on_command_error(ctx: commands.Context, error):
             f"This command can only be done in {' or '.join([i.mention for i in bb_channels])}.")
         await ctx.message.delete(delay=5)
         await msg.delete(delay=5)
+    elif isinstance(error, commands.CheckFailure):
+        pass
     else:
         await bot_send(ctx, f'An unknown error occurred:\n{type(error)}\n{error.with_traceback(None)}')
 
