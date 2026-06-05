@@ -61,7 +61,7 @@ rouletteslots = {'00': 'green', '0': 'green', '1': 'red', '2': 'black',
 
 horse_races = {} # this can be semi-persistent horse racing thing
 
-cooldwn = commands.CooldownMapping.from_cooldown(3.0, 86400.0, commands.BucketType.user)
+cooldwn = commands.CooldownMapping.from_cooldown(3.0, 86400.0, commands.BucketType.member)
 
 
 async def temp_bot_send(ctx: commands.Context, content: str = None, embed: discord.Embed = None, file: discord.File = None):
@@ -72,7 +72,7 @@ class Economy(commands.Cog, name="Economy"):
     """Economy module"""
 
     # INITIALIZATION
-    
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.bot_send = temp_bot_send
@@ -94,30 +94,30 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command(help=f"""Every 30 minutes, you can work to earn 
                       {ED.BARREL_COIN}.""")
     @Checks.in_bb_channel()
-    @commands.cooldown(1, 1800, commands.BucketType.user)  # every 30 min
+    @commands.cooldown(1, 1800, commands.BucketType.member)  # every 30 min
     async def work(self, ctx: commands.Context):
         player = Player(ctx.author)
         workresult = rand.randint(0, 99)
         if workresult < 2:
             coinsadd = -min(rand.randint(5, 15), player.get_whole_balance())
-            msg = ctx.author.mention + ", you somehow managed to completely "
+            msg = ctx.author.mention + ", you somehow managed to completely " + \
             "screw up everything at the barrel factory and had to pay " + \
             str(coinsadd) + ED.BARREL_COIN + " in damages."
         elif workresult < 20:
             coinsadd = rand.randint(10, 15)
-            msg = ctx.author.mention + ", you worked hard, but things weren't "
+            msg = ctx.author.mention + ", you worked hard, but things weren't " + \
             "in your favor today. You earned " + str(coinsadd) + ED.BARREL_COIN + "."
         elif workresult < 65:
             coinsadd = rand.randint(25, 30)
-            msg = ctx.author.mention + ", you had a really normal and boring "
+            msg = ctx.author.mention + ", you had a really normal and boring " + \
             "day at the barrel factory. You earned " +str(coinsadd) + ED.BARREL_COIN + "."
         elif workresult < 85:
             coinsadd = rand.randint(30, 40)
-            msg = ctx.author.mention + ", you made a new friend at work today!"
+            msg = ctx.author.mention + ", you made a new friend at work today!" + \
             " You earned " + str(coinsadd) + ED.BARREL_COIN + "."
         elif workresult < 98:
             coinsadd = rand.randint(40, 50)
-            msg = ctx.author.mention + ", you had a tough day but you powered "
+            msg = ctx.author.mention + ", you had a tough day but you powered " + \
             "through it! You earned " + str(coinsadd) + ED.BARREL_COIN + "."
         else:
             coinsadd = rand.randint(50, 75)
@@ -179,7 +179,7 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command()
     @Checks.in_bb_channel()
     @Checks.can_fish()
-    @commands.cooldown(1, 600, commands.BucketType.user)  # every 10 min
+    @commands.cooldown(1, 600, commands.BucketType.member)  # every 10 min
     async def fish(self, ctx: commands.Context):
         """Cast out your fishing line and see what you get! You can fish once every 10 minutes."""
         player = Player(ctx.author)
@@ -623,7 +623,8 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command()
     @Checks.in_bb_channel()
-    @commands.cooldown(20, 86400, commands.BucketType.user)
+    @Checks.can_gamble()
+    @commands.cooldown(20, 86400, commands.BucketType.member)
     async def slots(self, ctx: commands.Context, *, stakes="low"):
         """Lets you play slots.
         You can specify either low, medium, or high stakes (default is low.)
@@ -668,7 +669,8 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command()
     @Checks.in_bb_channel()
-    @commands.cooldown(20, 86400, commands.BucketType.user)
+    @Checks.can_gamble()
+    @commands.cooldown(20, 86400, commands.BucketType.member)
     async def roulette(self, ctx: commands.Context, bet, *, bet_type: str):
         """Lets you play American-style roulette. Bet an amount of money and choose what you want to bet on.
         Options for bet_type:
@@ -737,7 +739,7 @@ class Economy(commands.Cog, name="Economy"):
     @Checks.in_bb_channel()
     @Checks.can_rob()
     @Checks.has_valid_user(r"(?<=rob ).*")
-    @commands.cooldown(1, 3600, commands.BucketType.user)  # every hr
+    @commands.cooldown(1, 3600, commands.BucketType.member)  # every hr
     # add something to keep repeated robbings in check - maybe decreased luck if you do the same person twice in a row? 
     # maybe occasional jail time where you can't do any commands?
     async def rob(self, ctx: commands.Context, *, victim: discord.Member):
@@ -813,7 +815,7 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command()
     @Checks.in_bb_channel()
     @Checks.can_rob()
-    @commands.cooldown(1, 21600, commands.BucketType.user)  # every 6 hr
+    @commands.cooldown(1, 21600, commands.BucketType.member)  # every 6 hr
     async def bankrob(self, ctx: commands.Context):
         """Attempts to rob the bank. The chance of succeeding is very low (~1%), but with more daggers your luck
         increases to just low (at most ~5%). Amount gained upon successful robbery: 20-40% of the bank's holdings,
@@ -839,7 +841,7 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command()
     @Checks.in_bb_channel()
     @Checks.can_collect_rent()
-    @commands.cooldown(1, 10, commands.BucketType.user)
+    @commands.cooldown(1, 10, commands.BucketType.member)
     async def collectrent(self, ctx: commands.Context):
         """Collects rent for your houses. Rent is 500 coins per house per day."""
         player = Player(ctx.author)
@@ -856,7 +858,8 @@ class Economy(commands.Cog, name="Economy"):
             
     @commands.command()
     @Checks.in_bb_channel()
-    @commands.cooldown(1, 20, commands.BucketType.user)
+    @Checks.can_gamble()
+    @commands.cooldown(1, 20, commands.BucketType.member)
     @commands.cooldown(1, 2, commands.BucketType.guild)
     async def horserace(self, ctx: commands.Context):
         """Bet on a horse race!"""
@@ -918,7 +921,7 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command()
     @Checks.in_bb_channel()
-    @commands.cooldown(1, 600, commands.BucketType.user)  # every 10 minutes
+    @commands.cooldown(1, 600, commands.BucketType.member)  # every 10 minutes
     async def fetchmeabeer(self, ctx: commands.Context):
 
         beerFetchMessages = {
@@ -1036,7 +1039,7 @@ class Economy(commands.Cog, name="Economy"):
     async def kill_user(self, ctx: commands.Context, user: int|discord.Member):
         """Kills a user and removes all their data. Only for admins."""
         if user.bot:
-            await self.bot_send(ctx, "You can't remove a bot´s data.")
+            await self.bot_send(ctx, "You can't remove a bot's data.")
             return
         if isinstance(user, int):
             try:

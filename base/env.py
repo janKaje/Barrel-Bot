@@ -1,6 +1,9 @@
 import os
+import json
+from typing import Literal
 from colorama import Fore
 
+dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class BBGLOBALS:
     HIDE_FROM_HELP: dict = {}
@@ -34,6 +37,49 @@ class BBGLOBALS:
     BARREL_CULT_GUILD_ID = 1296983356541501440
 
     KEN_USER_ID = 105721759373787136
+
+    with open(dir_path + "/data/guild_config.json") as file:
+        GUILD_CONFIG = json.load(file)
+
+    @staticmethod
+    def write_guild_config_raw(new):
+        BBGLOBALS.GUILD_CONFIG = new
+    
+    @staticmethod
+    def save_guild_config():
+        with open(dir_path + "/data/guild_config.json", "w") as file:
+            json.dump(BBGLOBALS.GUILD_CONFIG, file)
+
+    @staticmethod
+    def reload_guild_config():
+        with open(dir_path + "/data/guild_config.json") as file:
+            BBGLOBALS.GUILD_CONFIG = json.load(file)
+
+    @staticmethod
+    def change_toggled_option(guildid:str, option:Literal["gambling", "robbing"], new:bool):
+
+        assert guildid in BBGLOBALS.GUILD_CONFIG.keys(), f"{guildid} not in config keys"
+        assert option in ["gambling", "robbing"]
+        assert isinstance(new, bool)
+
+        BBGLOBALS.GUILD_CONFIG[guildid][option] = new
+
+    @staticmethod
+    def remove_bb_channel(guildid:str, channel_id:int):
+
+        assert guildid in BBGLOBALS.GUILD_CONFIG.keys(), f"{guildid} not in config keys"
+        assert channel_id in BBGLOBALS.GUILD_CONFIG[guildid]["channel_ids"]
+
+        BBGLOBALS.GUILD_CONFIG[guildid]["channel_ids"].remove(channel_id)
+
+    @staticmethod
+    def add_bb_channel(guildid:str, channel_id:int):
+
+        assert guildid in BBGLOBALS.GUILD_CONFIG.keys(), f"{guildid} not in config keys"
+        assert isinstance(channel_id, int)
+        assert channel_id not in BBGLOBALS.GUILD_CONFIG[guildid]["channel_ids"]
+
+        BBGLOBALS.GUILD_CONFIG[guildid]["channel_ids"].append(channel_id)
 
     @classmethod
     def init_globals(cls):

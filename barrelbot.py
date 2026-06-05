@@ -69,6 +69,9 @@ TOKEN = os.environ["TOKEN"]
 
 # prep for save functions
 async def save_everything():
+
+    env.BBGLOBALS.save_guild_config()
+
     global defaultctx
     assert defaultctx is not None, "Default context hasn't been established yet"
 
@@ -109,6 +112,90 @@ async def load_cog(cogname, cogn2):
     except Exception as e:
         print(f"Error in adding bot_send: {e.with_traceback(None)}")
 
+# guild configuration
+# always active: fun, utilities, economy
+# cult specific: analytics, chat, spam, news
+# toggleable: robbing, gambling
+# configurable: bb channel
+@bot.command()
+@commands.has_guild_permissions(manage_guild=True)
+async def view_server_config(ctx: commands.Context):
+    """View current server settings"""
+
+    gambling = env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["gambling"]
+    robbing = env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["robbing"]
+    channel_ids = env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["channel_ids"]
+
+    emb = discord.Embed(color=discord.Colour.og_blurple(),
+                        title=f"Settings for {ctx.guild.name}",
+                        description=f"Gambling: {('enabled' if gambling else 'disabled')}\n" +\
+                            f"Robbing: {('enabled' if robbing else 'disabled')}")
+    
+    emb.add_field(name="Channels with economy enabled", 
+                  value='\n'.join([bot.get_channel(id).name for id in channel_ids]),
+                  inline = False)
+    
+    await bot_send(ctx, embed=emb)
+
+@bot.command()
+@commands.has_guild_permissions(manage_guild=True)
+async def enable_gambling(ctx: commands.Context):
+    """Enable gambling on this server"""
+    if env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["gambling"] is True:
+        await bot_send(ctx, "Gambling is already enabled for this server.")
+    else:
+        env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["gambling"] = True
+        await bot_send(ctx, f"Gambling is now enabled on {ctx.guild.name}")
+
+@bot.command()
+@commands.has_guild_permissions(manage_guild=True)
+async def disable_gambling(ctx: commands.Context):
+    """Disable gambling on this server"""
+    if env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["gambling"] is False:
+        await bot_send(ctx, "Gambling is already disabled for this server.")
+    else:
+        env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["gambling"] = False
+        await bot_send(ctx, f"Gambling is now disabled on {ctx.guild.name}")
+        
+@bot.command()
+@commands.has_guild_permissions(manage_guild=True)
+async def enable_robbing(ctx: commands.Context):
+    """Enable robbing on this server"""
+    if env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["robbing"] is True:
+        await bot_send(ctx, "Robbing is already enabled for this server.")
+    else:
+        env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["robbing"] = True
+        await bot_send(ctx, f"Robbing is now enabled on {ctx.guild.name}")
+
+@bot.command()
+@commands.has_guild_permissions(manage_guild=True)
+async def disable_robbing(ctx: commands.Context):
+    """Disable robbing on this server"""
+    if env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["robbing"] is False:
+        await bot_send(ctx, "Robbing is already disabled for this server.")
+    else:
+        env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["robbing"] = False
+        await bot_send(ctx, f"Robbing is now disabled on {ctx.guild.name}")
+
+@bot.command()
+@commands.has_permissions(manage_guild=True)
+async def add_channel(ctx: commands.Context):
+    """Adds this channel to BarrelBot's list of channels that economy commands are enabled in."""
+    if ctx.channel.id in env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["channel_ids"]:
+        await bot_send(ctx, "Economy commands are already enabled in this channel")
+    else:
+        env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["channel_ids"].append(ctx.channel.id)
+        await bot_send(ctx, f"Economy commands are now enabled in {ctx.channel.name}")
+
+@bot.command()
+@commands.has_permissions(manage_guild=True)
+async def remove_channel(ctx: commands.Context):
+    """Removes this channel from BarrelBot's list of channels that economy commands are enabled in."""
+    if ctx.channel.id not in env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["channel_ids"]:
+        await bot_send(ctx, "Economy commands are already disabled in this channel")
+    else:
+        env.BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["channel_ids"].remove(ctx.channel.id)
+        await bot_send(ctx, f"Economy commands are now disabled in {ctx.channel.name}")
 
 # helper function
 def time_str(time):
@@ -161,19 +248,20 @@ async def on_ready():
     print("\033[0;34m---\033[0m")
     print("\033[32m")
     # Load cogs
+    await load_cog("cogs.utilities", "Utilities")
     await load_cog("cogs.barrelspam", "Barrel Spam")
     await load_cog("cogs.fun", "Fun")
     await load_cog("cogs.economy", "Economy")
-    # await load_cog("cogs.research", "Research")
     await load_cog("cogs.barrelnews", "Barrel News")
-    await load_cog("cogs.analytics", "Analytics")
-    await load_cog("cogs.utilities", "Utilities")
     await load_cog("cogs.chat", "Chatbot")
+    # await load_cog("cogs.analytics", "Analytics")
+    # await load_cog("cogs.research", "Research")
     print("\033[0m")
 
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
 
     sendnextmsg.start()
+    save_guild_config.start()
 
     global defaultctx
     defaultctx = await bot.get_context(
@@ -303,6 +391,10 @@ async def sendnextmsg():
     except Exception as e:
         print(e)
         await message.ctx.send(str(e))
+
+@tasks.loop(hours=24)
+async def save_guild_config():
+    env.BBGLOBALS.save_guild_config()
 
 
 # Run the bot

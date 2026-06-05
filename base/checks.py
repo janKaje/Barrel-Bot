@@ -15,7 +15,7 @@ class Checks:
     def can_fish():
         async def predicate(ctx: Context):
             if not Player(ctx.author).has_in_inventory(1):
-                raise NotAbleTo("You need to buy a fishing rod")
+                raise NotAbleTo("You need to buy a fishing rod.")
             return True
 
         return check(predicate)
@@ -23,8 +23,10 @@ class Checks:
     @staticmethod
     def can_rob():
         async def predicate(ctx: Context):
+            if not BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["robbing"]:
+                raise NotAbleTo("Robbing is not enabled on this server.")
             if not Player(ctx.author).has_in_inventory(2):
-                raise NotAbleTo("You need to buy a dagger to do crime")
+                raise NotAbleTo("You need to buy a dagger to do crime.")
             return True
 
         return check(predicate)
@@ -52,10 +54,9 @@ class Checks:
     @staticmethod
     def in_bb_channel():
         async def predicate(ctx: Context):
-            if ctx.channel.id not in BBGLOBALS.BB_CHANNEL_IDS:
+            if ctx.channel.id not in BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["channel_ids"]:
                 raise NotInBbChannel("This command can't be used here")
             return True
-
         return check(predicate)
 
     @staticmethod
@@ -71,4 +72,13 @@ class Checks:
     def is_barrel_cult():
         async def predicate(ctx: Context):
             return ctx.guild.id == BBGLOBALS.BARREL_CULT_GUILD_ID
+        return check(predicate)
+    
+    @staticmethod
+    def can_gamble():
+        async def predicate(ctx: Context):
+            if not BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["gambling"]:
+                raise NotAbleTo("Gambling is not enabled on this server.")
+            return True
+
         return check(predicate)

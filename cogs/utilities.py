@@ -1,5 +1,6 @@
 import os
 import re
+from inspect import iscoroutinefunction
 
 import discord
 from discord.ext import commands
@@ -55,15 +56,12 @@ class Utilities(commands.Cog, name="Utilities"):
                     checks = True
                     for j in i.checks:
                         try:
-                            try:
+                            if iscoroutinefunction(j):
                                 await j(ctx)
-                            except commands.CheckFailure:
-                                checks = False
-                        except:
-                            try:
+                            else:
                                 j(ctx)
-                            except commands.CheckFailure:
-                                checks = False
+                        except commands.CheckFailure:
+                            checks = False
                     if checks:
                         cog_info += f'***{i.name}***  -  '
                         cmds.append(i.name)
@@ -72,15 +70,12 @@ class Utilities(commands.Cog, name="Utilities"):
                     checks = True
                     for j in i.checks:
                         try:
-                            try:
+                            if iscoroutinefunction(j):
                                 await j(ctx)
-                            except commands.CheckFailure:
-                                checks = False
-                        except:
-                            try:
+                            else:
                                 j(ctx)
-                            except commands.CheckFailure:
-                                checks = False
+                        except commands.CheckFailure:
+                            checks = False
                     if checks:
                         cog_info += f'***{i.name}***  -  '
                         cmds.append(i.name)
@@ -101,27 +96,24 @@ class Utilities(commands.Cog, name="Utilities"):
                 if cog is not None:
                     await addcommands(cog)
 
-            if await self.bot.is_owner(ctx.author):
-                info = ''
-                for command in self.bot.commands:
-                    if command.name not in cmds:
-                        checks = True
-                        for j in command.checks:
-                            try:
-                                try:
-                                    await j(ctx)
-                                except commands.CheckFailure:
-                                    checks = False
-                            except:
-                                try:
-                                    j(ctx)
-                                except commands.CheckFailure:
-                                    checks = False
-                        if checks:
-                            info += f'***{command.name}***  -  '
-                            cmds.append(command.name)
-                if info != '':
-                    command_msg.add_field(name='__Owner Only__', value=re.sub(r' {2}- {2}\Z', '', info), inline=False)
+            # if await self.bot.is_owner(ctx.author):
+            info = ''
+            for command in self.bot.commands:
+                if command.name not in cmds:
+                    checks = True
+                    for j in command.checks:
+                        try:
+                            if iscoroutinefunction(j):
+                                await j(ctx)
+                            else:
+                                j(ctx)
+                        except commands.CheckFailure:
+                            checks = False
+                    if checks:
+                        info += f'***{command.name}***  -  '
+                        cmds.append(command.name)
+            if info != '':
+                command_msg.add_field(name='__Admin Commands__', value=re.sub(r' {2}- {2}\Z', '', info), inline=False)
 
             await self.bot_send(ctx, embed=command_msg)
 
