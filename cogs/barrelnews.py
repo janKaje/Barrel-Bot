@@ -52,6 +52,11 @@ class BarrelNews(commands.Cog, name="Barrel News"):
         self.bot_send = bot_send
 
     @commands.command()
+    async def website(self, ctx: commands.Context):
+        """Provides a link to the official Barrel News website"""
+        await self.bot_send(ctx, "https://barrel.ratt.ing/#news")
+
+    @commands.command()
     @commands.has_role(env.BBGLOBALS.BARREL_REP_ROLE_ID)
     async def test_timing(self, ctx: commands.Context):
         prev_d = self.get_deadline(True)

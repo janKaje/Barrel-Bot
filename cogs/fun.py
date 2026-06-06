@@ -140,6 +140,7 @@ class Fun(commands.Cog, name="Fun"):
         await self.bot_send(ctx, rand.choice(responses))
 
     @commands.command()
+    @Checks.in_bb_channel()
     @commands.cooldown(1, 3, commands.BucketType.user)
     async def random(self, ctx: commands.Context):
         """Gives a random number. Keeps track of high scores."""

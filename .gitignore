@@ -1,5 +1,5 @@
 token.txt
-test.py
+test.*
 *__pycache__
 .env
 notes.txt
@@ -15,5 +15,5 @@ data/analytics.pkl
 data/barrel*
 data/trades.json
 data/playerdata.json
-data/guild_config.json
+data/guild_config.*
 data/randomnumberscores.json

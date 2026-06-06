@@ -585,7 +585,7 @@ class Analytics(commands.Cog, name="Analytics"):
         return isinstance(channel, discord.TextChannel) \
             and channel.guild.id == env.BBGLOBALS.BARREL_CULT_GUILD_ID \
             and channel.permissions_for(self.memberinst).read_message_history \
-            and channel.id not in env.BBGLOBALS.BB_CHANNEL_IDS
+            and channel.id not in env.BBGLOBALS.ANALYTICS_EXEMPT_CHANNEL_IDS
 
 
 def save_to_pickle(data, filename: str) -> None:

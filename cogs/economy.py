@@ -861,7 +861,6 @@ class Economy(commands.Cog, name="Economy"):
     @Checks.in_bb_channel()
     @Checks.can_gamble()
     @commands.cooldown(1, 20, commands.BucketType.member)
-    @commands.cooldown(1, 2, commands.BucketType.guild)
     async def horserace(self, ctx: commands.Context):
         """Bet on a horse race!"""
         # ok what this is gonna do

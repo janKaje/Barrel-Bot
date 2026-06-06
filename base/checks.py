@@ -5,6 +5,7 @@ from discord.ext.commands import check, Context, UserConverter, MissingPermissio
 from extra_exceptions import *
 from player import Player
 from env import BBGLOBALS
+from guild_config import GUILD_CONFIG as GC
 
 usrconv = UserConverter()
 
@@ -23,7 +24,7 @@ class Checks:
     @staticmethod
     def can_rob():
         async def predicate(ctx: Context):
-            if not BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["robbing"]:
+            if not GC.is_robbing_enabled(ctx.guild):
                 raise NotAbleTo("Robbing is not enabled on this server.")
             if not Player(ctx.author).has_in_inventory(2):
                 raise NotAbleTo("You need to buy a dagger to do crime.")
@@ -54,7 +55,7 @@ class Checks:
     @staticmethod
     def in_bb_channel():
         async def predicate(ctx: Context):
-            if ctx.channel.id not in BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["channel_ids"]:
+            if not GC.is_bb_channel(ctx.channel):
                 raise NotInBbChannel("This command can't be used here")
             return True
         return check(predicate)
@@ -77,7 +78,7 @@ class Checks:
     @staticmethod
     def can_gamble():
         async def predicate(ctx: Context):
-            if not BBGLOBALS.GUILD_CONFIG[str(ctx.guild.id)]["gambling"]:
+            if not GC.is_gambling_enabled(ctx.guild):
                 raise NotAbleTo("Gambling is not enabled on this server.")
             return True
 
