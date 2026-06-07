@@ -94,12 +94,12 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command(help=f"""Every 30 minutes, you can work to earn 
                       {ED.BARREL_COIN}.""")
     @Checks.in_bb_channel()
-    @commands.cooldown(1, 1800, commands.BucketType.member)  # every 30 min
+    @Checks.cooldown(1, 1800, commands.BucketType.member)  # every 30 min
     async def work(self, ctx: commands.Context):
         player = Player(ctx.author)
         workresult = rand.randint(0, 99)
         if workresult < 2:
-            coinsadd = -min(rand.randint(5, 15), player.get_whole_balance())
+            coinsadd = -min(rand.randint(5, 15), player.whole_balance)
             msg = ctx.author.mention + ", you somehow managed to completely " + \
             "screw up everything at the barrel factory and had to pay " + \
             str(coinsadd) + ED.BARREL_COIN + " in damages."
@@ -179,7 +179,7 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command()
     @Checks.in_bb_channel()
     @Checks.can_fish()
-    @commands.cooldown(1, 600, commands.BucketType.member)  # every 10 min
+    @Checks.cooldown(1, 600, commands.BucketType.member)  # every 10 min
     async def fish(self, ctx: commands.Context):
         """Cast out your fishing line and see what you get! You can fish once every 10 minutes."""
         player = Player(ctx.author)
@@ -191,36 +191,36 @@ class Economy(commands.Cog, name="Economy"):
                 player.add_to_inventory(fishid)
             await self.bot_send(ctx, outstr)
 
-    @commands.command(aliases=["inv"])
-    async def inventory(self, ctx: commands.Context, pageno=1):
+    @commands.command(aliases=["inv"], pass_context=True)
+    async def inventory(self, ctx: commands.Context, pageno:int=1):
         """Displays your personal inventory."""
-        try:
-            pageno = int(pageno)
-        except:
-            await self.bot_send(ctx, "Page number must be an integer.")
-            return
+
         player = Player(ctx.author)
-        invdisplay = player.get_inventory()
-        invitems_ = list(set(invdisplay))
-        invitems_.sort(key=lambda i: i.id)
-        invitems = invitems_[(pageno - 1) * 25:pageno * 25]
-        nopages = 1 + (len(invitems_) - 1) // 25
+        inventory_items = player.get_inventory()
+        
+        on_page = inventory_items[(pageno - 1) * 25:pageno * 25]
+        nopages = 1 + (len(inventory_items) - 1) // 25
+
         embed = discord.Embed(color=discord.Color.light_gray())
         embed.title = ctx.author.display_name + "'s Inventory"
-        embed.description = "Total items: " + str(len(invdisplay))
-        for i, item in enumerate(invitems):
+        embed.description = "Total items: " + str(sum([row[1] for row in inventory_items]))
+
+        for i, row in enumerate(on_page):
+            item, count = row
             embed.add_field(name=str(item), value="#" + str(i + 1 + (pageno - 1) * 25) + str(
-                "" if invdisplay.count(item) == 1 else " - Count: " + str(invdisplay.count(item))))
+                "" if count == 1 else " - Count: " + str(count)))
+            
         if nopages > 1:
             embed.set_footer(text=f"Page {pageno}/{nopages} - type `bb inventory <page>` to see a different page")
+
         await self.bot_send(ctx, embed=embed)
 
     @commands.command(aliases=["bal"])
     async def balance(self, ctx: commands.Context):
         f"""Displays how many {ED.BARREL_COIN} you have."""
         player = Player(ctx.author)
-        nocoins = player.get_whole_balance()
-        inbank = player.get_bank_balance()
+        nocoins = player.whole_balance
+        inbank = player.bank_balance
         embed = discord.Embed(color=discord.Color.gold())
         embed.title = ctx.author.display_name + "'s " + ED.BARREL_COIN + " balance"
         embed.description = str(nocoins) + ED.BARREL_COIN
@@ -239,8 +239,9 @@ class Economy(commands.Cog, name="Economy"):
             return
         fishinv = []
         for item in inventory:
-            if item.basetype == "fish":
-                fishinv.append(item)
+            if item[0].basetype == "fish":
+                for _ in range(item[1]):
+                    fishinv.append(item[0])
         if len(fishinv) == 0:
             await self.bot_send(ctx, "You don't have any fish to sell.")
             return
@@ -263,8 +264,9 @@ class Economy(commands.Cog, name="Economy"):
             return
         crateinv = []
         for item in inventory:
-            if item.id in [4, 5]:
-                crateinv.append(item)
+            if item[0].id in [4, 5]:
+                for _ in range(item[1]):
+                    crateinv.append(item[0])
         if len(crateinv) == 0:
             await self.bot_send(ctx, "You don't have any crates to open.")
             return
@@ -297,111 +299,107 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command()
     async def baltop(self, ctx: commands.Context):
         """Shows the 10 people with the most money, as well as your own ranking. Improved version."""
-        # Gather all player balances
-        balances = [[p, i["bal"], i["bank"]] for p, i in Player._playerdata.items()]
-        # Sort by total balance (wallet + bank)
-        balances.sort(key=lambda i: i[1] + i[2], reverse=True)
-        balances = [i for i in balances if i[0].startswith(str(ctx.guild.id))]
-        users = [re.search(r"(\d+)$", i[0]).group(1) for i in balances]
-        bals = [i[1] + i[2] for i in balances]
-        inbank = [i[2] for i in balances]
+
+        balances = Player.get_guild_balances(ctx.guild.id)
+        # list of (user_id, balance, in_bank)
+        
         try:
-            ranking = users.index(str(ctx.author.id))
+            ranking = [b[0] for b in balances].index(ctx.author.id)
         except ValueError:
             ranking = None
+
         embed = discord.Embed(color=discord.Color.gold(), title="Top 10 Richest Players")
         valstr = ""
-        for i in range(min(10, len(users))):
-            user_obj = self.bot.get_user(int(users[i]))
-            username = user_obj.display_name if user_obj else f"User {users[i]}"
-            valstr += f"{i + 1}) {username} - {bals[i]}{ED.BARREL_COIN}"
-            if inbank[i] != 0:
-                valstr += f" - {inbank[i]} in bank"
+
+        for i in range(min(10, len(balances))):
+            user_obj = self.bot.get_user(balances[i][0])
+            username = user_obj.display_name if user_obj else f"User {balances[i][0]}"
+            valstr += f"{i + 1}) {username} - {balances[i][1]}{ED.BARREL_COIN}"
+            if balances[i][2] != 0:
+                valstr += f" - {balances[i][2]} in bank"
             valstr += "\n"
+
         embed.description = valstr
+
         if ranking is not None and ranking >= 10:
-            user_obj = self.bot.get_user(int(users[ranking]))
-            username = user_obj.display_name if user_obj else f"User {users[ranking]}"
+            user_obj = self.bot.get_user(balances[ranking][0])
+            username = user_obj.display_name if user_obj else f"User {balances[ranking][0]}"
             embed.add_field(name="Your ranking:",
-                            value=f"{ranking + 1}/{len(users)}: {username} - {bals[ranking]}{ED.BARREL_COIN}")
+                            value=f"{ranking + 1}/{len(balances)}: {username} - {balances[ranking][1]}{ED.BARREL_COIN}")
 
         await self.bot_send(ctx, embed=embed)
 
-    @commands.command()
+    @commands.command(pass_context=True)
     @Checks.in_bb_channel()
-    async def display(self, ctx: commands.Context, item: str = "recent"):
-        """Moves an item to the display case. By default, moves your most recent acquisition to display. 
-        You can specify a different item by its numerical place in your inventory (not zero-indexed)."""
+    async def display(self, ctx: commands.Context, item: int):
+        """Moves an item to the display case. 
+        Specify an item by its numerical place in your inventory (not zero-indexed)."""
         player = Player(ctx.author)
         if len(player.get_inventory()) == 0:
             await self.bot_send(ctx, "Your inventory is empty! You need to get items before putting them on display.")
             return
-        if item.lower() == "recent":
-            itemtomove = player.recent_in_inventory()
-            player.move_to_display(itemtomove)
-            await self.bot_send(ctx, f"Moved 1 {itemtomove.propername} to your display case.")
-            return
-        try:
-            itemno = abs(int(item))
-        except:
-            await self.bot_send(ctx, "Invalid item number.")
-            return
+        # if item.lower() == "recent":
+        #     itemtomove = player.recent_in_inventory()
+        #     player.move_to_display(itemtomove)
+        #     await self.bot_send(ctx, f"Moved 1 {itemtomove.propername} to your display case.")
+        #     return
+        itemno = abs(item)
         try:
             itemtomove = player.get_item_from_invno(itemno)
             player.move_to_display(itemtomove)
             await self.bot_send(ctx, f"Moved 1 {itemtomove.propername} to your display case.")
+        except NotInInventory:
+            await self.bot_send(ctx, "Index out of range. Take another look at your inventory")
         except Exception as e:
             await self.bot_send(ctx, "You don't have this item.")
             raise e
 
-    @commands.command()
+    @commands.command(pass_context=True)
     @Checks.in_bb_channel()
-    async def takefromdisplay(self, ctx: commands.Context, item="recent"):
-        """Moves an item from the display case to your inventory. By default, moves your most recent addition. 
-        You can specify a different item by its numerical place in your display case (not zero-indexed)."""
+    async def takefromdisplay(self, ctx: commands.Context, item: int):
+        """Moves an item from the display case to your inventory. 
+        Specify an item by its numerical place in your display case (not zero-indexed)."""
         player = Player(ctx.author)
         if len(player.get_display()) == 0:
             await self.bot_send(ctx, "Your display case is empty!")
             return
-        if item.lower() == "recent":
-            itemtomove = player.recent_in_display()
-            player.move_from_display(itemtomove)
-            await self.bot_send(ctx, f"Moved 1 {itemtomove.propername} to your inventory.")
-            return
-        try:
-            itemno = abs(int(item))
-        except:
-            await self.bot_send(ctx, "Invalid item number.")
-            return
+        # if item.lower() == "recent":
+        #     itemtomove = player.recent_in_display()
+        #     player.move_from_display(itemtomove)
+        #     await self.bot_send(ctx, f"Moved 1 {itemtomove.propername} to your inventory.")
+        #     return
+        itemno = abs(item)
         try:
             itemtomove = player.get_item_from_dcno(itemno)
             player.move_from_display(itemtomove)
             await self.bot_send(ctx, f"Moved 1 {itemtomove.propername} to your inventory.")
-        except:
+        except NotInInventory:
+            await self.bot_send(ctx, "Index out of range. Take another look at your inventory")
+        except Exception as e:
             await self.bot_send(ctx, "You don't have this item.")
+            raise e
 
-    @commands.command(aliases=["dc"])
-    async def displaycase(self, ctx: commands.Context, pageno=1):
+    @commands.command(aliases=["dc"], pass_context=True)
+    async def displaycase(self, ctx: commands.Context, pageno: int=1):
         """Shows off your display case."""
-        try:
-            pageno = int(pageno)
-        except:
-            await self.bot_send(ctx, "Page number must be an integer.")
-            return
         player = Player(ctx.author)
-        invdisplay = player.get_display()
-        invitems_ = list(set(invdisplay))
-        invitems_.sort(key=lambda i: i.id)
-        invitems = invitems_[(pageno - 1) * 25:pageno * 25]
-        nopages = 1 + (len(invitems_) - 1) // 25
+        inventory_items = player.get_display()
+        
+        on_page = inventory_items[(pageno - 1) * 25:pageno * 25]
+        nopages = 1 + (len(inventory_items) - 1) // 25
+
         embed = discord.Embed(color=discord.Color.gold())
         embed.title = ctx.author.display_name + "'s Display Case"
-        embed.description = "Total items: " + str(len(invdisplay))
-        for i, item in enumerate(invitems):
+        embed.description = "Total items: " + str(sum([row[1] for row in inventory_items]))
+
+        for i, row in enumerate(on_page):
+            item, count = row
             embed.add_field(name=str(item), value="#" + str(i + 1 + (pageno - 1) * 25) + str(
-                "" if invdisplay.count(item) == 1 else " - Count: " + str(invdisplay.count(item))))
+                "" if count == 1 else " - Count: " + str(count)))
+            
         if nopages > 1:
             embed.set_footer(text=f"Page {pageno}/{nopages} - type `bb displaycase <page>` to see a different page")
+
         await self.bot_send(ctx, embed=embed)
 
     @commands.command(pass_context=True)
@@ -459,7 +457,7 @@ class Economy(commands.Cog, name="Economy"):
                     receiver = Player(recipient)
                     await self.bot_send(ctx,
                                         f"You offered to give {recipient.display_name} "
-                                        f"{'1 ' + str(offerer.get_item_from_invno(int(item1))) if isinstance(item1, str) else str(item1) + ED.BARREL_COIN}"
+                                        f"{'1 ' + str(offerer.get_item_from_invno(int(item1))) if isinstance(item1, str) else str(item1) + ED.BARREL_COIN} "
                                         f"in exchange for "
                                         f"{'1 ' + str(receiver.get_item_from_invno(int(item2))) if isinstance(item2, str) else str(item2) + ED.BARREL_COIN}")
                 except Exception as e:
@@ -471,7 +469,7 @@ class Economy(commands.Cog, name="Economy"):
                     await self.bot_send(ctx, "Invalid offering user syntax.")
                     return
                 try:
-                    offered, received, frombanko, frombankr = await self.accept_trade(item1.id, ctx.author.id)
+                    offered, received, frombanko, frombankr = await self.accept_trade(item1, ctx.author)
                     msg = f"Offer complete! You received {get_obj_str(offered)} " + \
                           f"and {item1.display_name} received {get_obj_str(received)}."
                     if frombanko != 0:
@@ -550,7 +548,7 @@ class Economy(commands.Cog, name="Economy"):
             await self.bot_send(ctx, "You don't have that many of that item.")
             return
         moneyreceived = quantity * resaleprice
-        for i in range(quantity):
+        for _ in range(quantity):
             player.remove_from_inventory(item)
         player.give_coins(moneyreceived)
         await self.bot_send(ctx, f"You successfully sold {quantity} {item} for {moneyreceived}{ED.BARREL_COIN}.")
@@ -566,7 +564,7 @@ class Economy(commands.Cog, name="Economy"):
                 return
             resaleprice = 0
             for item in player.get_inventory():
-                resaleprice += item.get_sale_price()
+                resaleprice += item[0].get_sale_price() * item[1]
             await self.bot_send(ctx, f"The items in your inventory would sell for {resaleprice}{ED.BARREL_COIN}")
             return
         itemno = abs(int(itemno))
@@ -585,7 +583,7 @@ class Economy(commands.Cog, name="Economy"):
         player = Player(ctx.author)
         nocoins = abs(nocoins)  # no negatives
         if nocoins == 0:
-            bal = player.get_balance()
+            bal = player.balance
             player.deposit(bal)
             await self.bot_send(ctx, f"You deposited your entire balance - {bal}{ED.BARREL_COIN} - into the bank.")
         else:
@@ -601,7 +599,7 @@ class Economy(commands.Cog, name="Economy"):
         player = Player(ctx.author)
         nocoins = abs(nocoins)  # no negatives
         if nocoins == 0:
-            bal = player.get_bank_balance()
+            bal = player.bank_balance
             player.withdraw(bal)
             await self.bot_send(ctx, f"You withdrew your entire balance - {bal}{ED.BARREL_COIN} - from the bank.")
         else:
@@ -616,7 +614,7 @@ class Economy(commands.Cog, name="Economy"):
     async def bank(self, ctx: commands.Context):
         """Allows you to see your current bank account balance."""
         player = Player(ctx.author)
-        bal = player.get_bank_balance()
+        bal = player.bank_balance
         embed = discord.Embed(color=discord.Color.dark_red(),
                               title=f"{ctx.author.display_name}'s Bank Account",
                               description=f"{bal}{ED.BARREL_COIN}")
@@ -625,7 +623,7 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command()
     @Checks.in_bb_channel()
     @Checks.can_gamble()
-    @commands.cooldown(20, 86400, commands.BucketType.member)
+    @Checks.cooldown(20, 86400, commands.BucketType.member)
     async def slots(self, ctx: commands.Context, *, stakes="low"):
         """Lets you play slots.
         You can specify either low, medium, or high stakes (default is low.)
@@ -671,7 +669,7 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command()
     @Checks.in_bb_channel()
     @Checks.can_gamble()
-    @commands.cooldown(20, 86400, commands.BucketType.member)
+    @Checks.cooldown(20, 86400, commands.BucketType.member)
     async def roulette(self, ctx: commands.Context, bet, *, bet_type: str):
         """Lets you play American-style roulette. Bet an amount of money and choose what you want to bet on.
         Options for bet_type:
@@ -686,7 +684,7 @@ class Economy(commands.Cog, name="Economy"):
             await self.bot_send(ctx, "Invalid bet amount.")
             return
         player = Player(ctx.author)
-        if bet > player.get_balance():
+        if bet > player.balance:
             await self.bot_send(ctx, "You don't have enough money.")
             return
 
@@ -740,7 +738,7 @@ class Economy(commands.Cog, name="Economy"):
     @Checks.in_bb_channel()
     @Checks.can_rob()
     @Checks.has_valid_user(r"(?<=rob ).*")
-    @commands.cooldown(1, 3600, commands.BucketType.member)  # every hr
+    @Checks.cooldown(1, 3600, commands.BucketType.member)  # every hr
     # add something to keep repeated robbings in check - maybe decreased luck if you do the same person twice in a row? 
     # maybe occasional jail time where you can't do any commands?
     async def rob(self, ctx: commands.Context, *, victim: discord.Member):
@@ -751,7 +749,7 @@ class Economy(commands.Cog, name="Economy"):
         opponent_has_shield = victim_player.has_in_inventory(3)
         luck_threshold = 90 if opponent_has_shield else 30
         luck = rand.randint(0, 99)
-        richfactor = 1 + victim_player.get_balance() * 0.001
+        richfactor = 1 + victim_player.balance * 0.001
         if luck < 2:
             perpetrator.remove_from_inventory(2)
             await self.bot_send(ctx,
@@ -760,7 +758,7 @@ class Economy(commands.Cog, name="Economy"):
             return
         if luck == 99 and opponent_has_shield:
             victim_player.remove_from_inventory(3)
-            coinsmoved = min(victim_player.get_balance(), int(richfactor * rand.randint(30, 60)))
+            coinsmoved = min(victim_player.balance, int(richfactor * rand.randint(30, 60)))
             victim_player.give_coins(-coinsmoved)
             perpetrator.give_coins(coinsmoved)
             await self.bot_send(ctx,
@@ -768,7 +766,7 @@ class Economy(commands.Cog, name="Economy"):
                                 f"{coinsmoved} from {victim.mention}!")
             return
         if luck >= luck_threshold:
-            coinsmoved = min(victim_player.get_balance(), int(richfactor * rand.randint(30, 60)))
+            coinsmoved = min(victim_player.balance, int(richfactor * rand.randint(30, 60)))
             victim_player.give_coins(-coinsmoved)
             perpetrator.give_coins(coinsmoved)
             success_msg = rand.choice([
@@ -792,8 +790,8 @@ class Economy(commands.Cog, name="Economy"):
                                 success_msg + f" You successfully stole {coinsmoved}{ED.BARREL_COIN} from "
                                               f"{victim.display_name}!")
             return
-        coinsmoved = min(perpetrator.get_whole_balance(),
-                         int(round((1 + perpetrator.get_balance() * 0.0005) * rand.randint(5, 10))))
+        coinsmoved = min(perpetrator.whole_balance,
+                         int(round((1 + perpetrator.balance * 0.0005) * rand.randint(5, 10))))
         perpetrator.take_coins(coinsmoved, True)
         fail_msg = rand.choice([
             f"You tried to mug {victim.mention} with your dagger, but they pulled a gun on you. Are those even legal "
@@ -816,7 +814,7 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command()
     @Checks.in_bb_channel()
     @Checks.can_rob()
-    @commands.cooldown(1, 21600, commands.BucketType.member)  # every 6 hr
+    @Checks.cooldown(1, 21600, commands.BucketType.member)  # every 6 hr
     async def bankrob(self, ctx: commands.Context):
         """Attempts to rob the bank. The chance of succeeding is very low (~1%), but with more daggers your luck
         increases to just low (at most ~5%). Amount gained upon successful robbery: 20-40% of the bank's holdings,
@@ -828,14 +826,15 @@ class Economy(commands.Cog, name="Economy"):
         if chances > success_luck:
             # successfully rob bank
             percent_robbed = 0.2 + 0.2 * rand.random()
-            robbings = sum(Player.reduce_bank_holdings_by_percent(percent_robbed))
+            ret = Player.reduce_bank_holdings_by_percent(percent_robbed, ctx.guild.id)
+            robbings = sum([row[0] for row in ret])
             player.give_coins(robbings)
             await self.bot_send(ctx,
                                 f"You successfully robbed the bank! You made away with {robbings}{ED.BARREL_COIN}!")
         else:
             # failure
-            coinsmoved = min(player.get_whole_balance(),
-                             int(round((1 + player.get_whole_balance() * 0.0005) * rand.randint(10, 20))))
+            coinsmoved = min(player.whole_balance,
+                             int(round((1 + player.whole_balance * 0.0005) * rand.randint(10, 20))))
             player.take_coins(coinsmoved, True)
             await self.bot_send(ctx, f"You failed! You lost {coinsmoved}{ED.BARREL_COIN} in the attempt.")
 
@@ -909,19 +908,18 @@ class Economy(commands.Cog, name="Economy"):
         }
 
     @commands.command()
-    async def total(self, ctx: commands.Context):
+    async def total(self, ctx: commands.Context, across_servers:bool=False):
         """Shows the total amount of coins in circulation."""
-        players = Player.get_all_players()
-        total = 0
-
-        for player in players:
-            total += player.get_whole_balance()
+        if across_servers:
+            total = Player.get_total_in_circulation()
+        else:
+            total = Player.get_total_in_circulation(ctx.guild.id)
 
         await self.bot_send(ctx, f"There are currently {total}{ED.BARREL_COIN} in circulation.")
 
     @commands.command()
     @Checks.in_bb_channel()
-    @commands.cooldown(1, 600, commands.BucketType.member)  # every 10 minutes
+    @Checks.cooldown(1, 600, commands.BucketType.member)  # every 10 minutes
     async def fetchmeabeer(self, ctx: commands.Context):
 
         beerFetchMessages = {
@@ -957,19 +955,24 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command(pass_context=True)
     async def peekdc(self, ctx: commands.Context, user: discord.Member, pageno: int = 1):
         """Take a look at the user's displaycase."""
-        invdisplay = Player(user).get_display()
-        invitems_ = list(set(invdisplay))
-        invitems_.sort(key=lambda i: i.id)
-        invitems = invitems_[(pageno - 1) * 25:pageno * 25]
-        nopages = 1 + len(invitems_) // 25
+        player = Player(user)
+        inventory_items = player.get_display()
+        
+        on_page = inventory_items[(pageno - 1) * 25:pageno * 25]
+        nopages = 1 + (len(inventory_items) - 1) // 25
+
         embed = discord.Embed(color=discord.Color.gold())
         embed.title = user.display_name + "'s Display Case"
-        embed.description = "Total items: " + str(len(invdisplay))
-        for i, item in enumerate(invitems):
+        embed.description = "Total items: " + str(sum([row[1] for row in inventory_items]))
+
+        for i, row in enumerate(on_page):
+            item, count = row
             embed.add_field(name=str(item), value="#" + str(i + 1 + (pageno - 1) * 25) + str(
-                "" if invdisplay.count(item) == 1 else " - Count: " + str(invdisplay.count(item))))
+                "" if count == 1 else " - Count: " + str(count)))
+            
         if nopages > 1:
             embed.set_footer(text=f"Page {pageno}/{nopages}")
+
         await self.bot_send(ctx, embed=embed)
 
     @commands.command()
@@ -1009,13 +1012,6 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command()
     @commands.is_owner()
-    async def forcesaveplayerdata(self, ctx: commands.Context):
-        with open("tempsave.pkl", "wb") as file:
-            file.write(dpx(Player._playerdata))
-        await self.bot_send(ctx, "Done!")
-
-    @commands.command()
-    @commands.is_owner()
     async def run_raw_code_economy(self, ctx: commands.Context, *, code: str):
         if code == '':
             return
@@ -1026,28 +1022,20 @@ class Economy(commands.Cog, name="Economy"):
 
     @commands.command()
     @commands.is_owner()
-    async def geteconomydata(self, ctx: commands.Context):
-        outstr = json.dumps(Player.get_json_data())
-        lenstr = len(outstr)
-        nostrs = lenstr // 2000 + 1
+    async def get_player_data(self, ctx: commands.Context):
+
+        ret = Player.raw_query("SELECT * FROM player_data")
+        outstr = "\n".join([", ".join([str(i) for i in row]) for row in ret])
+
+        # break into chunks in case long data
+        nostrs = len(outstr) // 2000 + 1
         for i in range(nostrs):
             await self.bot_send(ctx, outstr[i * 2000:(i + 1) * 2000])
-        return
 
-    @commands.command()
+    @commands.command(pass_context=True)
     @commands.is_owner()
-    async def kill_user(self, ctx: commands.Context, user: int|discord.Member):
+    async def kill_user(self, ctx: commands.Context, user: discord.Member):
         """Kills a user and removes all their data. Only for admins."""
-        if user.bot:
-            await self.bot_send(ctx, "You can't remove a bot's data.")
-            return
-        if isinstance(user, int):
-            try:
-                Player.remove_player_data(str(user))
-                await self.bot_send(ctx, f"Data for User {user} removed.")
-            except PlayerNotFound:
-                await self.bot_send(ctx, f"User {user} not found.")
-            return
         player = Player(user)
         player.remove_all_data()
         await self.bot_send(ctx, f"Removed all data for {user.display_name}.")
@@ -1058,7 +1046,7 @@ class Economy(commands.Cog, name="Economy"):
         """Gives the specified user item_id a certain number of coins"""
         player = Player(user)
         player.give_coins(nocoins)
-        await self.bot_send(ctx, "Done. They now have " + str(player.get_whole_balance()) + ED.BARREL_COIN)
+        await self.bot_send(ctx, "Done. They now have " + str(player.whole_balance) + ED.BARREL_COIN)
 
     @commands.command(pass_context=True)
     @commands.is_owner()
@@ -1066,21 +1054,21 @@ class Economy(commands.Cog, name="Economy"):
         """Takes a certain number of coins from the specified user"""
         player = Player(user)
         player.take_coins(nocoins, True)
-        await self.bot_send(ctx, "Done. They now have " + str(player.get_whole_balance()) + ED.BARREL_COIN)
+        await self.bot_send(ctx, "Done. They now have " + str(player.whole_balance) + ED.BARREL_COIN)
 
     @commands.command(pass_context=True)
     @commands.is_owner()
     async def clearbalance(self, ctx: commands.Context, user: discord.Member):
         """Clears the user's balance."""
         player = Player(user)
-        player.give_coins(-1 * player.get_balance())
+        player.give_coins(-1 * player.balance)
         await self.bot_send(ctx, "Done!")
 
     @commands.command(pass_context=True)
     async def forcegiveitem(self, ctx: commands.Context, user: discord.Member, itemid: int):
         """Gives the specified user item_id an item"""
 
-        if (not env.BBGLOBALS.IS_IN_DEV_MODE) or (await ctx.bot.is_owner(ctx.author)):
+        if (not env.BBGLOBALS.IS_IN_DEV_MODE) or (not await ctx.bot.is_owner(ctx.author)):
             await self.bot_send(ctx, "You cannot use this command.")
             return
 
@@ -1146,26 +1134,31 @@ class Economy(commands.Cog, name="Economy"):
     @commands.is_owner()
     async def peekinv(self, ctx: commands.Context, user: discord.Member, pageno: int = 1):
         """Spies on the user's inventory."""
-        invdisplay = Player(user).get_inventory()
-        invitems_ = list(set(invdisplay))
-        invitems_.sort(key=lambda i: i.id)
-        invitems = invitems_[(pageno - 1) * 25:pageno * 25]
-        nopages = 1 + len(invitems_) // 25
+        player = Player(user)
+        inventory_items = player.get_inventory()
+        
+        on_page = inventory_items[(pageno - 1) * 25:pageno * 25]
+        nopages = 1 + (len(inventory_items) - 1) // 25
+
         embed = discord.Embed(color=discord.Color.light_gray())
         embed.title = user.display_name + "'s Inventory"
-        embed.description = "Total items: " + str(len(invdisplay))
-        for i, item in enumerate(invitems):
+        embed.description = "Total items: " + str(sum([row[1] for row in inventory_items]))
+
+        for i, row in enumerate(on_page):
+            item, count = row
             embed.add_field(name=str(item), value="#" + str(i + 1 + (pageno - 1) * 25) + str(
-                "" if invdisplay.count(item) == 1 else " - Count: " + str(invdisplay.count(item))))
+                "" if count == 1 else " - Count: " + str(count)))
+            
         if nopages > 1:
             embed.set_footer(text=f"Page {pageno}/{nopages}")
+
         await self.bot_send(ctx, embed=embed)
 
     # ROUTINES
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # as of right now, only for horse races
+        # as of right now, only for horse races - will eventually switch to wait_for
         # eliminate other possibilities
         if message.author.bot:
             return
@@ -1225,7 +1218,7 @@ class Economy(commands.Cog, name="Economy"):
                 return
 
             player = Player(message.author)
-            bal = player.get_whole_balance()
+            bal = player.whole_balance
             if amt > bal:
                 await self.invalid_hr_msg(context_key, 
                     "You don't have that much to bet. Try again.", message.channel)
@@ -1403,7 +1396,7 @@ class Economy(commands.Cog, name="Economy"):
             if trade[0] == offerplayer.idstr and trade[1] == recipplayer.idstr:
                 raise TooManyTrades("You can only have one trade offer to a person at a time.")
         if isinstance(itemoffer, int):
-            if offerplayer.get_whole_balance() < itemoffer:
+            if offerplayer.whole_balance < itemoffer:
                 raise NotEnoughCoins("You don't have enough coins to offer.")
         else:
             try:
@@ -1411,7 +1404,7 @@ class Economy(commands.Cog, name="Economy"):
             except NotInInventory:
                 raise NotInInventory("You don't have this item.")
         if isinstance(itemrecip, int):
-            if recipplayer.get_whole_balance() < itemrecip:
+            if recipplayer.whole_balance < itemrecip:
                 raise NotEnoughCoins("They don't have enough coins for this offer.")
         else:
             try:
@@ -1437,14 +1430,14 @@ class Economy(commands.Cog, name="Economy"):
 
                 # lots of Checks
                 if isinstance(itemoffer, int):
-                    if offerplayer.get_balance() < itemoffer:
+                    if offerplayer.balance < itemoffer:
                         raise NotEnoughCoins("The offering party doesn't have enough coins.")
                 else:
                     itemofferid = int(itemoffer)
                     if not offerplayer.has_in_inventory(itemofferid):
                         raise NotInInventory("The offering party doesn't have this item anymore.")
                 if isinstance(itemrecip, int):
-                    if recipplayer.get_balance() < itemrecip:
+                    if recipplayer.balance < itemrecip:
                         raise NotEnoughCoins("The receiving party doesn't have enough coins.")
                 else:
                     itemrecipid = int(itemrecip)
@@ -1527,11 +1520,9 @@ class Economy(commands.Cog, name="Economy"):
 
 async def savealldata():
     """Saves data to file."""
-    save_to_json(Player.get_json_data(), dir_path + "/data/playerdata.json")
     save_to_json(trades, dir_path + "/data/trades.json")
 
     print("Economy data saved")
-
 
 async def get_trades(userid: str|Player):
     if isinstance(userid, Player):
@@ -1545,7 +1536,6 @@ async def get_trades(userid: str|Player):
         if trade[1] == userid:
             incoming.append(trade)
     return incoming, outgoing
-
 
 async def remove_trade(offeruserid: str | Player, recipuserid: str | Player):
     global trades
@@ -1567,7 +1557,6 @@ async def remove_trade(offeruserid: str | Player, recipuserid: str | Player):
 
 def get_obj_str(id: int | str):
     return str(Item(int(id))) if isinstance(id, str) else str(id) + ED.BARREL_COIN
-
 
 def fish_() -> tuple[str, int]:
     luck = rand.randint(0, 999)
@@ -1648,13 +1637,11 @@ def fish_() -> tuple[str, int]:
         outstr = "Wow! You caught a " + ED.HOLY_BARREL_EMOJI + "! Open it to see what's inside!"
         return outstr, 5
 
-
 def slots_(stage: int) -> tuple[str, int]:
     choices = [rand.choice(list(slots.keys())) for _ in range(3)]
     if choices[0] == choices[1] and choices[0] == choices[2]:
         return "".join(choices), slots[choices[0]][stage]
     return "".join(choices), 0
-
 
 def roulette_(bet, bet_type, bet_val: list[str] | str = None) -> tuple[int, int]:
     result = rand.choice(list(rouletteslots.keys()))
@@ -1714,12 +1701,10 @@ def roulette_(bet, bet_type, bet_val: list[str] | str = None) -> tuple[int, int]
 
     return result, payout
 
-
 def save_to_json(data, filename: str) -> None:
     """Saves specific dataset to file"""
     with open(filename, "w") as file:
         json.dump(data, file)
-
 
 def main():
     pass

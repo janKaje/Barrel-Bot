@@ -1,6 +1,16 @@
 import re
+from typing import Union, Callable, Any
 
-from discord.ext.commands import check, Context, UserConverter, MissingPermissions
+from discord.ext.commands import (
+    check, 
+    Context, 
+    UserConverter, 
+    MissingPermissions, 
+    BucketType, 
+    Cooldown, 
+    CooldownMapping, 
+    Command
+)
 
 from extra_exceptions import *
 from player import Player
@@ -83,3 +93,21 @@ class Checks:
             return True
 
         return check(predicate)
+    
+    @staticmethod
+    def cooldown(rate: int,
+        per: float,
+        type: Union[BucketType, Callable[[Context[Any]], Any]] = BucketType.default,
+    ) -> Callable:
+        """
+        Custom cooldown: see discord.ext.commands.cooldown for main docs. 
+        This one is disabled if in dev mode.
+        """
+
+        def decorator(func: Command) -> Command:
+            if BBGLOBALS.IS_IN_DEV_MODE:
+                return func
+            func._buckets = CooldownMapping(Cooldown(rate, per), type)
+            return func
+
+        return decorator  # type: ignore

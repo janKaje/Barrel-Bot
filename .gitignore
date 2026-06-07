@@ -17,3 +17,4 @@ data/trades.json
 data/playerdata.json
 data/guild_config.*
 data/randomnumberscores.json
+data/player_data.db

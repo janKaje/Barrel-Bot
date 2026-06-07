@@ -1,18 +1,20 @@
 import os
 import json
+import sqlite3
+import random
+import time
 from datetime import datetime as dt
 from datetime import timezone as tz
 from datetime import timedelta as td
 from math import floor
-import random
-import time
+from typing import Literal, Optional
 
 import discord
 
-dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 from extra_exceptions import *
 from item import Item
+
+dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DAILY_RENT = 500  # coins/house/day
 
@@ -31,467 +33,729 @@ DAILY_RENT = 500  # coins/house/day
 # Rent collection time extension (up to 7 days, 6 upgrades)
 #  \__> Rent multiplier (up to 2x more, 5 upgrades) (from rc no 4)
 
-RESEARCH_CONFIG = {
-    'bl': {
-        'name': 'Base luck increase',
-        'costs': [5000, 10000, 15000, 20000, 30000], # coins
-        'time': [12, 24, 36, 48, 72], # hours spent upgrading
-        'prereqs': [{}, {'bl': 1}, {'bl': 2}, {'bl': 3}, {'bl': 4}] # prerequisites for each level
-    },
-    'fl': {
-        'name': 'Fishing luck increase',
-        'costs': [10000, 20000, 30000, 50000, 70000],
-        'time': [24, 48, 72, 96, 120],
-        'prereqs': [{'bl': 5}, {'fl': 1}, {'fl': 2}, {'fl': 3}, {'fl': 4}]
-    },
-    'wl': {
-        'name': 'Working luck increase',
-        'costs': [10000, 20000, 30000, 40000, 50000],
-        'time': [24, 48, 72, 96, 120],
-        'prereqs': [{'bl': 5}, {'wl': 1}, {'wl': 2}, {'wl': 3}, {'wl': 4}]
-    },
-    'we': {
-        'name': 'Work earnings increase',
-        'costs': [10000, 15000, 20000, 30000, 40000],
-        'time': [48, 72, 96, 120, 168],
-        'prereqs': [{'wl': 2}, {'we': 1}, {'we': 2}, {'we': 3}, {'we': 4}]
-    },
-    'rl': {
-        'name': 'Robbery luck increase',
-        'costs': [10000, 30000, 50000, 70000, 100000],
-        'time': [24, 48, 72, 96, 120],
-        'prereqs': [{'bl': 5}, {'rl': 1}, {'rl': 2}, {'rl': 3}, {'rl': 4}]
-    },
-    'spi': {
-        'name': 'Shop item sale price increase',
-        'costs': [2000, 3000, 5000, 7500],
-        'time': [12, 24, 36, 60],
-        'prereqs': [{}, {'spi': 1}, {'spi': 2}, {'spi': 3}]
-    },
-    'fpi': {
-        'name': 'Fish sale price increase',
-        'costs': [20000, 40000, 60000, 100000, 130000, 160000, 200000, 250000, 300000, 350000],
-        'time': [48, 60, 72, 84, 96, 120, 144, 168, 240, 336],
-        'prereqs': [{'spi': 2}, {'fpi': 1}, {'fpi': 2}, {'fpi': 3}, {'fpi': 4}, {'fpi': 5}, {'fpi': 6}, {'fpi': 7},
-                    {'fpi': 8}, {'fpi': 9}]
-    },
-    'frl': {
-        'name': 'Fishing rod limit increase',
-        'costs': [50000, 100000, 150000, 200000, 300000, 400000, 500000],
-        'time': [72, 96, 120, 144, 240, 336, 504],
-        'prereqs': [{'fpi': 5, 'fl': 2}, {'frl': 1}, {'frl': 2}, {'frl': 3}, {'frl': 4}, {'frl': 5}, {'frl': 6}]
-    },
-    'rc': {
-        'name': 'Rent collection time limit increase',
-        'costs': [5000, 10000, 15000, 20000, 25000, 30000],
-        'time': [12, 24, 36, 48, 72, 96],
-        'prereqs': [{}, {'rc': 1}, {'rc': 2}, {'rc': 3}, {'rc': 4}, {'rc': 5}]
-    },
-    'rm': {
-        'name': 'Rent multiplier',
-        'costs': [50000, 100000, 200000, 300000, 400000],
-        'time': [72, 120, 144, 240, 336],
-        'prereqs': [{'rc': 4}, {'rm': 1}, {'rm': 2}, {'rm': 3}, {'rm': 4}]
-    }
-}
-
-
 class Player:
-    with open(dir_path + "/data/playerdata.json") as file:
-        _playerdata = json.load(file)
-        for key in _playerdata.keys():
-            for invi in range(len(_playerdata[key]["inv"])):
-                if isinstance(_playerdata[key]["inv"][invi], int):
-                    _playerdata[key]["inv"][invi] = Item(_playerdata[key]["inv"][invi])
-            for dci in range(len(_playerdata[key]["dc"])):
-                if isinstance(_playerdata[key]["dc"][dci], int):
-                    _playerdata[key]["dc"][dci] = Item(_playerdata[key]["dc"][dci])
-            if "lcr" not in _playerdata[key].keys():
-                _playerdata[key]["lcr"] = 0
-            if "tech" not in _playerdata[key].keys():
-                _playerdata[key]["tech"] = {
-                    "bl": 0,  # base luck
-                    "fl": 0,  # fishing luck
-                    "wl": 0,  # working luck
-                    "we": 0,  # work earnings multiplier
-                    "rl": 0,  # robbery luck
-                    "spi": 0,  # shop item sale price increase
-                    "fpi": 0,  # fish sale price increase
-                    "frl": 0,  # fishing rod limit increase
-                    "rc": 0,  # rent collection time increase
-                    "rm": 0,  # rent multiplier
-                    "in progress": [None, None]  # should be in the form [techid, timestamp it finishes]
-                }
-            if "nhouses" not in _playerdata[key].keys():
-                _playerdata[key]["nhouses"] = -1
+
+    DATABASE_PATH = os.path.join(dir_path, "data", "player_data.db")
+
+    with open(os.path.join(dir_path, "data", "research_config.json")) as file:
+        RESEARCH_CONFIG = json.load(file)
 
     def __init__(self, member: discord.Member):
 
         self.member = member
-        self.userid = member.id
-        self.guildid = member.guild.id
+        self.user_id = member.id
+        self.guild_id = member.guild.id
         self.idstr = str(member.guild.id) + "_" + str(member.id)
-        if self.idstr not in Player._playerdata.keys():
-            if str(self.userid) in Player._playerdata.keys():
-                Player._playerdata[self.idstr] = Player._playerdata[str(self.userid)]
-                del Player._playerdata[str(self.userid)]
-            else:
-                Player._playerdata[self.idstr] = {"bal": 0, "inv": [], "dc": [], "bank": 0, "lcr": 0, "tech": [], "nhouses": -1}
-        if Player._playerdata[self.idstr]["nhouses"] == -1:
-            Player._playerdata[self.idstr]["nhouses"] = self.amount_in_inventory(6, include_dc=True)
+        
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
 
-    def give_coins(self, nocoins: int):
-        """gives or takes coins from the player"""
-        if (Player._playerdata[self.idstr]["bal"] + nocoins) < 0:
-            raise NotEnoughCoins("Not enough coins")
-        Player._playerdata[self.idstr]["bal"] += nocoins
-        return
+        cursor.execute(f"SELECT * FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
 
-    def get_balance(self):
-        return Player._playerdata[self.idstr]["bal"]
+        if cursor.fetchone() is None:
+            cursor.execute("INSERT INTO player_data (user_id, guild_id) " \
+                f"VALUES ({self.user_id}, {self.guild_id})")
+            conn.commit()
+
+        conn.close()
+
+    @property
+    def balance(self):
+
+        ret = db_query(f"SELECT balance FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+
+        return ret[0][0]
     
     @property
     def nhouses(self):
         """number of houses that the player has bought"""
-        return Player._playerdata[self.idstr]["nhouses"]
+
+        ret = db_query(f"SELECT n_houses FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+
+        return ret[0][0]
+
+    @property
+    def bank_balance(self):
+        """get player's bank balance"""
+
+        ret = db_query(f"SELECT bank_bal FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+
+        return ret[0][0]
+
+    @property
+    def whole_balance(self):
+        """gets player's whole balance, bank included"""
+
+        ret = db_query(f"SELECT balance, bank_bal FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        
+        return sum(ret[0])
     
+    @staticmethod
+    def get_guild_balances(guild_id) -> list[tuple[int, int, int]]:
+
+        ret = db_query(f"SELECT user_id, balance + bank_bal, bank_bal FROM "\
+            f"player_data WHERE guild_id = {guild_id} "\
+            "ORDER BY balance + bank_bal DESC")
+        
+        return ret
+
+    def give_coins(self, nocoins: int):
+        """gives or takes coins from the player"""
+
+        if nocoins < 0:
+            self.take_coins(-nocoins, True)
+            return
+        if nocoins == 0:
+            return
+
+        db_query(f"UPDATE player_data SET balance = balance + {nocoins} "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+
+    def take_coins(self, nocoins: int, include_bank=False):
+        """take coins from the player"""
+
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT balance, bank_bal FROM player_data WHERE " \
+            f"guild_id = {self.guild_id} AND user_id = {self.user_id}")
+
+        ret = cursor.fetchone()
+
+        if include_bank:
+            cur_bal = ret[0] + ret[1]
+        else:
+            cur_bal = ret[0]
+        
+        if nocoins > cur_bal:
+            raise NotEnoughCoins()
+        
+        taken = (min(ret[0], nocoins), max(0, nocoins - ret[0]))
+        
+        cursor.execute(f"UPDATE player_data SET balance = "\
+            f"balance - {taken[0]}, bank_bal = bank_bal - {taken[1]} "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+
+        conn.commit()
+        conn.close()
+        return taken    
+
     def increment_nhouses(self):
         """increases the number of houses that the player has bought by 1"""
-        Player._playerdata[self.idstr]["nhouses"] += 1
+
+        db_query(f"UPDATE player_data SET n_houses = n_houses + 1 "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
 
     def has_in_inventory(self, item: Item | int) -> bool:
         """if the player has the item in their inventory"""
-        if isinstance(item, int):
-            item = Item(item_id=item)
-        return item in Player._playerdata[self.idstr]["inv"]
 
+        if isinstance(item, Item):
+            item = item.id
+
+        ret = db_query("SELECT * FROM inventories WHERE " \
+            f"guild_id = {self.guild_id} AND user_id = {self.user_id} AND " \
+            f'item_id = {item} AND inv_dc = "i"')
+        
+        if len(ret) > 0:
+            return True
+        return False
+        
     def add_to_inventory(self, item: Item | int):
         """adds item to player's inventory"""
-        if isinstance(item, int):
-            item = Item(item_id=item)
-        Player._playerdata[self.idstr]["inv"].append(item)
-        return
+
+        if isinstance(item, Item):
+            item = item.id
+
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT count FROM inventories WHERE " \
+            f"guild_id = {self.guild_id} AND user_id = {self.user_id} AND " \
+            f'item_id = {item} AND inv_dc = "i"')
+
+        ret = cursor.fetchone()
+        if ret is None:
+            cursor.execute("INSERT INTO inventories VALUES " \
+            f'({self.user_id}, {self.guild_id}, {item}, {1}, "i")')
+        else:
+            cursor.execute("UPDATE inventories SET count = count + 1 "\
+                f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id} "\
+                f'AND item_id = {item} AND inv_dc = "i"')
+
+        conn.commit()
+        conn.close()
 
     def remove_from_inventory(self, item: Item | int):
         """removes item from player's inventory"""
-        if isinstance(item, int):
-            item = Item(item_id=item)
-        if item not in Player._playerdata[self.idstr]["inv"]:
-            raise NotInInventory()
-        Player._playerdata[self.idstr]["inv"].remove(item)
-        return
 
+        if isinstance(item, Item):
+            item = item.id
+
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT count FROM inventories WHERE " \
+            f"guild_id = {self.guild_id} AND user_id = {self.user_id} AND " \
+            f'item_id = {item} AND inv_dc = "i"')
+
+        ret = cursor.fetchone()
+
+        if ret is None:
+            conn.close()
+            raise NotInInventory()
+        
+        elif ret[0] == 1:
+            cursor.execute("DELETE FROM inventories "\
+                f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id} "\
+                f'AND item_id = {item} AND inv_dc = "i"')
+        else:
+            cursor.execute("UPDATE inventories SET count = count - 1 "\
+                f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id} "\
+                f'AND item_id = {item} AND inv_dc = "i"')
+
+        conn.commit()
+        conn.close()
+            
     def amount_in_inventory(self, item: Item | int, include_dc: bool = False) -> int:
         """return the amount of item in player's inventory. include_dc can be used to include display case"""
-        if isinstance(item, int):
-            item = Item(item_id=item)
-        if include_dc:
-            return Player._playerdata[self.idstr]["inv"].count(item) + Player._playerdata[self.idstr]["dc"].count(item)
-        return Player._playerdata[self.idstr]["inv"].count(item)
 
-    def recent_in_inventory(self) -> Item:
-        """recently added item to inventory"""
-        return Player._playerdata[self.idstr]["inv"][-1]
+        if isinstance(item, Item):
+            item = item.id
 
-    def get_inventory(self) -> list[Item]:
-        """returns player's entire inventory"""
-        return Player._playerdata[self.idstr]["inv"]
+        ret = db_query("SELECT count FROM inventories WHERE " \
+            f"guild_id = {self.guild_id} AND user_id = {self.user_id} AND " + \
+            (f'item_id = {item}' if include_dc else f'item_id = {item} AND inv_dc = "i"'))
+        
+        if len(ret) == 0:
+            return 0
+        
+        return sum([r[0] for r in ret])
+
+    def get_inventory(self) -> list[tuple[Item, int]]:
+        """
+        returns player's entire inventory
+        format: list of tuple of (Item, count)
+        """
+
+        ret = db_query("SELECT item_id, count FROM inventories WHERE " \
+            f"guild_id = {self.guild_id} AND user_id = {self.user_id} AND " \
+            'inv_dc = "i" ORDER BY item_id')
+        
+        ret = [(Item(r[0]), r[1]) for r in ret]
+
+        return ret
+
+    def move_item(self, item: Item | int, frm:Literal['i', 'd'], to:Literal['i', 'd']):
+
+        # validate inputs
+        if isinstance(item, Item):
+            item = item.id
+        print(f"check 0 in move_item: {item}, {frm}, {to}")
+        if frm not in ['i', 'd'] and to not in ['i', 'd']:
+            raise ValueError("invalid arguments. frm and to must be either i or d")
+        if frm == to:
+            raise ValueError("invalid arguments. frm and to cannot be equal")
+
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
+        print("SELECT count FROM inventories WHERE " \
+            f"guild_id = {self.guild_id} AND user_id = {self.user_id} AND " \
+            f'item_id = {item} AND inv_dc = "{frm}"')
+
+        # get from count
+        cursor.execute("SELECT count FROM inventories WHERE " \
+            f"guild_id = {self.guild_id} AND user_id = {self.user_id} AND " \
+            f'item_id = {item} AND inv_dc = "{frm}"')
+
+        ret = cursor.fetchone()
+        print(f"check 1 in move_item")
+
+        # none - raise error
+        if ret is None:
+            conn.close()
+            raise NotInInventory()
+        
+        # only one - delete row
+        elif ret[0] == 1:
+            cursor.execute("DELETE FROM inventories "\
+                f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id} "\
+                f'AND item_id = {item} AND inv_dc = "{frm}"')
+        # else - decrease count by 1
+        else:
+            cursor.execute("UPDATE inventories SET count = count - 1 "\
+                f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id} "\
+                f'AND item_id = {item} AND inv_dc = "{frm}"')
+        print(f"check 2 in move_item")
+
+        # get to count
+        cursor.execute("SELECT count FROM inventories WHERE " \
+            f"guild_id = {self.guild_id} AND user_id = {self.user_id} AND " \
+            f'item_id = {item} AND inv_dc = "{to}"')
+        ret = cursor.fetchone()
+
+        # if none, add new row
+        if ret is None:
+            cursor.execute("INSERT INTO inventories VALUES " \
+            f'({self.user_id}, {self.guild_id}, {item}, {1}, "{to}")')
+        # else, increase count by 1
+        else:
+            cursor.execute("UPDATE inventories SET count = count + 1 "\
+                f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id} "\
+                f'AND item_id = {item} AND inv_dc = "{to}"')
+        print(f"check 3 in move_item")
+
+        conn.commit()
+        conn.close()
 
     def move_to_display(self, item: Item | int):
         """moves item from inventory to display case"""
-        if isinstance(item, int):
-            item = Item(item_id=item)
-        if item not in Player._playerdata[self.idstr]["inv"]:
-            raise NotInInventory()
-        Player._playerdata[self.idstr]["inv"].remove(item)
-        Player._playerdata[self.idstr]["dc"].append(item)
-        return
+
+        print(f"check in move_to_display")
+        self.move_item(item, 'i', 'd')
 
     def move_from_display(self, item: Item | int):
         """moves item from display case to inventory"""
-        if isinstance(item, int):
-            item = Item(item_id=item)
-        if item not in Player._playerdata[self.idstr]["dc"]:
-            raise NotInDisplayCase()
-        Player._playerdata[self.idstr]["dc"].remove(item)
-        Player._playerdata[self.idstr]["inv"].append(item)
-        return
 
-    def recent_in_display(self) -> Item:
-        """recently added item to display case"""
-        return Player._playerdata[self.idstr]["dc"][-1]
+        self.move_item(item, 'd', 'i')
 
     def get_display(self) -> list[Item]:
-        """returns player's entire display case"""
-        return Player._playerdata[self.idstr]["dc"]
+        """
+        returns player's entire display case
+        format: list of tuple of (Item, count)
+        """
+
+        ret = db_query("SELECT item_id, count FROM inventories WHERE " \
+            f"guild_id = {self.guild_id} AND user_id = {self.user_id} AND " \
+            'inv_dc = "d" ORDER BY item_id')
+        
+        ret = [(Item(r[0]), r[1]) for r in ret]
+
+        return ret
 
     def get_item_from_invno(self, invno: int) -> Item:
         """gets item id of item in inventory location"""
-        invitems = list(set(Player._playerdata[self.idstr]["inv"]))
-        invitems.sort(key=lambda i: i.id)
+
+        invitems = self.get_inventory()
+
         try:
-            itemid = invitems[invno - 1]
+            itemid = invitems[invno - 1][0]
+
         except IndexError:
             raise NotInInventory()
+        
         return itemid
 
     def get_item_from_dcno(self, dcno: int) -> Item:
         """gets item id of item in display case location"""
-        dcitems = list(set(Player._playerdata[self.idstr]["dc"]))
-        dcitems.sort(key=lambda i: i.id)
+
+        dcitems = self.get_display()
+
         try:
-            itemid = dcitems[dcno - 1]
+            itemid = dcitems[dcno - 1][0]
+
         except IndexError:
-            raise NotInDisplayCase()
+            raise NotInInventory()
+        
         return itemid
 
     def clear_inventory(self):
         """clears a player's inventory"""
-        Player._playerdata[self.idstr]["inv"] = []
 
-    @staticmethod
-    def get_json_data():
-        """format all player data into json acceptable format"""
-        jsond = {key: {"bal": 0, "inv": [], "dc": [], "bank": 0, "lcr": 0, "tech": {}} for key in
-                 Player._playerdata.keys()}
-        for key, val in Player._playerdata.items():
-            for i, item in val.items():
-                if isinstance(item, list):
-                    jsond[key][i] = [int(j) for j in item]
-                else:
-                    jsond[key][i] = item
-        return jsond
+        db_query(f"DELETE FROM inventories "\
+            f"WHERE user_id = {self.user_id} AND guild_id = {self.guild_id} AND "\
+            f'inv_dc = "i"')
 
-    def deposit(self, nocoins):
+    def deposit(self, nocoins:int):
         """move coins from bal to bank"""
-        self.give_coins(-nocoins)
-        Player._playerdata[self.idstr]["bank"] += nocoins
 
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute(f"SELECT balance FROM player_data "\
+            f"WHERE user_id = {self.user_id} AND guild_id = {self.guild_id}")
+
+        ret = cursor.fetchone()[0]
+
+        if ret < nocoins:
+            raise NotEnoughCoins()
+        
+        cursor.execute(f"UPDATE player_data SET balance = balance - "\
+            f"{nocoins}, bank_bal = bank_bal + {nocoins} WHERE "\
+            f"user_id = {self.user_id} AND guild_id = {self.guild_id}")
+
+        conn.commit()
+        conn.close()
+
+        return ret
+        
     def withdraw(self, nocoins):
         """move coins from bank to bal"""
-        if nocoins > Player._playerdata[self.idstr]["bank"]:
-            raise NotEnoughCoins
-        self.give_coins(nocoins)
-        Player._playerdata[self.idstr]["bank"] -= nocoins
 
-    def get_bank_balance(self):
-        """get player's bank balance"""
-        return Player._playerdata[self.idstr]["bank"]
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
 
-    @staticmethod
-    def get_all_bank_data(guildid:str|int=None):
-        """returns all bank data"""
-        if guildid is None:
-            return [[key, val["bank"]] for key, val in Player._playerdata.items()]
-        return [[key, val["bank"]] for key, val in Player._playerdata.items() if key.startswith(str(guildid))]
+        cursor.execute(f"SELECT bank_bal FROM player_data "\
+            f"WHERE user_id = {self.user_id} AND guild_id = {self.guild_id}")
 
-    @staticmethod
-    def reduce_bank_holdings_by_percent(percent: float, guildid:str|int):
-        """reduces all bank holdings by a certain percent, then returns the money taken. for bankrob"""
-        reductions = []
-        for key in Player._playerdata.keys():
-            if not key.startswith(str(guildid)):
-                continue
-            amount_reduced = int(round(percent * Player._playerdata[key]["bank"]))
-            reductions.append(amount_reduced)
-            Player._playerdata[key]["bank"] -= amount_reduced
-        return reductions
+        ret = cursor.fetchone()[0]
 
-    def get_whole_balance(self):
-        """gets player's whole balance, bank included"""
-        return Player._playerdata[self.idstr]["bank"] + Player._playerdata[self.idstr]["bal"]
-
-    def take_coins(self, nocoins: int, include_bank=False):
-        """take coins from the player"""
-        bank = self.get_bank_balance()
-        bal = self.get_balance()
-        if nocoins > bank + bal or (nocoins > bal and include_bank is False):
+        if ret < nocoins:
             raise NotEnoughCoins()
-        if include_bank is True and nocoins > bal:
-            frombank = nocoins - bal
-            Player._playerdata[self.idstr]["bank"] -= frombank
-            self.give_coins(-bal)
-            return bal, frombank
-        self.give_coins(-nocoins)
-        return nocoins, 0
+        
+        cursor.execute(f"UPDATE player_data SET bank_bal = bank_bal - "\
+            f"{nocoins}, balance = balance + {nocoins} WHERE "\
+            f"user_id = {self.user_id} AND guild_id = {self.guild_id}")
+
+        conn.commit()
+        conn.close()
+
+        return ret
+
+    @staticmethod
+    def reduce_bank_holdings_by_percent(percent: float, guildid:int) -> int:
+        """reduces all bank holdings by a certain percent, then returns the money taken. for bankrob"""
+
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT bank_bal, user_id FROM player_data WHERE guild_id = {guildid}")
+
+        all_bank_dat = cursor.fetchall()
+        
+        reductions = []
+
+        for row in all_bank_dat:
+
+            amount_reduced = int(round(percent * row[0]))
+            reductions.append((amount_reduced, row[1]))
+
+        cursor.executemany(f"UPDATE player_data SET bank_bal = bank_bal - ? "\
+            f"WHERE guild_id = {guildid} AND user_id = ?",
+            reductions)
+
+        conn.commit()
+        conn.close()
+
+        return reductions
 
     def get_shop_price(self, item: Item | int):
         """get shop price of item"""
+
         if isinstance(item, int):
             item = Item(item)
+
         if item.id == 6:
             return int(round(item.get_shop_price() * (1 + 0.2 * self.nhouses ** 2)))
+        
         return item.get_shop_price()
 
-    def collect_rent(self):
+    def collect_rent(self) -> tuple[int, td]:
         """collect player's rent"""
-        nohouses = self.amount_in_inventory(6)
-        lcr = dt.fromtimestamp(Player._playerdata[self.idstr]["lcr"], tz=tz.utc)
+
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT n_houses, last_collected_rent, "\
+            "rent_time_increase, rent_multiplier FROM player_data "\
+            f"WHERE user_id = {self.user_id} AND guild_id = {self.guild_id}")
+        n_houses, lcr, rti, rm = cursor.fetchone()
+
+        lcr = dt.fromtimestamp(lcr, tz=tz.utc)
         now = dt.now(tz=tz.utc)
         tpassed = now - lcr
-        rc = Player._playerdata[self.idstr]["tech"]["rc"]
-        rm = min(Player._playerdata[self.idstr]["tech"]["rm"], 5)
-        daily_rent = int(nohouses * DAILY_RENT * 2 ** (rm / 5))
+
+        rm = min(rm, 5) # no more than 5
+
+        daily_rent = int(n_houses * DAILY_RENT * 2 ** (rm / 5))
         tincrement = td(seconds=86400 / daily_rent)
         increments_passed = int(floor(tpassed / tincrement))
         new_lcr = lcr + increments_passed * tincrement
-        rent_to_collect = min(daily_rent * (1 + rc), increments_passed)
-        self.give_coins(rent_to_collect)
-        Player._playerdata[self.idstr]["lcr"] = new_lcr.timestamp()
+        rent_to_collect = min(daily_rent * (1 + rti), increments_passed)
+        if rent_to_collect == 0:
+            conn.close()
+            return 0, td()
+
+        cursor.execute(f"UPDATE player_data SET balance = balance + {rent_to_collect}, "\
+            f"last_collected_rent = {new_lcr.timestamp()} "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        
         # print(nohouses, lcr.isoformat(), now.isoformat())
         # print(tpassed.total_seconds(), tincrement.total_seconds(), increments_passed)
         # print(new_lcr.isoformat(), rent_to_collect, min(td(days=1), new_lcr-lcr).total_seconds())
-        return rent_to_collect, min(td(days=1 + rc), new_lcr - lcr)
+
+        conn.commit()
+        conn.close()
+
+        return rent_to_collect, min(td(days=1 + rti), new_lcr - lcr)
 
     def reset_lcr(self):
         """reset player's last collected rent timestamp"""
-        Player._playerdata[self.idstr]["lcr"] = dt.now(tz=tz.utc).timestamp()
+        db_query(f"UPDATE player_data SET "\
+            f"last_collected_rent = {dt.now(tz=tz.utc).timestamp()} "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
 
     @staticmethod
-    def get_all_players():
-        """get list of players"""
-        players = []
-        for key in Player._playerdata.keys():
-            players.append(Player(discord.Object(id=int(key))))
-        return players
+    def get_total_in_circulation(guild_id:Optional[int]=None):
+        """get total number of coins in circulation"""
+        if guild_id is None:
+            rows = db_query(f"SELECT balance, bank_bal FROM player_data")
+        else:
+            rows = db_query(f"SELECT balance, bank_bal FROM player_data "\
+                f"WHERE guild_id = {guild_id}")
+        total = sum([sum(row) for row in rows])
+        return total
 
     def get_fishing_luck(self):
         """get player's fishing luck (0-999)"""
         raw = random.random()
-        bl = Player._playerdata[self.idstr]["tech"]["bl"]
-        fl = Player._playerdata[self.idstr]["tech"]["fl"]
+        ret = db_query(f"SELECT base_luck, fishing_luck FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        bl, fl = ret[0]
         adj = raw ** (0.95 ** bl * 0.9 ** fl)
         return floor(adj * 1000)
 
     def get_working_luck(self):
         """get player's working luck (0-99)"""
         raw = random.random()
-        bl = Player._playerdata[self.idstr]["tech"]["bl"]
-        wl = Player._playerdata[self.idstr]["tech"]["wl"]
+        ret = db_query(f"SELECT base_luck, work_luck FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        bl, wl = ret[0]
         adj = raw ** (0.95 ** bl * 0.9 ** wl)
         return floor(adj * 100)
 
     def get_work_multiplier(self):
         """get player's work earnings multiplier"""
-        we = Player._playerdata[self.idstr]["tech"]["we"]
-        return min(work_multiplier(we), 10)
+        ret = db_query(f"SELECT work_multiplier FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        wm = work_multiplier(ret[0])
+        return min(wm, 10)
 
     def get_robbing_luck(self):
         """get player's working luck (0-99)"""
         raw = random.random()
-        bl = Player._playerdata[self.idstr]["tech"]["bl"]
-        rl = Player._playerdata[self.idstr]["tech"]["rl"]
+        ret = db_query(f"SELECT base_luck, rob_luck FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        bl, rl = ret[0]
         adj = raw ** (0.95 ** bl * 0.9 ** rl)
         return floor(adj * 100)
 
     def get_shopitem_saleprice(self, item: Item | int):
         """get sale price of shop item"""
+
         if isinstance(item, int):
             item = Item(item)
+
         if item.id == 6:
             nohouses = self.amount_in_inventory(item) - 1
             raw = int(item.get_shop_price() * (1 + 0.2 * nohouses ** 2))
         else:
             raw = item.get_shop_price()
-        spi = Player._playerdata[self.idstr]["tech"]["spi"]
-        saleprice = min(raw * shopitem_saleprice_multiplier(spi), raw)  # linear increase to 100%
+
+        ret = db_query(f"SELECT shop_sale_increase FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        ssi = ret[0][0]
+
+        saleprice = min(raw * shopitem_saleprice_multiplier(ssi), raw)  # linear increase to 100%
+
         return saleprice
 
     def get_fish_saleprice(self, fish: Item | int):
         """get fish sale price"""
+
         if isinstance(fish, int):
             fish = Item(fish)
-        fpi = Player._playerdata[self.idstr]["tech"]["fpi"]
+
+        ret = db_query(f"SELECT fish_sale_increase FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        fsi = ret[0][0]
+
         base_fishprice = fish.get_sale_price()
-        return min(base_fishprice * fish_saleprice_multiplier(fpi), base_fishprice * 10)
+
+        return min(base_fishprice * fish_saleprice_multiplier(fsi), base_fishprice * 10)
 
     def get_fishing_rod_limit(self):
         """get player's fishing rod limit"""
-        frl = Player._playerdata[self.idstr]["tech"]["frl"]
-        return min(3 + frl, 10)
+
+        ret = db_query(f"SELECT rod_limit_increase FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        rli = ret[0][0]
+
+        return min(3 + rli, 10)
 
     def get_research_queue(self):
         """get player's research queuea"""
-        return Player._playerdata[self.idstr]["tech"]["in progress"]
+
+        ret = db_query(f"SELECT in_progress_id, in_progress_ts FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+
+        return ret[0]
 
     def get_current_level(self, techid: str):
         """get player's current level of given tech"""
-        return Player._playerdata[self.idstr]["tech"][techid]
+
+        ret = db_query(f"SELECT {techid} FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        return ret[0][0]
 
     def get_research_data(self):
         """get player's research data"""
-        return Player._playerdata[self.idstr]["tech"]
+
+        ret = db_query(f"""SELECT base_luck,
+            fishing_luck,
+            work_luck,
+            work_multiplier,
+            rob_luck,
+            shop_sale_increase,
+            fish_sale_increase,
+            rod_limit_increase,
+            rent_time_increase,
+            rent_multiplier,
+            in_progress_id,
+            in_progress_ts FROM player_data 
+            WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}""")
+        return ret[0]
 
     def remove_all_data(self):
         """Removes all data for a player."""
 
-        del Player._playerdata[self.idstr]
-
-    @staticmethod
-    def remove_player_data(idstr:str):
-        """Removes all data for the given player ID"""
-        if idstr not in Player._playerdata.keys():
-            raise PlayerNotFound()
-        del Player._playerdata[idstr]
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
+        cursor.execute(f"DELETE FROM inventories WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        cursor.execute(f"DELETE FROM player_data WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        conn.commit()
+        conn.close()
 
     def begin_research(self, techid: str):
         """begin given research"""
 
-        queue = self.get_research_queue()
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute(f"SELECT in_progress_id, in_progress_ts, {techid}, balance, bank_bal FROM player_data "\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+        
+        ret = cursor.fetchone()
+        queue = ret[0:2]
+        currentlevel = ret[2]
+        cur_bal = ret[3]+ret[4]
+        
         if queue[1] is not None:
+            conn.close()
             raise ResearchQueueFull()
 
-        currentlevel = self.get_current_level(techid)
-        tech = RESEARCH_CONFIG[techid]
-        for prereq, i in tech["prereqs"][currentlevel].items():
-            if self.get_current_level(prereq) < i:
-                raise MissingPrerequisites()
+        cursor
 
-        if self.get_whole_balance() < tech["costs"][currentlevel]:
+        if cur_bal < tech["costs"][currentlevel]:
+            conn.close()
             raise NotEnoughCoins()
+
+        tech = Player.RESEARCH_CONFIG[techid]
+
+        # check prerequisites
+        for prereq, i in tech["prereqs"][currentlevel].items():
+
+            cursor.execute(f"SELECT {prereq} FROM player_data "\
+                f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+            prereq_level = cursor.fetchone()[0]
+
+            if prereq_level < i:
+                conn.close()
+                raise MissingPrerequisites()
 
         # Checks passed, begin Research
         now = time.time()
         done = now + tech["time"][currentlevel] * 3600
+        
         self.take_coins(tech["costs"][currentlevel], True)
-        Player._playerdata[self.idstr]["tech"]["in progress"] = [techid, done]
+
+        cursor.execute(f'UPDATE player_data SET in_progress_id = "{techid}", in_progress_ts = {done} '\
+            f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
+
+        conn.commit()
+        conn.close()
 
     @staticmethod
     def update_all_research_queues():
+
         now = time.time()
-        for playerkey in Player._playerdata.keys():
-            inprogress = Player._playerdata[playerkey]["tech"]["in progress"]
-            if inprogress[1] is not None:
-                if now >= inprogress[1]:
-                    # if a queue is done, add level and empty queue
-                    Player._playerdata[playerkey]["tech"][inprogress[0]] += 1
-                    Player._playerdata[playerkey]["tech"]["in progress"] = [None, None]
+
+        all_tech_queues = db_query("SELECT user_id, guild_id, in_progress_id, "\
+            "in_progress_ts FROM player_data WHERE in_progress_id != NULL")
+        
+        for row in all_tech_queues:
+            if now >= row[3]:
+                # if a queue is done, add level and empty queue
+                db_query("UPDATE player_data SET in_progress_ts = NULL, "\
+                    f"in_progress_id = NULL, {row[2]} = {row[2]} + 1 "\
+                    f"WHERE user_id = {row[0]} AND guild_id = {row[1]}")
 
     def force_end_queue(self):
         """forcibly finish current research"""
-        queue = self.get_research_queue()
+
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT in_progress_id, in_progress_ts FROM "\
+            f"player_data WHERE guild_id = {self.guild_id} "\
+            f"AND user_id = {self.user_id}")
+
+        queue = cursor.fetchone()
+
         if queue[1] is None:
+            conn.close()
             return
 
-        Player._playerdata[self.idstr]["tech"][queue[0]] += 1
-        Player._playerdata[self.idstr]["tech"]["in progress"] = [None, None]
+        cursor.execute("UPDATE player_data SET in_progress_ts = NULL, "\
+                    f"in_progress_id = NULL, {queue[0]} = {queue[0]} + 1 "\
+                    f"WHERE user_id = {self.user_id} AND guild_id = {self.guild_id}")
 
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def raw_query(query:str):
+
+        conn = sqlite3.connect(Player.DATABASE_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute(query)
+
+        ret = cursor.fetchall()
+
+        conn.commit()
+        conn.close()
+
+        return ret
+
+
+def db_query(query):
+
+    """For simple, single-line queries"""
+
+    conn = sqlite3.connect(Player.DATABASE_PATH)
+    cursor = conn.cursor()
+    cursor.execute(query)
+    ret = cursor.fetchall()
+    conn.commit()
+    conn.close()
+
+    return ret
 
 def work_multiplier(we):
     return 10 ** (we / 6)
 
-
 def shopitem_saleprice_multiplier(spi):
     return 0.75 + spi / 16
-
 
 def fish_saleprice_multiplier(fpi):
     return 10 ** (0.1 * fpi)
 
-
 def main():
-    print(RESEARCH_CONFIG)
-
+    pass
 
 if __name__ == "__main__":
     main()

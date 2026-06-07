@@ -9,7 +9,7 @@ dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(dir_path, "base"))
 
 from extra_exceptions import *
-from player import Player, RESEARCH_CONFIG
+from player import Player
 
 
 async def setup(bot):

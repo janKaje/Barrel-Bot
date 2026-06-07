@@ -1,0 +1,372 @@
+{
+    "base_luck": {
+        "name": "Base luck increase",
+        "costs": [
+            5000,
+            10000,
+            15000,
+            20000,
+            30000
+        ],
+        "time": [
+            12,
+            24,
+            36,
+            48,
+            72
+        ],
+        "prereqs": [
+            {},
+            {
+                "base_luck": 1
+            },
+            {
+                "base_luck": 2
+            },
+            {
+                "base_luck": 3
+            },
+            {
+                "base_luck": 4
+            }
+        ]
+    },
+    "fishing_luck": {
+        "name": "Fishing luck increase",
+        "costs": [
+            10000,
+            20000,
+            30000,
+            50000,
+            70000
+        ],
+        "time": [
+            24,
+            48,
+            72,
+            96,
+            120
+        ],
+        "prereqs": [
+            {
+                "base_luck": 5
+            },
+            {
+                "fishing_luck": 1
+            },
+            {
+                "fishing_luck": 2
+            },
+            {
+                "fishing_luck": 3
+            },
+            {
+                "fishing_luck": 4
+            }
+        ]
+    },
+    "work_luck": {
+        "name": "Working luck increase",
+        "costs": [
+            10000,
+            20000,
+            30000,
+            40000,
+            50000
+        ],
+        "time": [
+            24,
+            48,
+            72,
+            96,
+            120
+        ],
+        "prereqs": [
+            {
+                "base_luck": 5
+            },
+            {
+                "work_luck": 1
+            },
+            {
+                "work_luck": 2
+            },
+            {
+                "work_luck": 3
+            },
+            {
+                "work_luck": 4
+            }
+        ]
+    },
+    "work_multiplier": {
+        "name": "Work earnings increase",
+        "costs": [
+            10000,
+            15000,
+            20000,
+            30000,
+            40000
+        ],
+        "time": [
+            48,
+            72,
+            96,
+            120,
+            168
+        ],
+        "prereqs": [
+            {
+                "work_luck": 2
+            },
+            {
+                "work_multiplier": 1
+            },
+            {
+                "work_multiplier": 2
+            },
+            {
+                "work_multiplier": 3
+            },
+            {
+                "work_multiplier": 4
+            }
+        ]
+    },
+    "rob_luck": {
+        "name": "Robbery luck increase",
+        "costs": [
+            10000,
+            30000,
+            50000,
+            70000,
+            100000
+        ],
+        "time": [
+            24,
+            48,
+            72,
+            96,
+            120
+        ],
+        "prereqs": [
+            {
+                "base_luck": 5
+            },
+            {
+                "rob_luck": 1
+            },
+            {
+                "rob_luck": 2
+            },
+            {
+                "rob_luck": 3
+            },
+            {
+                "rob_luck": 4
+            }
+        ]
+    },
+    "shop_sale_increase": {
+        "name": "Shop item sale price increase",
+        "costs": [
+            2000,
+            3000,
+            5000,
+            7500
+        ],
+        "time": [
+            12,
+            24,
+            36,
+            60
+        ],
+        "prereqs": [
+            {},
+            {
+                "shop_sale_increase": 1
+            },
+            {
+                "shop_sale_increase": 2
+            },
+            {
+                "shop_sale_increase": 3
+            }
+        ]
+    },
+    "fish_sale_increase": {
+        "name": "Fish sale price increase",
+        "costs": [
+            20000,
+            40000,
+            60000,
+            100000,
+            130000,
+            160000,
+            200000,
+            250000,
+            300000,
+            350000
+        ],
+        "time": [
+            48,
+            60,
+            72,
+            84,
+            96,
+            120,
+            144,
+            168,
+            240,
+            336
+        ],
+        "prereqs": [
+            {
+                "shop_sale_increase": 2
+            },
+            {
+                "fish_sale_increase": 1
+            },
+            {
+                "fish_sale_increase": 2
+            },
+            {
+                "fish_sale_increase": 3
+            },
+            {
+                "fish_sale_increase": 4
+            },
+            {
+                "fish_sale_increase": 5
+            },
+            {
+                "fish_sale_increase": 6
+            },
+            {
+                "fish_sale_increase": 7
+            },
+            {
+                "fish_sale_increase": 8
+            },
+            {
+                "fish_sale_increase": 9
+            }
+        ]
+    },
+    "rod_limit_increase": {
+        "name": "Fishing rod limit increase",
+        "costs": [
+            50000,
+            100000,
+            150000,
+            200000,
+            300000,
+            400000,
+            500000
+        ],
+        "time": [
+            72,
+            96,
+            120,
+            144,
+            240,
+            336,
+            504
+        ],
+        "prereqs": [
+            {
+                "fish_sale_increase": 5,
+                "fishing_luck": 2
+            },
+            {
+                "rod_limit_increase": 1
+            },
+            {
+                "rod_limit_increase": 2
+            },
+            {
+                "rod_limit_increase": 3
+            },
+            {
+                "rod_limit_increase": 4
+            },
+            {
+                "rod_limit_increase": 5
+            },
+            {
+                "rod_limit_increase": 6
+            }
+        ]
+    },
+    "rent_time_increase": {
+        "name": "Rent collection time limit increase",
+        "costs": [
+            5000,
+            10000,
+            15000,
+            20000,
+            25000,
+            30000
+        ],
+        "time": [
+            12,
+            24,
+            36,
+            48,
+            72,
+            96
+        ],
+        "prereqs": [
+            {},
+            {
+                "rent_time_increase": 1
+            },
+            {
+                "rent_time_increase": 2
+            },
+            {
+                "rent_time_increase": 3
+            },
+            {
+                "rent_time_increase": 4
+            },
+            {
+                "rent_time_increase": 5
+            }
+        ]
+    },
+    "rent_multiplier": {
+        "name": "Rent multiplier",
+        "costs": [
+            50000,
+            100000,
+            200000,
+            300000,
+            400000
+        ],
+        "time": [
+            72,
+            120,
+            144,
+            240,
+            336
+        ],
+        "prereqs": [
+            {
+                "rent_time_increase": 4
+            },
+            {
+                "rent_multiplier": 1
+            },
+            {
+                "rent_multiplier": 2
+            },
+            {
+                "rent_multiplier": 3
+            },
+            {
+                "rent_multiplier": 4
+            }
+        ]
+    }
+}
