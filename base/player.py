@@ -29,6 +29,8 @@ DAILY_RENT = 500  # coins/house/day
 # Shop item sale price increase (up to 100%, 4 upgrades)
 #  \__> Fish sale price increase (up to 10x more, 10 upgrades) (from spi no 2)
 #        \__> Fishing rod limit increase (up to 10) (from fpi no 5, requires at least fl no 2 as well)
+#               TO BE ADDED LATER
+#              \__> Chance to catch extra (% chance to keep rolling each time, maxes out at 50%, 6 upgrades)
 # 
 # Rent collection time extension (up to 7 days, 6 upgrades)
 #  \__> Rent multiplier (up to 2x more, 5 upgrades) (from rc no 4)
@@ -255,7 +257,6 @@ class Player:
         # validate inputs
         if isinstance(item, Item):
             item = item.id
-        print(f"check 0 in move_item: {item}, {frm}, {to}")
         if frm not in ['i', 'd'] and to not in ['i', 'd']:
             raise ValueError("invalid arguments. frm and to must be either i or d")
         if frm == to:
@@ -263,9 +264,6 @@ class Player:
 
         conn = sqlite3.connect(Player.DATABASE_PATH)
         cursor = conn.cursor()
-        print("SELECT count FROM inventories WHERE " \
-            f"guild_id = {self.guild_id} AND user_id = {self.user_id} AND " \
-            f'item_id = {item} AND inv_dc = "{frm}"')
 
         # get from count
         cursor.execute("SELECT count FROM inventories WHERE " \
@@ -273,7 +271,6 @@ class Player:
             f'item_id = {item} AND inv_dc = "{frm}"')
 
         ret = cursor.fetchone()
-        print(f"check 1 in move_item")
 
         # none - raise error
         if ret is None:
@@ -290,7 +287,6 @@ class Player:
             cursor.execute("UPDATE inventories SET count = count - 1 "\
                 f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id} "\
                 f'AND item_id = {item} AND inv_dc = "{frm}"')
-        print(f"check 2 in move_item")
 
         # get to count
         cursor.execute("SELECT count FROM inventories WHERE " \
@@ -307,7 +303,6 @@ class Player:
             cursor.execute("UPDATE inventories SET count = count + 1 "\
                 f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id} "\
                 f'AND item_id = {item} AND inv_dc = "{to}"')
-        print(f"check 3 in move_item")
 
         conn.commit()
         conn.close()
@@ -315,7 +310,6 @@ class Player:
     def move_to_display(self, item: Item | int):
         """moves item from inventory to display case"""
 
-        print(f"check in move_to_display")
         self.move_item(item, 'i', 'd')
 
     def move_from_display(self, item: Item | int):
@@ -442,7 +436,7 @@ class Player:
 
         return reductions
 
-    def get_shop_price(self, item: Item | int):
+    def get_shop_price(self, item: Item | int) -> int:
         """get shop price of item"""
 
         if isinstance(item, int):
@@ -452,6 +446,22 @@ class Player:
             return int(round(item.get_shop_price() * (1 + 0.2 * self.nhouses ** 2)))
         
         return item.get_shop_price()
+    
+    def get_sale_price(self, item: Item | int) -> int:
+        """get sale price of item"""
+
+        if isinstance(item, int):
+            item = Item(item)
+
+        try:
+            sale_price = self.get_shopitem_saleprice(item)
+        except ItemNotFound:
+            if item.basetype == "fish":
+                sale_price = self.get_fish_saleprice(item)
+            else:
+                sale_price = item.get_sale_price()
+
+        return int(round(sale_price))
 
     def collect_rent(self) -> tuple[int, td]:
         """collect player's rent"""
@@ -470,7 +480,7 @@ class Player:
 
         rm = min(rm, 5) # no more than 5
 
-        daily_rent = int(n_houses * DAILY_RENT * 2 ** (rm / 5))
+        daily_rent = int(n_houses * DAILY_RENT * rent_multiplier(rm))
         tincrement = td(seconds=86400 / daily_rent)
         increments_passed = int(floor(tpassed / tincrement))
         new_lcr = lcr + increments_passed * tincrement
@@ -531,7 +541,7 @@ class Player:
         """get player's work earnings multiplier"""
         ret = db_query(f"SELECT work_multiplier FROM player_data "\
             f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
-        wm = work_multiplier(ret[0])
+        wm = work_multiplier(ret[0][0])
         return min(wm, 10)
 
     def get_robbing_luck(self):
@@ -549,11 +559,7 @@ class Player:
         if isinstance(item, int):
             item = Item(item)
 
-        if item.id == 6:
-            nohouses = self.amount_in_inventory(item) - 1
-            raw = int(item.get_shop_price() * (1 + 0.2 * nohouses ** 2))
-        else:
-            raw = item.get_shop_price()
+        raw = item.get_shop_price()
 
         ret = db_query(f"SELECT shop_sale_increase FROM player_data "\
             f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
@@ -594,17 +600,40 @@ class Player:
 
         return ret[0]
 
-    def get_current_level(self, techid: str):
+    def get_current_level(self, techid: str) -> int:
         """get player's current level of given tech"""
 
         ret = db_query(f"SELECT {techid} FROM player_data "\
             f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
         return ret[0][0]
+    
+    def get_available_research(self) -> dict[str, int]:
+        """get all research options that are currently available to the player"""
 
-    def get_research_data(self):
+        current_levels = self.get_research_data()
+        available = dict()
+
+        
+        for techid, tech in Player.RESEARCH_CONFIG.items():
+
+            current_level = current_levels[techid]
+
+            if current_level >= len(tech["prereqs"]):
+                continue # completed this branch of the tree
+
+            available[techid] = current_level+1
+            for prereq, i in tech["prereqs"][current_level].items():
+
+                if current_levels[prereq] < i:
+                    del available[techid]
+                    break
+        
+        return available
+
+    def get_research_data(self) -> dict[str, int]:
         """get player's research data"""
 
-        ret = db_query(f"""SELECT base_luck,
+        res = db_query(f"""SELECT base_luck,
             fishing_luck,
             work_luck,
             work_multiplier,
@@ -617,7 +646,21 @@ class Player:
             in_progress_id,
             in_progress_ts FROM player_data 
             WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}""")
-        return ret[0]
+        
+        ret = dict(zip(["base_luck",
+            "fishing_luck",
+            "work_luck",
+            "work_multiplier",
+            "rob_luck",
+            "shop_sale_increase",
+            "fish_sale_increase",
+            "rod_limit_increase",
+            "rent_time_increase",
+            "rent_multiplier",
+            "in_progress_id",
+            "in_progress_ts"], res[0]))
+
+        return ret
 
     def remove_all_data(self):
         """Removes all data for a player."""
@@ -632,28 +675,29 @@ class Player:
     def begin_research(self, techid: str):
         """begin given research"""
 
+        if techid not in Player.RESEARCH_CONFIG.keys():
+            techid = Player.get_tech_from_short_code(techid)
+
         conn = sqlite3.connect(Player.DATABASE_PATH)
         cursor = conn.cursor()
 
-        cursor.execute(f"SELECT in_progress_id, in_progress_ts, {techid}, balance, bank_bal FROM player_data "\
+        cursor.execute(f"SELECT in_progress_id, in_progress_ts, {techid}, balance FROM player_data "\
             f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
         
         ret = cursor.fetchone()
         queue = ret[0:2]
         currentlevel = ret[2]
-        cur_bal = ret[3]+ret[4]
+        cur_bal = ret[3]
         
         if queue[1] is not None:
             conn.close()
             raise ResearchQueueFull()
 
-        cursor
+        tech = Player.RESEARCH_CONFIG[techid]
 
         if cur_bal < tech["costs"][currentlevel]:
             conn.close()
             raise NotEnoughCoins()
-
-        tech = Player.RESEARCH_CONFIG[techid]
 
         # check prerequisites
         for prereq, i in tech["prereqs"][currentlevel].items():
@@ -664,7 +708,8 @@ class Player:
 
             if prereq_level < i:
                 conn.close()
-                raise MissingPrerequisites()
+                raise MissingPrerequisites(f"Missing prerequisites: "
+                    f"{Player.RESEARCH_CONFIG[prereq]['name']} needs to be level {prereq_level}.")
 
         # Checks passed, begin Research
         now = time.time()
@@ -672,7 +717,7 @@ class Player:
         
         self.take_coins(tech["costs"][currentlevel], True)
 
-        cursor.execute(f'UPDATE player_data SET in_progress_id = "{techid}", in_progress_ts = {done} '\
+        cursor.execute(f'UPDATE player_data SET in_progress_id = "{tech["short_code"]}", in_progress_ts = {done} '\
             f"WHERE guild_id = {self.guild_id} AND user_id = {self.user_id}")
 
         conn.commit()
@@ -688,9 +733,10 @@ class Player:
         
         for row in all_tech_queues:
             if now >= row[3]:
+                techid = Player.get_tech_from_short_code(row[2])
                 # if a queue is done, add level and empty queue
                 db_query("UPDATE player_data SET in_progress_ts = NULL, "\
-                    f"in_progress_id = NULL, {row[2]} = {row[2]} + 1 "\
+                    f"in_progress_id = NULL, {techid} = {techid} + 1 "\
                     f"WHERE user_id = {row[0]} AND guild_id = {row[1]}")
 
     def force_end_queue(self):
@@ -709,12 +755,20 @@ class Player:
             conn.close()
             return
 
+        techid = Player.get_tech_from_short_code(queue[0])
         cursor.execute("UPDATE player_data SET in_progress_ts = NULL, "\
-                    f"in_progress_id = NULL, {queue[0]} = {queue[0]} + 1 "\
+                    f"in_progress_id = NULL, {techid} = {techid} + 1 "\
                     f"WHERE user_id = {self.user_id} AND guild_id = {self.guild_id}")
 
         conn.commit()
         conn.close()
+
+    def remove_all_research(self):
+        """reset all research back to zero"""
+
+        db_query("UPDATE player_data SET in_progress_ts = NULL, "\
+            "in_progress_id = NULL, " + ", ".join([f"{id} = 0" for id in Player.RESEARCH_CONFIG.keys()]) + \
+            f" WHERE user_id = {self.user_id} AND guild_id = {self.guild_id}")
 
     @staticmethod
     def raw_query(query:str):
@@ -731,6 +785,12 @@ class Player:
 
         return ret
 
+    @staticmethod
+    def get_tech_from_short_code(short_code:str) -> str:
+        for key, v in Player.RESEARCH_CONFIG.items():
+            if v['short_code'] == short_code:
+                return key
+        raise KeyError(f"Short code {short_code} not found.")
 
 def db_query(query):
 
@@ -746,13 +806,16 @@ def db_query(query):
     return ret
 
 def work_multiplier(we):
-    return 10 ** (we / 6)
+    return 10 ** (we / 5)
 
 def shopitem_saleprice_multiplier(spi):
     return 0.75 + spi / 16
 
 def fish_saleprice_multiplier(fpi):
     return 10 ** (0.1 * fpi)
+
+def rent_multiplier(rm):
+    return 2 ** (rm / 5)
 
 def main():
     pass

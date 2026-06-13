@@ -22,7 +22,7 @@ from checks import Checks
 from extra_exceptions import *
 from item import Item
 from player import Player
-from barrelbot import is_command, time_str
+from misc import is_command, time_str
 
 env.BBGLOBALS.init_globals()
 ED.init_emojis()
@@ -30,6 +30,8 @@ ED.init_emojis()
 async def setup(bot):
     await bot.add_cog(Economy(bot))
 
+# TO DO
+#   switch horserace to use wait_for
 
 with open(dir_path + "/data/trades.json") as file:
     trades = json.load(file)
@@ -97,34 +99,35 @@ class Economy(commands.Cog, name="Economy"):
     @Checks.cooldown(1, 1800, commands.BucketType.member)  # every 30 min
     async def work(self, ctx: commands.Context):
         player = Player(ctx.author)
-        workresult = rand.randint(0, 99)
+        workresult = player.get_working_luck()
         if workresult < 2:
             coinsadd = -min(rand.randint(5, 15), player.whole_balance)
             msg = ctx.author.mention + ", you somehow managed to completely " + \
             "screw up everything at the barrel factory and had to pay " + \
-            str(coinsadd) + ED.BARREL_COIN + " in damages."
+            "{coinsadd}" + ED.BARREL_COIN + " in damages."
         elif workresult < 20:
             coinsadd = rand.randint(10, 15)
             msg = ctx.author.mention + ", you worked hard, but things weren't " + \
-            "in your favor today. You earned " + str(coinsadd) + ED.BARREL_COIN + "."
+            "in your favor today. You earned {coinsadd}" + ED.BARREL_COIN + "."
         elif workresult < 65:
             coinsadd = rand.randint(25, 30)
             msg = ctx.author.mention + ", you had a really normal and boring " + \
-            "day at the barrel factory. You earned " +str(coinsadd) + ED.BARREL_COIN + "."
+            "day at the barrel factory. You earned {coinsadd}" + ED.BARREL_COIN + "."
         elif workresult < 85:
             coinsadd = rand.randint(30, 40)
             msg = ctx.author.mention + ", you made a new friend at work today!" + \
-            " You earned " + str(coinsadd) + ED.BARREL_COIN + "."
+            " You earned {coinsadd}" + ED.BARREL_COIN + "."
         elif workresult < 98:
             coinsadd = rand.randint(40, 50)
             msg = ctx.author.mention + ", you had a tough day but you powered " + \
-            "through it! You earned " + str(coinsadd) + ED.BARREL_COIN + "."
+            "through it! You earned {coinsadd}" + ED.BARREL_COIN + "."
         else:
             coinsadd = rand.randint(50, 75)
             msg = ctx.author.mention + ", you got a raise at work! You earned " + \
-            str(coinsadd) + ED.BARREL_COIN + "."
+            "{coinsadd}" + ED.BARREL_COIN + "."
+        coinsadd = int(round(coinsadd * player.get_work_multiplier()))
         player.give_coins(coinsadd)
-        await self.bot_send(ctx, msg)
+        await self.bot_send(ctx, msg.format(coinsadd=coinsadd))
 
     @commands.command()
     @Checks.in_bb_channel()
@@ -152,6 +155,10 @@ class Economy(commands.Cog, name="Economy"):
                 print(e.with_traceback(None))
                 await self.bot_send(ctx, "check logs")
                 return
+        bal = player.balance
+        bank_bal = player.bank_balance
+        emoji = self.bot.get_emoji(int(re.search(r"(\d+)>", ED.BARREL_COIN).group(1)))
+        embed.set_footer(text=f"Balance: {bal}, In bank: {bank_bal}", icon_url=emoji.url)
         await self.bot_send(ctx, embed=embed)
 
     @commands.command()
@@ -165,7 +172,7 @@ class Economy(commands.Cog, name="Economy"):
             return
         player = Player(ctx.author)
         try:
-            player.give_coins(-player.get_shop_price(item))
+            player.take_coins(player.get_shop_price(item))
             player.add_to_inventory(item)
             await self.bot_send(ctx, item.get_shop_message() + " You now have `" + str(
                 player.amount_in_inventory(item)) + "` of this item.")
@@ -184,9 +191,9 @@ class Economy(commands.Cog, name="Economy"):
         """Cast out your fishing line and see what you get! You can fish once every 10 minutes."""
         player = Player(ctx.author)
         norods = player.amount_in_inventory(1)
-        nocasts = min(norods, 3)
+        nocasts = min(norods, player.get_fishing_rod_limit())
         for _ in range(nocasts):
-            outstr, fishid = fish_()
+            outstr, fishid = fish_(player)
             if fishid != 0:
                 player.add_to_inventory(fishid)
             await self.bot_send(ctx, outstr)
@@ -249,7 +256,7 @@ class Economy(commands.Cog, name="Economy"):
         saleprice = 0
         for fish in fishinv:
             nosold += 1
-            saleprice += fish.get_sale_price()
+            saleprice += player.get_sale_price(fish)
             player.remove_from_inventory(fish)
         player.give_coins(saleprice)
         await self.bot_send(ctx, f"You sold {nosold} fish for a total of {saleprice}{ED.BARREL_COIN}")
@@ -274,7 +281,7 @@ class Economy(commands.Cog, name="Economy"):
         saleprice = 0
         for crate in crateinv:
             nosold += 1
-            saleprice += crate.get_sale_price()
+            saleprice += player.get_sale_price(crate)
             player.remove_from_inventory(crate)
         player.give_coins(saleprice)
         await self.bot_send(ctx, f"You opened {nosold} crates and got a total of {saleprice}{ED.BARREL_COIN}!")
@@ -533,14 +540,17 @@ class Economy(commands.Cog, name="Economy"):
     @commands.command()
     @Checks.in_bb_channel()
     async def sell(self, ctx: commands.Context, itemno: int, quantity: int = 1):
-        """Lets you sell items in your inventory. Items bought from the shop sell for up to 75% of the original
-        price. Input the slot in your inventory that the item is in, and optionally a quantity (default 1)"""
+        """
+        Lets you sell items in your inventory. 
+        Items bought from the shop sell for up to 75% of the original price by default. 
+        Input the slot in your inventory that the item is in, and optionally a quantity (default 1)
+        """
         itemno = abs(int(itemno))
         quantity = abs(int(quantity))
         player = Player(ctx.author)
         item = player.get_item_from_invno(itemno)
         qheld = player.amount_in_inventory(item)
-        resaleprice = item.get_sale_price()
+        resaleprice = player.get_sale_price(item)
         if resaleprice is None:
             await self.bot_send(ctx, "No way to sell this item.")
             return
@@ -564,12 +574,12 @@ class Economy(commands.Cog, name="Economy"):
                 return
             resaleprice = 0
             for item in player.get_inventory():
-                resaleprice += item[0].get_sale_price() * item[1]
+                resaleprice += player.get_sale_price(item[0]) * item[1]
             await self.bot_send(ctx, f"The items in your inventory would sell for {resaleprice}{ED.BARREL_COIN}")
             return
         itemno = abs(int(itemno))
         item = player.get_item_from_invno(itemno)
-        resaleprice = item.get_sale_price()
+        resaleprice = player.get_sale_price(item)
         if resaleprice is None:
             await self.bot_send(ctx, "No way to sell this item.")
             return
@@ -748,7 +758,7 @@ class Economy(commands.Cog, name="Economy"):
         victim_player = Player(victim)
         opponent_has_shield = victim_player.has_in_inventory(3)
         luck_threshold = 90 if opponent_has_shield else 30
-        luck = rand.randint(0, 99)
+        luck = perpetrator.get_robbing_luck()
         richfactor = 1 + victim_player.balance * 0.001
         if luck < 2:
             perpetrator.remove_from_inventory(2)
@@ -1163,7 +1173,7 @@ class Economy(commands.Cog, name="Economy"):
         if message.author.bot:
             return
         if message.content.startswith(is_command(self.bot, message)): # command
-            return
+            return # TO DO: refactor later
         context_key = f"{message.author.id}_{message.channel.id}"
         global horse_races
         if context_key not in horse_races.keys():
@@ -1558,8 +1568,8 @@ async def remove_trade(offeruserid: str | Player, recipuserid: str | Player):
 def get_obj_str(id: int | str):
     return str(Item(int(id))) if isinstance(id, str) else str(id) + ED.BARREL_COIN
 
-def fish_() -> tuple[str, int]:
-    luck = rand.randint(0, 999)
+def fish_(player:Player) -> tuple[str, int]:
+    luck = player.get_fishing_luck()
     if luck == 0:
         outstr = ("You caught some trash. This made you so upset that you threw it back into the ocean while screaming "
                   "intensely. Now everyone around you is looking at you funny, and you're worried you'll get kicked "

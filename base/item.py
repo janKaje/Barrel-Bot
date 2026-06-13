@@ -69,7 +69,7 @@ class Item(object):
            "life of crime isn't kind.",
         3: "You bought a 🛡️! If you didn't have one before, you're now mostly protected against people trying to rob "
            "you.",
-        6: "You bought a 🏠! Being a landlord is so much Fun!"
+        6: "You bought a 🏠! Being a landlord is so much fun!"
     }
 
     _shop_descriptions = {

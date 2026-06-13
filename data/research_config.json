@@ -1,6 +1,9 @@
 {
     "base_luck": {
         "name": "Base luck increase",
+        "info": "Increases your luck when fishing, working, and robbing.",
+        "short_code": "bl",
+        "icon": "assets/icons/bl.png",
         "costs": [
             5000,
             10000,
@@ -33,6 +36,9 @@
     },
     "fishing_luck": {
         "name": "Fishing luck increase",
+        "info": "Increases your luck when fishing.",
+        "short_code": "fl",
+        "icon": "assets/icons/fl.png",
         "costs": [
             10000,
             20000,
@@ -67,6 +73,9 @@
     },
     "work_luck": {
         "name": "Working luck increase",
+        "info": "Increases your luck when working.",
+        "short_code": "wl",
+        "icon": "assets/icons/wl.png",
         "costs": [
             10000,
             20000,
@@ -101,6 +110,9 @@
     },
     "work_multiplier": {
         "name": "Work earnings increase",
+        "info": "Increases the money you make from working. Each upgrade gives a 1.58x multiplier, which equates to 10x at max level.",
+        "short_code": "wm",
+        "icon": "assets/icons/wm.png",
         "costs": [
             10000,
             15000,
@@ -135,6 +147,9 @@
     },
     "rob_luck": {
         "name": "Robbery luck increase",
+        "info": "Increases your luck when robbing. Note that this does not count towards bank robbing.",
+        "short_code": "rl",
+        "icon": "assets/icons/rl.png",
         "costs": [
             10000,
             30000,
@@ -169,6 +184,9 @@
     },
     "shop_sale_increase": {
         "name": "Shop item sale price increase",
+        "info": "Increases the money you get from selling shop items, up to a maximum of 100% of original.",
+        "short_code": "ssi",
+        "icon": "assets/icons/ssi.png",
         "costs": [
             2000,
             3000,
@@ -196,6 +214,9 @@
     },
     "fish_sale_increase": {
         "name": "Fish sale price increase",
+        "info": "Increases the money you make from selling fish. Each upgrade gives a 1.27x multiplier, which equates to 10x at max level.",
+        "short_code": "fsi",
+        "icon": "assets/icons/fsi.png",
         "costs": [
             20000,
             40000,
@@ -255,6 +276,9 @@
     },
     "rod_limit_increase": {
         "name": "Fishing rod limit increase",
+        "info": "Increases the amount of fishing rods you can use at once by one.",
+        "short_code": "rli",
+        "icon": "assets/icons/rli.png",
         "costs": [
             50000,
             100000,
@@ -300,6 +324,9 @@
     },
     "rent_time_increase": {
         "name": "Rent collection time limit increase",
+        "info": "Increases the maximum time that rent can be held before collection by one day.",
+        "short_code": "rti",
+        "icon": "assets/icons/rti.png",
         "costs": [
             5000,
             10000,
@@ -337,6 +364,9 @@
     },
     "rent_multiplier": {
         "name": "Rent multiplier",
+        "info": "Increases the money you make from rent. Each upgrade gives a 1.15x multiplier, which equates to 2x at max level.",
+        "short_code": "rm",
+        "icon": "assets/icons/rm.png",
         "costs": [
             50000,
             100000,

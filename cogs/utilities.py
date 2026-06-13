@@ -86,7 +86,7 @@ class Utilities(commands.Cog, name="Utilities"):
             for cog_name in [
                 'Utilities',
                 'Economy',
-                # 'Research',
+                'Research',
                 'Fun',
                 'Barrel Spam',
                 'Barrel News',
@@ -120,7 +120,7 @@ class Utilities(commands.Cog, name="Utilities"):
         # for when a certain command or cog is specified
         else:
             for cog in self.bot.cogs:
-                if cmd.lower() == cog.lower():
+                if cmd == cog:
                     embed = discord.Embed(title=cog, color=discord.Color.blue(),
                                           description=self.bot.get_cog(cog).__doc__)
                     cog_info = ''

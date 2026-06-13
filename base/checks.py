@@ -4,7 +4,7 @@ from typing import Union, Callable, Any
 from discord.ext.commands import (
     check, 
     Context, 
-    UserConverter, 
+    MemberConverter,
     MissingPermissions, 
     BucketType, 
     Cooldown, 
@@ -17,7 +17,7 @@ from player import Player
 from env import BBGLOBALS
 from guild_config import GUILD_CONFIG as GC
 
-usrconv = UserConverter()
+usrconv = MemberConverter()
 
 
 class Checks:

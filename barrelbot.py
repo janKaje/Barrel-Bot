@@ -3,11 +3,15 @@ import os
 import re
 import sys
 import asyncio
+import datetime as dt
+from sqlite3 import OperationalError
+from shutil import copyfile
 
 from base import env
 from base.emojis import EmojiDefs as ED
 from base.messagetosend import UnsentMessage
 from base.guild_config import GUILD_CONFIG as GC
+from base.misc import is_command, time_str
 
 import discord
 from discord.ext import commands, tasks
@@ -21,33 +25,6 @@ env.BBGLOBALS.init_globals()
 # Debug
 if env.BBGLOBALS.IS_IN_DEV_MODE:
     print("New debugging session started in bot testing server")
-
-
-# Command prefix function
-def is_command(_: commands.Bot, message: discord.Message) -> str:
-    # Allow to match with "bb " or "bb, "
-    if env.BBGLOBALS.IS_IN_DEV_MODE:
-        # !bb as dev-mode command
-        _m = re.match("!?bb,? ", message.content)
-        if _m is not None:
-            return _m.group(0)
-    else:
-        _m = re.match("bb,? ", message.content)
-        if _m is not None:
-            return _m.group(0)
-
-    # Allow to match with direct address
-    m = re.match("(hey |hello |hi )?barrel ?bot[,!.]? +", message.content, flags=re.I)
-    if m is not None:
-        return m.group(0)
-
-    # Allow to match with mention
-    m_ = re.match("<@733514909823926293>[,!.]? +", message.content)
-    if m_ is not None:
-        return m_.group(0)
-
-    # Default
-    return "BarrelBot, "
 
 
 # Initialize intents
@@ -227,43 +204,6 @@ async def on_guild_remove(guild:discord.Guild):
     # delete config
     GC.remove_guild(guild)
 
-# helper function
-def time_str(time):
-    """Takes a float of seconds and turns it into appropriate hours, minutes, and seconds."""
-    st = ""
-
-    if time // 86400 > 1:
-        st += str(time // 86400) + ' days'
-    elif time // 86400 > 0:
-        st += str(time // 86400) + ' day'
-
-    if time % 86400 // 3600 > 0:
-        if time // 86400 > 0:
-            st += ', ' + str(time % 86400 // 3600) + ' hour'
-        else:
-            st += str(time // 3600) + ' hour'
-        if time % 86400 // 3600 > 1 or time // 86400 > 0:
-            st += "s"
-
-    if time % 3600 // 60 > 0 or time % 86400 // 3600 > 0:
-        if time % 86400 // 3600 > 0:
-            st += ', ' + str(time % 3600 // 60) + ' minute'
-        else:
-            st += str(time // 60) + ' minute'
-        if time % 3600 // 60 > 1 or time // 3600 > 0:
-            st += "s"
-
-    if time % 60 > 0 or time % 3600 // 60 > 0:
-        if time % 3600 // 60 > 0 or time // 3600 > 0:
-            st += ', ' + str(time % 60) + ' second'
-        else:
-            st += str(time % 60) + ' second'
-        if time % 60 > 1 or time % 60 == 0:
-            st += "s"
-
-    return st
-
-
 # Bot events
 
 @bot.event
@@ -283,14 +223,15 @@ async def on_ready():
     await load_cog("cogs.fun", "Fun")
     await load_cog("cogs.economy", "Economy")
     await load_cog("cogs.barrelnews", "Barrel News")
-    await load_cog("cogs.chat", "Chatbot")
-    await load_cog("cogs.analytics", "Analytics")
-    # await load_cog("cogs.research", "Research")
+    # await load_cog("cogs.chat", "Chatbot")
+    # await load_cog("cogs.analytics", "Analytics")
+    await load_cog("cogs.research", "Research")
     print("\033[0m")
 
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
 
     sendnextmsg.start()
+    backup_playerdata.start()
 
     global defaultctx
     defaultctx = await bot.get_context(
@@ -311,17 +252,18 @@ async def on_command_error(ctx: commands.Context, error):
                     ctx.message.attachments) != 0:
                 return
     if isinstance(error, commands.MissingRequiredArgument):
-        await bot_send(ctx, 'You\'re missing a required argument: ' + str(error.param))
+        await bot_send(ctx, 'You\'re missing a required argument: ' + error.param.name + \
+                       ' - Take a look at the command\'s help text with `bb help <command>`')
     elif isinstance(error, commands.TooManyArguments):
-        await bot_send(ctx, 'You input too many arguments.')
+        await bot_send(ctx, 'You input too many arguments. '+ \
+                       ' - Take a look at the command\'s help text with `bb help <command>`')
     elif isinstance(error, commands.NotOwner):
         await bot_send(ctx, 'You have to be the owner to excute this command.')
     elif isinstance(error, commands.MissingPermissions):
         await bot_send(ctx, "You don't have the right permissions to execute that command.")
     elif isinstance(error, commands.BotMissingPermissions):
         try:
-            await bot_send(ctx,
-                           'The bot is missing the required permissions to invoke this command: ' + str(
+            await ctx.send('The bot is missing the required permissions to invoke this command: ' + str(
                                error.missing_permissions))
         except commands.CommandInvokeError:
             await ctx.author.send(
@@ -335,7 +277,8 @@ async def on_command_error(ctx: commands.Context, error):
     elif isinstance(error, NotAbleTo):
         await bot_send(ctx, str(error))
     elif isinstance(error, commands.BadArgument):
-        await bot_send(ctx, str(error))
+        await bot_send(ctx, f"The command arguments need to be in a different format. "+\
+            "Take a look at the command\'s help text with `bb help <command>`")
     elif isinstance(error, commands.CommandInvokeError):
         await bot_send(ctx, str(error))
     elif isinstance(error, PlayerNotFound):
@@ -348,6 +291,8 @@ async def on_command_error(ctx: commands.Context, error):
         await msg.delete(delay=5)
     elif isinstance(error, commands.CheckFailure):
         pass
+    elif isinstance(error, OperationalError):
+        await bot_send(ctx, f"Well that REALLY isn't supposed to happen.\n<@474349369274007552>\n{error.with_traceback(None)}\n{sys.exc_info()}")
     else:
         await bot_send(ctx, f'An unknown error occurred:\n{type(error)}\n{error.with_traceback(None)}')
 
@@ -358,6 +303,10 @@ async def on_error(event, *args, **kwargs):
         tosend = bot.get_channel(733508144617226302) # bot testing general chat
     else:
         tosend = bot.get_user(474349369274007552) # jan Kaje's DMs
+    if event == "on_ready":
+        error_info = sys.exc_info()
+        if isinstance(error_info[1], RuntimeError):
+            return
     await tosend.send(f'There was an error on {event}:\n{args}\n{kwargs}\n'
                       f'Error message:\n{sys.exc_info()}')
 
@@ -402,6 +351,7 @@ async def run_raw_code(ctx: commands.Context, *, code: str):
     except Exception as e:
         await bot_send(ctx, f"Something went wrong:\n{e.with_traceback(None)}")
 
+# Bot tasks
 
 # Global safe-message send function
 async def bot_send(ctx: commands.Context, content: str = None, embed: discord.Embed = None, file: discord.File = None):
@@ -418,6 +368,11 @@ async def sendnextmsg():
     except Exception as e:
         print(e)
         await message.ctx.send(str(e))
+
+
+@tasks.loop(time = dt.time(hour=0, tzinfo=dt.timezone.utc))
+async def backup_playerdata():
+    copyfile(r"data\player_data.db", r"data\player_data.db.bak")
 
 
 # Run the bot
