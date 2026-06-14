@@ -121,9 +121,10 @@ class Research(commands.Cog, name="Research"):
         
             queue = player.get_research_queue()
             if queue[0] is not None:
-                embed.description += ", but your queue is currently full."
-            else:
-                embed.description += "."
+                embed.description += ", but your queue is currently full"
+            
+            embed.description += ".\nUse `bb research_shop <code>` to see "+\
+                "details, or `bb research <code>` to begin research."
 
             for techid, level in available.items():
                 tech = Player.RESEARCH_CONFIG[techid]

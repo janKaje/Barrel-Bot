@@ -729,7 +729,7 @@ class Player:
         now = time.time()
 
         all_tech_queues = db_query("SELECT user_id, guild_id, in_progress_id, "\
-            "in_progress_ts FROM player_data WHERE in_progress_id != NULL")
+            "in_progress_ts FROM player_data WHERE in_progress_id IS NOT NULL")
         
         for row in all_tech_queues:
             if now >= row[3]:

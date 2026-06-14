@@ -223,8 +223,8 @@ async def on_ready():
     await load_cog("cogs.fun", "Fun")
     await load_cog("cogs.economy", "Economy")
     await load_cog("cogs.barrelnews", "Barrel News")
-    # await load_cog("cogs.chat", "Chatbot")
-    # await load_cog("cogs.analytics", "Analytics")
+    await load_cog("cogs.chat", "Chatbot")
+    await load_cog("cogs.analytics", "Analytics")
     await load_cog("cogs.research", "Research")
     print("\033[0m")
 
