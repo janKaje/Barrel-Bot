@@ -24,10 +24,6 @@ from player import (
 from checks import Checks
 from emojis import EmojiDefs as ED
 
-# TO DO
-# make pretty interfaces
-#   view current tech, with multipliers/increases
-#   
 
 async def setup(bot):
     await bot.add_cog(Research(bot))

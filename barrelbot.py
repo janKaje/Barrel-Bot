@@ -223,9 +223,11 @@ async def on_ready():
     await load_cog("cogs.fun", "Fun")
     await load_cog("cogs.economy", "Economy")
     await load_cog("cogs.barrelnews", "Barrel News")
-    await load_cog("cogs.chat", "Chatbot")
-    await load_cog("cogs.analytics", "Analytics")
     await load_cog("cogs.research", "Research")
+    if not env.BBGLOBALS.IS_IN_DEV_MODE:
+        # compute-heavy cogs not needed during normal development
+        await load_cog("cogs.chat", "Chatbot")
+        await load_cog("cogs.analytics", "Analytics")
     print("\033[0m")
 
     await bot.change_presence(activity=discord.Game('My name is BarrelBot!'))
@@ -372,7 +374,8 @@ async def sendnextmsg():
 
 @tasks.loop(time = dt.time(hour=0, tzinfo=dt.timezone.utc))
 async def backup_playerdata():
-    copyfile(r"data\player_data.db", r"data\player_data.db.bak")
+    copyfile(os.path.join(dir_path, "data", "player_data.db"), 
+             os.path.join(dir_path, "data", "player_data.db.bak"))
 
 
 # Run the bot
