@@ -65,6 +65,21 @@ class Utilities(commands.Cog, name="Utilities"):
                     if checks:
                         cog_info += f'***{i.name}***  -  '
                         cmds.append(i.name)
+
+                for i in cog.walk_app_commands():
+                    checks = True
+                    for j in i.checks:
+                        try:
+                            if iscoroutinefunction(j):
+                                await j(ctx)
+                            else:
+                                j(ctx)
+                        except discord.app_commands.AppCommandError:
+                            checks = False
+                    if checks:
+                        cog_info += f'***{i.name}***  -  '
+                        cmds.append(i.name)
+
                 for cmd in add:
                     i = self.bot.get_command(cmd)
                     checks = True
@@ -161,8 +176,18 @@ class Utilities(commands.Cog, name="Utilities"):
                     break
             # if the command wasn't found
             if comd == '':
-                await self.bot_send(ctx, 'That command was not found.')
-                return
+                for c in self.bot.tree.walk_commands(guild=ctx.guild):
+                    if c.name == cmd or cmd in c.aliases:  # if search term matches command or any of the aliases
+                        title = c.name  # adds name
+                        comd = c.callback.__doc__  # adds help
+                        # adds parameters
+                        for b in c.parameters:
+                            title += f' <{b.name}>'
+                            comd += f"\n`<{b.name}>` - {b.description}"
+                        break
+                if comd == '':
+                    await self.bot_send(ctx, 'That command was not found.')
+                    return
             helpmsg = discord.Embed(title=title, color=discord.Color.blue(), description=comd)  # creates embed
             # if the command has aliases, add them to the footer
             if not alia == 'Aliases: ':

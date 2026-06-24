@@ -1,4 +1,5 @@
 from discord.ext.commands import CheckFailure
+from discord.app_commands.errors import AppCommandError
 
 
 class NotAbleTo(CheckFailure):
@@ -6,6 +7,10 @@ class NotAbleTo(CheckFailure):
 
 
 class NotInBbChannel(CheckFailure):
+    pass
+
+
+class NotInBbChannelIntc(AppCommandError):
     pass
 
 

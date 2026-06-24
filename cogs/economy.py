@@ -900,7 +900,7 @@ class Economy(commands.Cog, name="Economy"):
                 return False
             if msg.content.startswith(is_command(self.bot, msg)): # command
                 return False
-            return True
+            return msg.author.id == ctx.author.id and msg.channel.id == ctx.channel.id
 
         while strikes < 3:
 

@@ -219,13 +219,13 @@ async def on_ready():
     print("\033[32m")
     # Load cogs
     await load_cog("cogs.utilities", "Utilities")
-    await load_cog("cogs.barrelspam", "Barrel Spam")
     await load_cog("cogs.fun", "Fun")
     await load_cog("cogs.economy", "Economy")
-    await load_cog("cogs.barrelnews", "Barrel News")
     await load_cog("cogs.research", "Research")
     if not env.BBGLOBALS.IS_IN_DEV_MODE:
-        # compute-heavy cogs not needed during normal development
+        # cogs not needed during normal development
+        await load_cog("cogs.barrelnews", "Barrel News")
+        await load_cog("cogs.barrelspam", "Barrel Spam")
         await load_cog("cogs.chat", "Chatbot")
         await load_cog("cogs.analytics", "Analytics")
     print("\033[0m")
@@ -234,6 +234,16 @@ async def on_ready():
 
     sendnextmsg.start()
     backup_playerdata.start()
+    
+    # sync command tree
+    for guild_id in GC.get_all_guilds():
+        guild_bot_visible = bot.get_guild(guild_id)
+        # in case not visible for some reason (dev mode, left guild, etc.)
+        if guild_bot_visible is not None:
+            guild_object = discord.Object(id=guild_id)
+            print(f"\033[32mSyncing application command tree for guild: {guild_bot_visible.name}")
+            bot.tree.copy_global_to(guild=guild_object)
+            await bot.tree.sync(guild=guild_object)
 
     global defaultctx
     defaultctx = await bot.get_context(

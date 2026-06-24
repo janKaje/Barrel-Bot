@@ -96,7 +96,7 @@ class Research(commands.Cog, name="Research"):
         player.remove_all_research()
         await self.bot_send(ctx, "Done!")
 
-    @commands.command()
+    @commands.command(aliases=["rs"])
     @Checks.in_bb_channel()
     async def research_shop(self, ctx: commands.Context, code: str = None):
         """
@@ -196,7 +196,7 @@ class Research(commands.Cog, name="Research"):
         except Exception as e:
             await self.bot_send(ctx, str(e.with_traceback(None)))
 
-    @commands.command()
+    @commands.command(aliases=["rq"])
     @Checks.in_bb_channel()
     async def research_queue(self, ctx: commands.Context):
         """

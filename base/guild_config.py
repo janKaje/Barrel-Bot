@@ -245,4 +245,17 @@ class GUILD_CONFIG:
 
         return [r[0] for r in ret] # flatten
 
-        
+    @staticmethod
+    def get_all_guilds() -> list[int]:
+
+        conn = sqlite3.connect(GUILD_CONFIG.DATABASE_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute(f"SELECT guild_id FROM guild_config")
+
+        ret = cursor.fetchall()
+
+        conn.commit()
+        conn.close()
+
+        return [r[0] for r in ret] # flatten and return

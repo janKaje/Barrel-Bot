@@ -25,8 +25,6 @@ from emojis import EmojiDefs as ED
 #   Yellow fish: 700
 #   Blue fish: 800
 #   Shark: 900
-# Pets:
-#   10000s
 
 class Item(object):
     _basetypes = {

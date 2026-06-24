@@ -1,6 +1,8 @@
 import re
 from typing import Union, Callable, Any
 
+from discord import Interaction
+from discord.app_commands.commands import check as check_intc
 from discord.ext.commands import (
     check, 
     Context, 
@@ -69,6 +71,14 @@ class Checks:
                 raise NotInBbChannel("This command can't be used here")
             return True
         return check(predicate)
+
+    @staticmethod
+    def in_bb_channel_intc():
+        def predicate(intc: Interaction):
+            if not GC.is_bb_channel(intc.channel):
+                raise NotInBbChannelIntc("This command can't be used here")
+            return True
+        return check_intc(predicate)
 
     @staticmethod
     def is_bb_dev():
