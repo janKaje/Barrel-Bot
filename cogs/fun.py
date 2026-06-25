@@ -342,7 +342,7 @@ class Fun(commands.Cog, name="Fun"):
             channel = self.bot.get_channel(ch)
 
             # get image
-            img = await self.get_barreldle_daily_img(as_list, channel)
+            img = await self.get_barreldle_daily_img(as_list, channel, prev=True)
 
             # add image to embed
             image = discord.File(img, filename="barreldle.png")
@@ -375,7 +375,7 @@ class Fun(commands.Cog, name="Fun"):
 
         Fun.barreldle_scores = dict()
 
-    @tasks.loop(minutes=10)
+    @tasks.loop(minutes=2)
     async def intermittent_show_barreldles(self):
         # every 10 minutes, show how barreldle is going
         for user_id, score in Fun.barreldle_scores.items():
@@ -416,7 +416,7 @@ class Fun(commands.Cog, name="Fun"):
     async def test_daily(self, ctx: commands.Context):
         await self.daily_barreldle_reset()
 
-    async def get_barreldle_daily_img(self, scores:list[dict], channel:discord.abc.GuildChannel) -> BytesIO:
+    async def get_barreldle_daily_img(self, scores:list[dict], channel:discord.abc.GuildChannel, prev:bool=False) -> BytesIO:
 
         cols = min(4, len(scores))
         rows = math.ceil(len(scores)/4)
@@ -439,7 +439,7 @@ class Fun(commands.Cog, name="Fun"):
         avatar_images = [Image.open(i) for i in avatar_images]
 
         # collect barreldle images
-        ind_images = [get_barreldle_img(score["guesses"], False, True) for score in scores]
+        ind_images = [get_barreldle_img(score["guesses"], False, True, prev) for score in scores]
         isize = ind_images[0].size
         asize = int(isize[0] * 0.6)
         sizediff = isize[0]-asize
@@ -500,11 +500,14 @@ def get_randint() -> int:
     return math.ceil(default_rng().exponential(40))
 
 
-def get_barreldle_word() -> str:
+def get_barreldle_word(prev:bool=False) -> str:
     """Picks the random word for today's barreldle"""
     today = today_utc()
     r = rand.getstate()
-    rand.seed(today.toordinal())
+    if prev:
+        rand.seed(today.toordinal()-1)
+    else:
+        rand.seed(today.toordinal())
     if rand.random() < 0.90:
         ret = "BARREL"
     else:
@@ -512,9 +515,9 @@ def get_barreldle_word() -> str:
     rand.setstate(r)
     return ret
 
-def get_barreldle_img(guesses:list[str], show_letters:bool, as_python:bool=False) -> BytesIO|Image.Image:
+def get_barreldle_img(guesses:list[str], show_letters:bool, as_python:bool=False, prev:bool=False) -> BytesIO|Image.Image:
     """Generates the barreldle image"""
-    soln = get_barreldle_word()
+    soln = get_barreldle_word(prev)
 
     sqsize = 50
     borderwidth = 2
