@@ -8,7 +8,7 @@ import re
 import asyncio
 import sys
 from typing import Optional
-from datetime import date, time, timezone as tz, datetime as dt
+from datetime import time, timezone as tz
 from PIL import Image, ImageDraw
 
 import discord
@@ -23,6 +23,7 @@ from checks import Checks
 from env import BBGLOBALS
 from extra_exceptions import NotInBbChannelIntc
 from guild_config import GUILD_CONFIG as GC
+from misc import today_utc, obfuscate
 
 MAX_BARRELDLE_GUESSES = 6
 
@@ -36,19 +37,19 @@ async def temp_bot_send(ctx: commands.Context, content: str = None, embed: disco
     pass
 
 
-with open(os.path.join(dir_path, "data", "customratings.json")) as file:
+with open(os.path.join(dir_path, "config", "customratings.json")) as file:
     customratings = json.load(file)
 
 with open(os.path.join(dir_path, "data", "randomnumberscores.json")) as file:
     randomnumberscores = json.load(file)
 
-with open(os.path.join(dir_path, "data", "introductions.json")) as file:
+with open(os.path.join(dir_path, "config", "introductions.json")) as file:
     introductions = json.load(file)
 
-with open(os.path.join(dir_path, "data", "possible_barreldle_words.json")) as file:
+with open(os.path.join(dir_path, "config", "possible_barreldle_words.json")) as file:
     possible_barreldle_words = json.load(file)
 
-with open(os.path.join(dir_path, "data", "allowed_barreldle_words.json")) as file:
+with open(os.path.join(dir_path, "config", "allowed_barreldle_words.json")) as file:
     allowed_barreldle_words = json.load(file)
 
 
@@ -226,6 +227,28 @@ class Fun(commands.Cog, name="Fun"):
     async def cheese(self, ctx: commands.Context):
         await self.bot_send(ctx, "🧀")
     
+    @app_commands.command(
+        name=obfuscate(b'\x144J\x1c\x06\x0c\x03\x01P').decode(),
+        description=obfuscate(b'30O\x1dH\x00\x08\x11QS?7\x08\x0b\x017\n=@\x11<2g\x01*M\x1fKs\t7:\x0b!\x10\x1fEW\x11\x0bhC\x1d]\x04\x1bQ!QU^%\x13@*xZW\n\xd3\xc5\xc9\xcb').decode()
+    )
+    @app_commands.guilds(1397052812269195395)
+    async def _abyss_only(self, intc: discord.Interaction):
+        msg = rand.choice([
+            b'+8O\x1dH\x0e\x0f\x05WS4=\x11J\x06;\x00l\x13\x89\xca\xda\xce', 
+            b"$>I\x1dH\x16\x11\x01QS,<\x00J\x0c1\x10sD\x16;e3V-\\\x12\x0f\x11\x1c*h\x1d!7\x15AW\x04\x08'Y\x10\x18P\x1aZ0B\x1dFnK\x0b", 
+            b"/4]VFWG\x1dL\x06m'\x14U", 
+            b'.qI\x11\x1b\nG\x1dL\x06c|J', 
+            b'.vR\x1dH\x1b\x02\x01MS,r\x06\x0b\x14?\x042WY2+5\x1acM\x18\x0fP\x11e\xb8\xf1\xd5\xda', 
+            b'\x97\xce\xb5\xf1\x98\xe6\xf6\xe8\xd3\xec\xc0\xd4\x86\xe5\xc5aZl', 
+            b'$0JX!Y\x14\x01FS4=\x11J\x011\x0b:T\x11!}'
+        ])
+        imgpaths = os.path.join(dir_path, "assets", "abyss")
+        imgpath = os.path.join(imgpaths, rand.choice(os.listdir(imgpaths)))
+        file = discord.File(imgpath, filename="a.png")
+        emb = discord.Embed(type="image")
+        emb.set_image(url="attachment://a.png")
+        await intc.response.send_message(obfuscate(msg).decode(), embed=emb, file=file)
+
     @app_commands.command()
     @Checks.in_bb_channel_intc()
     @app_commands.describe(guess="Your guess for the word of the day")
@@ -597,10 +620,6 @@ def get_barreldle_img(guesses:list[str], show_letters:bool, as_python:bool=False
         img.show()
 
     return image_stream
-
-def today_utc() -> date:
-    now = dt.now(tz=tz.utc)
-    return now.date()
 
 def main():
     for _ in range(100):

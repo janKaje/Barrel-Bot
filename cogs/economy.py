@@ -133,16 +133,16 @@ class Economy(commands.Cog, name="Economy"):
         if item is None:
             embed.title = "Welcome to the BarrelBot Shop!"
             embed.description = "Type `bb shop <item>` to see more about an item, or `bb buy <item>` to buy it"
-            for i in Item._shop_prices.keys():
+            for i in Item.SHOP_CONFIG.keys():
                 saleitem = Item(i)
-                embed.add_field(name=saleitem.propername, value=f"{player.get_shop_price(saleitem)}{ED.BARREL_COIN}")
+                embed.add_field(name=saleitem.emojiname, value=f"{player.get_shop_price(saleitem)}{ED.BARREL_COIN}")
         else:
             try:
-                item: Item = Item.get_from_string(item)
-                embed.title = item.propername
+                item: Item = Item(item)
+                embed.title = item.emojiname
                 embed.description = (f"Cost: {player.get_shop_price(item)}{ED.BARREL_COIN}\n"
                                      f"{item.get_shop_description()}")
-                embed.set_footer(text=f'Type "bb buy {item.easyalias}" to buy this item')
+                embed.set_footer(text=f'Type "bb buy {item.name}" to buy this item')
             except ItemNotFound:
                 await self.bot_send(ctx, "Item not found.")
                 return
@@ -161,7 +161,7 @@ class Economy(commands.Cog, name="Economy"):
     async def buy(self, ctx: commands.Context, *, item: str):
         """Buy an item from the shop."""
         try:
-            item: Item = Item.get_from_string(item)
+            item: Item = Item(item)
         except ItemNotFound:
             await self.bot_send(ctx, "Item not found.")
             return

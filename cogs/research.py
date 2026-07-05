@@ -34,7 +34,7 @@ async def temp_bot_send(ctx: commands.Context, content: str = None, embed: disco
 class Research(commands.Cog, name="Research"):
     """Research module"""
 
-    with open(os.path.join(dir_path, "data/tech_tree_map.json")) as file:
+    with open(os.path.join(dir_path, "config", "tech_tree_map.json")) as file:
         TECH_TREE_LOCATIONS = json.load(file)
 
     TREE_BACKGROUND_COLOR = (0,0,0,0)

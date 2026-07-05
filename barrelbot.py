@@ -241,7 +241,7 @@ async def on_ready():
         # in case not visible for some reason (dev mode, left guild, etc.)
         if guild_bot_visible is not None:
             guild_object = discord.Object(id=guild_id)
-            print(f"\033[32mSyncing application command tree for guild: {guild_bot_visible.name}")
+            print(f"Syncing application command tree for guild: {guild_bot_visible.name}")
             bot.tree.copy_global_to(guild=guild_object)
             await bot.tree.sync(guild=guild_object)
 

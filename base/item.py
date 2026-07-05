@@ -1,5 +1,8 @@
+import os
+import json
 import math
 from random import randint
+from typing import Any, Optional
 
 from extra_exceptions import ItemNotFound
 from emojis import EmojiDefs as ED
@@ -26,94 +29,96 @@ from emojis import EmojiDefs as ED
 #   Blue fish: 800
 #   Shark: 900
 
-class Item(object):
-    _basetypes = {
-        1: "item",
-        3: "fish"
-    }
+dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    _aliases = {
-        0: ["Item not found."],
-        1: ["🎣 - Fishing Rod", "fishing rod", "fishing pole", "🎣"],
-        2: ["🗡️ - Dagger", "dagger", "🗡️"],
-        3: ["🛡️ - Shield", "shield", "🛡️"],
-        4: [ED.BARREL_EMOJI + " - Barrel Crate", "barrel", "barrel crate", ED.BARREL_EMOJI],
-        5: [ED.HOLY_BARREL_EMOJI + " - Golden Barrel Crate", "golden barrel", "golden barrel crate", "holy barrel",
-            ED.HOLY_BARREL_EMOJI],
-        6: ["🏠 - House", "house", "🏠"],
-        7: ["🍺 - Beer", "beer", "Beer" "🍺"],
+class Item:
 
-        100: ["🦑 - Squid", "squid", "🦑"],
-        200: ["🪼 - Jellyfish", "jellyfish", "🪼"],
-        300: ["🦐 - Shrimp", "shrimp", "🦐"],
-        400: ["🦞 - Lobster", "lobster", "🦞"],
-        500: ["🦀 - Crab", "crab", "🦀"],
-        600: ["🐡 - Blowfish", "blowfish", "🐡"],
-        700: ["🐠 - Yellow Fish", "yellow fish", "🐠"],
-        800: ["🐟 - Blue Fish", "blue fish", "🐟"],
-        900: ["🦈 - Shark", "shark", "🦈"]
-    }
+    with open(os.path.join(dir_path, "config", "item_config.json")) as file:
+        ITEM_CONFIG:dict[dict[str,str|list]] = json.load(file)
+        
+    with open(os.path.join(dir_path, "config", "shop_config.json")) as file:
+        SHOP_CONFIG:dict[dict[str,str|int]] = json.load(file)
 
-    _shop_prices = {
-        1: 100,
-        2: 300,
-        3: 300,
-        6: 3000
-    }
+    def __init__(self, item_id: int|str):
 
-    _shop_messages = {
-        1: "You bought a 🎣! If you didn't have one before, now you can do `bb fish`.",
-        2: "You bought a 🗡️! If you didn't have one before, you can now try to rob people. Be warned, though: the "
-           "life of crime isn't kind.",
-        3: "You bought a 🛡️! If you didn't have one before, you're now mostly protected against people trying to rob "
-           "you.",
-        6: "You bought a 🏠! Being a landlord is so much fun!"
-    }
+        if isinstance(item_id, int):
+            self.id = abs(int(item_id))
+            for key, val in self.ITEM_CONFIG.items():
+                if val["id_range"][0] <= item_id <= val["id_range"][1]:
+                    self.name = key
+                    self.basetype = val["basetype"]
+                    self.emoji = val["emoji"]
+                    self.propername = val["proper_name"]
+                    self.aliases = val["aliases"] + [
+                        self.name, self.emoji, self.propername
+                    ]
+                    break
+        elif item_id in self.ITEM_CONFIG.keys():
+            config = self.ITEM_CONFIG[item_id]
+            self.name = item_id
+            self.basetype = config["basetype"]
+            self.emoji = config["emoji"]
+            self.propername = config["proper_name"]
+            self.aliases = config["aliases"] + [
+                self.name, self.emoji, self.propername
+            ]
+            self.id = config["id_range"][0]
+        else:
+            # try aliases
+            for key, val in self.ITEM_CONFIG.items():
+                if item_id in [key, val["emoji"], val["proper_name"]] + val["aliases"]:
+                    self.name = key
+                    self.basetype = val["basetype"]
+                    self.emoji = val["emoji"]
+                    self.propername = val["proper_name"]
+                    self.aliases = val["aliases"] + [
+                        self.name, self.emoji, self.propername
+                    ]
+                    self.id = val["id_range"][0]
+                    break
+        
+        if getattr(self, "name", None) is None:
+            raise ItemNotFound()
+        
+        self.emojiname = self.emoji + " - " + self.propername
 
-    _shop_descriptions = {
-        1: "Allows you to use the command `fish`. Collect fish to keep as trophies or sell for more " + ED.BARREL_COIN,
-        2: "Allows you to try to rob other people.",
-        3: "Does a good job of blocking you from getting robbed.",
-        6: "Become a landlord and extort your tenants. Buying a house resets your rent timer."
-    }
+        self.shop_price:Optional[int] = None
+        self.shop_msg:Optional[str] = None
+        self.shop_desc:Optional[str] = None
 
-    def __init__(self, item_id: int):
+        if self.name in self.SHOP_CONFIG.keys():
 
-        object.__init__(self)
+            self.shop_price = self.SHOP_CONFIG[self.name]["price"]
+            self.shop_msg = self.SHOP_CONFIG[self.name]["message"]
+            self.shop_desc = self.SHOP_CONFIG[self.name]["description"]
 
-        self.id = abs(int(item_id))
-        self.typeid = int(str(item_id)[0] + "0" * (len(str(item_id)) - 1))
-        try:
-            self.emoji = Item._aliases[self.typeid][-1]
-            self.propername = Item._aliases[self.typeid][0]
-            self.easyalias = Item._aliases[self.typeid][1]
-        except KeyError or ValueError:
-            self.emoji = "❓"
-            self.propername = "Item not found."
-            self.easyalias = "Item not found."
-        try:
-            self.basetype = Item._basetypes[len(str(item_id))]
-        except KeyError:
-            self.basetype = "unknown"
+            emoji_defs = [i for i in dir(ED) if i.upper() == i and isinstance(getattr(ED,i,None), str)] # filter for all-caps
+            for emoj in emoji_defs:
+                self.shop_msg = self.shop_msg.replace(emoj, getattr(ED, emoj))
+                self.shop_desc = self.shop_desc.replace(emoj, getattr(ED, emoj))
+
+        if getattr(ED, self.emoji, None) is not None:
+            self.emoji = getattr(ED, self.emoji)
+        
 
     def get_shop_price(self):
-        if self.id in Item._shop_prices.keys():
-            return Item._shop_prices[self.id]
-        raise ItemNotFound
+        if self.shop_price is None:
+            raise ItemNotFound
+        return self.shop_price
 
     def get_shop_message(self):
-        if self.id in Item._shop_messages.keys():
-            return Item._shop_messages[self.id]
-        raise ItemNotFound
+        if self.shop_msg is None:
+            raise ItemNotFound
+        return self.shop_msg
 
     def get_shop_description(self):
-        if self.id in Item._shop_descriptions.keys():
-            return Item._shop_descriptions[self.id]
-        raise ItemNotFound
+        if self.shop_desc is None:
+            raise ItemNotFound
+        return self.shop_desc
 
     def get_sale_price(self):
-        if self.id in Item._shop_prices.keys():
-            return int(math.floor(Item._shop_prices[self.id] * 0.75))
+        if self.shop_price is not None:
+            return int(math.floor(self.shop_price * 0.75))
 
         if self.id == 4:
             return randint(300, 500)
@@ -153,9 +158,10 @@ class Item(object):
         return None  # not found
 
     def __str__(self):
-        if self.basetype == "item":
-            return self.propername
-        return self.propername + " - " + self._extra_info()
+        extra_info = self._extra_info()
+        if extra_info == "":
+            return self.emojiname
+        return self.emojiname + " - " + extra_info
 
     def _extra_info(self):
         if self.basetype == "fish":
@@ -164,17 +170,6 @@ class Item(object):
 
     def __int__(self):
         return self.id
-
-    def get_from_string(instr: str):
-        for key, val in Item._aliases.items():
-            if instr.lower() in val:
-                return Item(key)
-            if instr.isdecimal():
-                if int(instr) == key:
-                    return Item(key)
-        raise ItemNotFound()
-
-    staticmethod(get_from_string)
 
     def __eq__(self, other):
         if isinstance(other, Item):
@@ -186,17 +181,31 @@ class Item(object):
 
 
 def main():
-    fishingrod = Item(1)
-    print(fishingrod.id, fishingrod.propername, fishingrod.basetype, fishingrod.easyalias, fishingrod.emoji,
-          fishingrod.typeid)
-    print(fishingrod.get_shop_price(), fishingrod.get_sale_price(), fishingrod.get_shop_message(),
-          fishingrod.get_shop_description())
+    to_json = {}
+    for item_id in Item._shop_prices.keys():
+        item = Item(item_id)
+        to_json[item.name] = {
+            "price": Item._shop_prices[item_id],
+            "message": Item._shop_messages[item_id],
+            "description": Item._shop_descriptions[item_id]
+        }
 
-    rareshark = Item(687)
-    print(rareshark.id, rareshark.propername, rareshark.basetype, rareshark.easyalias, rareshark.emoji,
-          rareshark.typeid)
-    print(rareshark.get_sale_price())
-
+    #     all_aliases = item._aliases[item_id]
+    #     try:
+    #         all_aliases.remove(item.propername)
+    #         all_aliases.remove(item.emoji)
+    #         all_aliases.remove(item.easyalias)
+    #     except:
+    #         pass
+    #     to_json[item.easyalias] = {
+    #         "basetype": item.basetype,
+    #         "emoji": item.emoji,
+    #         "proper_name": item.propername[4:],
+    #         "aliases": all_aliases,
+    #         "id_range": [item_id, int(item_id if item_id < 10 else item_id+99)]
+    #     }
+    with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "shop_config.json"), "w") as file:
+        json.dump(to_json, file)
 
 if __name__ == "__main__":
     main()

@@ -39,7 +39,7 @@ class Player:
 
     DATABASE_PATH = os.path.join(dir_path, "data", "player_data.db")
 
-    with open(os.path.join(dir_path, "data", "research_config.json")) as file:
+    with open(os.path.join(dir_path, "config", "research_config.json")) as file:
         RESEARCH_CONFIG = json.load(file)
 
     def __init__(self, member: discord.Member):

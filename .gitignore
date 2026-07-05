@@ -5,16 +5,11 @@ test.*
 notes.txt
 /.vscode
 /.idea
+
 /training_data
+/data
+/assets/abyss
 
 cogs/adventure.py
 cogs/pets.py
 base/pet.py
-data/chatbot.*
-data/analytics.pkl
-data/barrel*
-data/trades.json
-data/playerdata.json
-data/guild_config.*
-data/randomnumberscores.json
-data/player_data.*

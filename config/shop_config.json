@@ -1,0 +1,22 @@
+{
+    "fishing rod": {
+        "price": 100,
+        "message": "You bought a \ud83c\udfa3! If you didn't have one before, now you can do `bb fish`.",
+        "description": "Allows you to use the command `fish`. Collect fish to keep as trophies or sell for more BARREL_COIN"
+    },
+    "dagger": {
+        "price": 300,
+        "message": "You bought a \ud83d\udde1\ufe0f! If you didn't have one before, you can now try to rob people. Be warned, though: the life of crime isn't kind.",
+        "description": "Allows you to try to rob other people."
+    },
+    "shield": {
+        "price": 300,
+        "message": "You bought a \ud83d\udee1\ufe0f! If you didn't have one before, you're now mostly protected against people trying to rob you.",
+        "description": "Does a good job of blocking you from getting robbed."
+    },
+    "house": {
+        "price": 3000,
+        "message": "You bought a \ud83c\udfe0! Being a landlord is so much fun!",
+        "description": "Become a landlord and extort your tenants. Buying a house resets your rent timer."
+    }
+}

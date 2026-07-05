@@ -1,4 +1,6 @@
 import re
+import os
+from datetime import date, timezone as tz, datetime as dt
 
 import discord
 from discord.ext import commands
@@ -72,13 +74,17 @@ def time_str(time):
 
     return outstr
 
+def today_utc() -> date:
+    now = dt.now(tz=tz.utc)
+    return now.date()
+
+def obfuscate(byt:bytes):
+    mask = os.environ["STRING_OBFUSCATION_KEYWORD"].encode()
+    lmask = len(mask)
+    return bytes(c ^ mask[i % lmask] for i, c in enumerate(byt))
+
 def main():
-    print(time_str(48*60*60 + 32*60 + 42))
-    print(time_str(49*60*60 + 32*60 + 42))
-    print(time_str(49*60*60 + 42))
-    print(time_str(24*60*60 + 1*60 + 1))
-    print(time_str(24*60*60 + 1))
-    print(time_str(1))
+    pass
 
 if __name__ == "__main__":
     main()

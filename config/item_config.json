@@ -1,0 +1,179 @@
+{
+    "item not found": {
+        "basetype": "item",
+        "emoji": "\u2753",
+        "proper_name": "Item not found",
+        "aliases": [],
+        "id_range": [
+            0,
+            0
+        ]
+    },
+    "fishing rod": {
+        "basetype": "item",
+        "emoji": "\ud83c\udfa3",
+        "proper_name": "Fishing Rod",
+        "aliases": [
+            "fishing pole"
+        ],
+        "id_range": [
+            1,
+            1
+        ]
+    },
+    "dagger": {
+        "basetype": "item",
+        "emoji": "\ud83d\udde1\ufe0f",
+        "proper_name": "Dagger",
+        "aliases": [],
+        "id_range": [
+            2,
+            2
+        ]
+    },
+    "shield": {
+        "basetype": "item",
+        "emoji": "\ud83d\udee1\ufe0f",
+        "proper_name": "Shield",
+        "aliases": [],
+        "id_range": [
+            3,
+            3
+        ]
+    },
+    "barrel": {
+        "basetype": "item",
+        "emoji": "BARREL_EMOJI",
+        "proper_name": "Barrel Crate",
+        "aliases": [
+            "barrel crate"
+        ],
+        "id_range": [
+            4,
+            4
+        ]
+    },
+    "golden barrel": {
+        "basetype": "item",
+        "emoji": "HOLY_BARREL_EMOJI",
+        "proper_name": "Golden Barrel Crate",
+        "aliases": [
+            "golden barrel crate",
+            "holy barrel"
+        ],
+        "id_range": [
+            5,
+            5
+        ]
+    },
+    "house": {
+        "basetype": "item",
+        "emoji": "\ud83c\udfe0",
+        "proper_name": "House",
+        "aliases": [],
+        "id_range": [
+            6,
+            6
+        ]
+    },
+    "beer": {
+        "basetype": "item",
+        "emoji": "Beer\ud83c\udf7a",
+        "proper_name": "Beer",
+        "aliases": [],
+        "id_range": [
+            7,
+            7
+        ]
+    },
+    "squid": {
+        "basetype": "fish",
+        "emoji": "\ud83e\udd91",
+        "proper_name": "Squid",
+        "aliases": [],
+        "id_range": [
+            100,
+            199
+        ]
+    },
+    "jellyfish": {
+        "basetype": "fish",
+        "emoji": "\ud83e\udebc",
+        "proper_name": "Jellyfish",
+        "aliases": [],
+        "id_range": [
+            200,
+            299
+        ]
+    },
+    "shrimp": {
+        "basetype": "fish",
+        "emoji": "\ud83e\udd90",
+        "proper_name": "Shrimp",
+        "aliases": [],
+        "id_range": [
+            300,
+            399
+        ]
+    },
+    "lobster": {
+        "basetype": "fish",
+        "emoji": "\ud83e\udd9e",
+        "proper_name": "Lobster",
+        "aliases": [],
+        "id_range": [
+            400,
+            499
+        ]
+    },
+    "crab": {
+        "basetype": "fish",
+        "emoji": "\ud83e\udd80",
+        "proper_name": "Crab",
+        "aliases": [],
+        "id_range": [
+            500,
+            599
+        ]
+    },
+    "blowfish": {
+        "basetype": "fish",
+        "emoji": "\ud83d\udc21",
+        "proper_name": "Blowfish",
+        "aliases": [],
+        "id_range": [
+            600,
+            699
+        ]
+    },
+    "yellow fish": {
+        "basetype": "fish",
+        "emoji": "\ud83d\udc20",
+        "proper_name": "Yellow Fish",
+        "aliases": [],
+        "id_range": [
+            700,
+            799
+        ]
+    },
+    "blue fish": {
+        "basetype": "fish",
+        "emoji": "\ud83d\udc1f",
+        "proper_name": "Blue Fish",
+        "aliases": [],
+        "id_range": [
+            800,
+            899
+        ]
+    },
+    "shark": {
+        "basetype": "fish",
+        "emoji": "\ud83e\udd88",
+        "proper_name": "Shark",
+        "aliases": [],
+        "id_range": [
+            900,
+            999
+        ]
+    }
+}
